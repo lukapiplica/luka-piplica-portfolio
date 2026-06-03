@@ -13,17 +13,13 @@ export interface SiteConfig {
   email: string;
   phone?: string;
   address?: {
-    street: string;
+    street?: string; 
     city: string;
-    state: string;
+    state?: string; 
     zip: string;
     country: string;
   };
   socialLinks: string[];
-  twitter?: {
-    site: string;
-    creator: string;
-  };
   verification?: {
     google?: string;
     bing?: string;
@@ -48,11 +44,11 @@ export interface SiteConfig {
       /**
        * Where to render the TOC.
        * - 'inline'  → card at the top of every post (default; preserves
-       *               full reading width on desktop)
+       * full reading width on desktop)
        * - 'sidebar' → sticky sidebar on `xl+` viewports (≥1280px),
-       *               hidden on smaller screens
+       * hidden on smaller screens
        * - 'auto'    → sidebar on `xl+`, inline card below `xl` so phone
-       *               and tablet readers still get the navigation
+       * and tablet readers still get the navigation
        */
       layout?: 'inline' | 'sidebar' | 'auto';
       /**
@@ -120,46 +116,38 @@ export interface SiteConfig {
 }
 
 const siteConfig: SiteConfig = {
-  name: 'Astro Rocket',
+  name: 'Luka Piplica',
   description:
-    'Astro Rocket — A production-ready Astro 6 starter with 12 beautiful themes, 57+ components, built-in i18n, dark mode and a fast, modern foundation to build anything on.',
-  url: SITE_URL || 'https://astrorocket.dev',
-  ogImage: '/og-default.svg',
-  author: 'Hans Martens',
-  email: 'hello@hansmartens.dev',
+    'Personal portfolio and technical blog of Luka Piplica — IT Professional specializing in systems management, network administration, cybersecurity, and web development.',
+  url: SITE_URL || 'https://lukapiplica.xyz', 
+  ogImage: '/og-image.png',
+  author: 'Luka Piplica',
+  email: 'piplicaluka@protonmail.com',
   address: {
-    street: '',
-    city: 'Veghel',
-    state: '',
-    zip: '',
-    country: 'the Netherlands',
+    city: 'Sarajevo',
+    zip: '71000',
+    country: 'Bosnia and Herzegovina',
   },
   socialLinks: [
-    'https://github.com/hansmartens68/Astro-Rocket',
-    'https://x.com/hansmartens_dev',
-    'https://www.linkedin.com',
-    'https://bsky.app/profile/hansmartens-online.bsky.social',
+    'https://github.com/lukapiplica',
+    'https://linkedin.com/in/lukapiplica',
   ],
-  twitter: {
-    site: 'https://x.com/hansmartens_dev',
-    creator: '@hansmartens_dev',
-  },
   verification: {
     google: GOOGLE_SITE_VERIFICATION,
     bing: BING_SITE_VERIFICATION,
   },
-  authorImage: '/avatar.svg',
+  authorImage: '/luka.png',
   blogImageOverlay: true,
   articleFeatures: {
     toc: {
       enabled: true,
       layout: 'auto',
-      sidebarPosition: 'left',
+      sidebarPosition: 'right',
       minHeadings: 3,
       maxDepth: 3,
     },
     comments: {
-      enabled: false,
+      enabled: false, 
       provider: 'giscus',
       giscus: {
         repo: 'owner/repo',
@@ -179,14 +167,14 @@ const siteConfig: SiteConfig = {
   i18n: i18nConfig,
   branding: {
     logo: {
-      alt: 'Astro Rocket',
+      alt: 'Luka Piplica Logo',
       imageUrl: '/favicon.svg',
     },
     favicon: {
       svg: '/favicon.svg',
     },
     colors: {
-      themeColor: '#3b82f6',
+      themeColor: '#3b82f6', 
       backgroundColor: '#ffffff',
     },
   },

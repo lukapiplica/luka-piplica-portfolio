@@ -2,9 +2,12 @@
 interface Props {
   title: string;
   url: string;
+  locale?: string;
 }
 
-const { title, url } = Astro.props;
+const { title, url, locale = 'en' } = Astro.props;
+
+import { t } from '@/i18n';
 
 const encodedTitle = encodeURIComponent(title);
 const encodedUrl = encodeURIComponent(url);
@@ -16,7 +19,7 @@ const shareLinks = {
 ---
 
 <div class="flex items-center gap-4">
-  <span class="text-sm font-medium text-foreground-muted">Share:</span>
+  <span class="text-sm font-medium text-foreground-muted">{t('blog.share', locale)}</span>
 
   <div class="flex items-center gap-2">
     <!-- Twitter/X -->

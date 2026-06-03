@@ -1,10 +1,16 @@
 {
   "nav": {
+    "home": "Home",
+    "blog": "Blog",
+    "projects": "Projects",
+    "about": "About",
+    "contact": "Contact",
     "skipToContent": "Skip to content",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "selectLanguage": "Select language",
-    "currentLanguage": "Current language"
+    "currentLanguage": "Current language",
+    "language": "Language"
   },
   "common": {
     "readMore": "Read more",
@@ -17,8 +23,8 @@
     "previous": "Previous"
   },
   "blog": {
-    "title": "Blog",
-    "description": "Latest articles and updates",
+    "title": "Technical Blog",
+    "description": "Insights, tutorials, and documentation of my journey through technology and systems.",
     "readingTime": "{minutes} min read",
     "publishedOn": "Published on {date}",
     "updatedOn": "Updated on {date}",
@@ -28,43 +34,106 @@
     "draft": "Draft",
     "noPostsFound": "No posts found.",
     "tableOfContents": "Table of contents",
-    "shareThisPost": "Share this post"
+    "shareThisPost": "Share this post",
+    "allPosts": "All posts",
+    "filterLabel": "Filter",
+    "noPostsForTag": "No posts found for this tag",
+    "followAlong": "Follow along",
+    "followDescription": "Stay in the loop — new articles, thoughts, and updates.",
+    "rssFeed": "RSS Feed",
+    "emailLabel": "Email",
+    "backToBlog": "Back to Blog",
+    "relatedPosts": "Related Posts",
+    "badge": "All posts",
+    "share": "Share:",
+    "minRead": "min read",
+    "onThisPage": "On this page",
+    "updated": "Updated"
   },
   "projects": {
     "title": "Projects",
-    "description": "Things I've built",
-    "viewProject": "View project",
-    "viewSource": "View source",
-    "noProjectsFound": "No projects found."
+    "description": "A showcase of my work, from technical experiments to full-scale solutions.",
+    "viewProject": "Check it out",
+    "viewSource": "Source code",
+    "noProjectsFound": "No projects found.",
+    "backToProjects": "Back to projects",
+    "moreProjects": "More projects"
+  },
+  "search": {
+    "placeholder": "Search blogs and projects...",
+    "noResults": "No results found for \"{query}\"",
+    "blogs": "Blogs",
+    "projects": "Projects",
+    "clear": "Clear search",
+    "shortcutNavigate": "Navigate",
+    "shortcutSelect": "Select",
+    "shortcutHint": "Esc to close"
   },
   "pagination": {
     "page": "Page {current} of {total}",
-    "previousPage": "Previous page",
-    "nextPage": "Next page"
+    "previousPage": "Previous",
+    "nextPage": "Next"
   },
   "errors": {
     "pageNotFound": "Page not found",
     "pageNotFoundMessage": "The page you're looking for doesn't exist or has moved.",
-    "goHome": "Go to homepage"
+    "goHome": "Back to home",
+    "404": {
+      "badge": "404 — page not found",
+      "title": "Page not {found}",
+      "found": "found.",
+      "description": "This page has moved, been removed, or never existed in the first place. Let's get you back on track.",
+      "backToHome": "Back to home",
+      "browseBlog": "Browse the blog",
+      "tryInstead": "Try one of these instead",
+      "links": {
+        "projects": {
+          "title": "Projects",
+          "description": "Selected work and case studies."
+        },
+        "blog": {
+          "title": "Blog",
+          "description": "Notes on design, code, and the craft."
+        },
+        "contact": {
+          "title": "Contact",
+          "description": "Start a conversation about your project."
+        }
+      }
+    }
   },
   "newsletter": {
-    "heading": "Subscribe to the newsletter",
-    "description": "Get the latest posts in your inbox.",
+    "heading": "Stay in the loop",
+    "description": "Get my latest articles and tech updates delivered to your inbox.",
     "emailPlaceholder": "your@email.com",
-    "subscribe": "Subscribe",
-    "subscribing": "Subscribing…",
-    "success": "Thanks! Please check your inbox to confirm.",
+    "subscribe": "Join",
+    "subscribing": "Sending...",
+    "success": "Check your inbox to confirm!",
     "error": "Something went wrong. Please try again."
   },
   "contact": {
-    "heading": "Get in touch",
+    "heading": "Let's connect",
+    "badge": "Get in touch",
+    "title": "Send me a {message}",
+    "messageWord": "message.",
+    "description": "Use the form below or reach out on any of these channels. I'll get back to you within 1 business day.",
+    "formHeading": "Send a message",
+    "otherChannels": "Other channels",
+    "otherChannelsDesc": "Prefer a direct channel? Pick whichever works best.",
+    "channelNotes": {
+      "email": "Drop us a line",
+      "social": "Follow along"
+    },
+    "location": {
+      "basedIn": "Based in Bosnia & Herzegovina"
+    },
     "name": "Name",
     "email": "Email",
     "subject": "Subject",
     "message": "Message",
     "send": "Send message",
     "sending": "Sending…",
-    "success": "Thanks! Your message has been sent.",
+    "success": "Message sent! I'll get back to you soon.",
     "error": "Something went wrong. Please try again."
   },
   "theme": {
@@ -72,10 +141,190 @@
     "lightMode": "Light mode",
     "darkMode": "Dark mode",
     "systemMode": "System",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "themeMode": "Theme mode",
+    "colourTheme": "Colour theme",
+    "currentlyLight": "Currently light",
+    "currentlyDark": "Currently dark",
+    "ariaLabelTrigger": "Theme menu. Click to change.",
+    "colorSwatchLabel": "{name} theme",
+    "colors": {
+      "orange": "Orange",
+      "amber": "Amber",
+      "lime": "Lime",
+      "emerald": "Emerald",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "sky": "Sky",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "purple": "Purple",
+      "magenta": "Magenta"
+    }
+  },
+  "code": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "ariaLabel": "Copy code to clipboard"
   },
   "footer": {
     "copyright": "© {year} {name}. All rights reserved.",
     "builtWith": "Built with Astro Rocket"
+  },
+  "home": {
+    "hero": {
+      "badge": "Available for new opportunities",
+      "titlePart1": "Luka Piplica —",
+      "titlePart2": "IT Support & Systems Specialist",
+      "description": "Result-oriented IT Professional specializing in corporate IT support, Windows & Linux server administration, network infrastructure, and progressive systems hardening.",
+      "viewCv": "View CV",
+      "contactMe": "Contact me"
+    },
+    "services": {
+      "badge": "Services",
+      "title": "What I do",
+      "description": "Providing reliable technical solutions across enterprise infrastructure layers — from corporate desktop support to systems management and workflow automation.",
+      "sysadmin": {
+        "title": "Systems & Network Admin",
+        "description": "Windows and Linux server administration, Cisco & MikroTik network configurations, and 24/7 high-availability infrastructure maintenance."
+      },
+      "webdev": {
+        "title": "Web Solutions & Internal Tools",
+        "description": "Utilizing Astro, React, and Next.js to build fast, lightweight web interfaces for hosting technical archives, personal portfolios, and custom tools that simplify daily IT operations."
+      },
+      "security": {
+        "title": "Systems Hardening & Security",
+        "description": "Practical server hardening, firewall configurations, secure access controls, and a dedicated career path toward enterprise cybersecurity frameworks."
+      },
+      "electronics": {
+        "title": "Electronics & Embedded Systems",
+        "description": "State-award-winning hardware engineering, circuit diagnostics, custom multi-layer PCB design, and low-level firmware optimization."
+      },
+      "ai": {
+        "title": "Infrastructure Automation & AI",
+        "description": "Orchestrating enterprise workflows via Python, Bash, and PowerShell scripting to automate systems administration, maintenance tasks, and intelligent agentic operations."
+      },
+      "operations": {
+        "title": "IT Operations & Systems Support",
+        "description": "Managing enterprise desktop environments, software lifecycle provisioning, access governance, and rigorous troubleshooting within complex, high-availability corporate infrastructures."
+      }
+    },
+    "testimonials": {
+      "badge": "Testimonials",
+      "title": "What colleagues & clients say",
+      "description": "Feedback from engineering projects and professional collaborations.",
+      "t1": {
+        "quote": "Luka transformed decades of my scattered artistic work into a professional, high-performance digital archive. His technical precision in handling my media library and his commitment to long-term preservation were truly impressive.",
+        "author": "Sejo Bajraktarević",
+        "role": "Composer & Multimedia Artist",
+        "letter": "S"
+      },
+      "t2": {
+        "quote": "Placeholder for future feedback. Currently focused on delivering excellence in current systems administration and cybersecurity projects.",
+        "author": "Pending",
+        "role": "Future Reference",
+        "letter": "N"
+      }
+    },
+    "about": {
+      "badge": "About me",
+      "titlePart1": "IT Support Specialist &",
+      "titlePart2": "Systems Administrator.",
+      "desc1": "I am an IT professional with comprehensive experience in maintaining corporate systems, optimizing network setups, and executing secure configurations on a long-term roadmap toward cybersecurity.",
+      "cta": "Read my story",
+      "experience": "Enterprise IT Operations",
+      "awards": "3x State Hardware Champion",
+      "worldwide": "C2 English Certified",
+      "location": "Sarajevo, Bosnia and Herzegovina"
+    },
+    "projects": {
+      "badge": "Portfolio",
+      "title": "Projects & Experiments",
+      "description": "A diverse collection of my hardware restorations, custom software tools, digital archives, and various DIY engineering challenges.",
+      "viewAll": "View all projects"
+    },
+    "cta": {
+      "badge": "Let's connect",
+      "title": "Interested in working together?",
+      "description": "Whether your enterprise requires scalable IT support, reliable system administration, or secure infrastructure hardening — I'm ready to bring my expertise to your team.",
+      "start": "Get in touch",
+      "more": "More about me"
+    }
+  },
+  "aboutPage": {
+    "title": "About Luka Piplica — IT Support & Systems Specialist",
+    "description": "IT Support Specialist and Systems Administrator building reliable infrastructures, managing corporate networks, and executing a dedicated technical path toward enterprise cybersecurity.",
+    "hero": {
+      "badge": "About me",
+      "titleLine1": "Luka Piplica —",
+      "description": "A hands-on IT professional who thrives at the intersection of corporate tech support, enterprise system administration, network reliability, and progressive security practices."
+    },
+    "typingWords": "IT Support Specialist,Systems Administrator,Network Administrator,Cybersecurity Enthusiast,Open Source Contributor",
+    "background": {
+      "badge": "Background",
+      "title": "Systems specialist with a precision electronics foundation",
+      "desc1": "I started in electronics — designing circuits, soldering multi-layer PCBs, and programming Arduino microcontrollers. Three consecutive national championship wins in embedded systems gave me a deep appreciation for hardware diagnostics, low-level engineering, and execution precision.",
+      "desc2": "That foundation naturally transitioned into network administration through intensive CCNA training at ITAcademy, corporate IT support at BHRT, and practical systems hardening. Navigating BHRT's old-school, purely manual infrastructure provided an exceptional hands-on trial by fire in pure system diagnostics. Today, my professional roadmap focuses on scaling from robust corporate support and server management directly into specialized enterprise cybersecurity roles.",
+      "card1Label": "IT Support & Systems Specialist",
+      "card1Name": "Luka Piplica",
+      "card1Desc": "CCNA-trained Network Administrator, Linux/Windows sysadmin, and corporate IT support professional focused on infrastructure reliability and progressive systems hardening.",
+      "card1Tags": "Cisco,Windows Server,Linux,IT Support,Cybersecurity",
+      "card2Label": "AI Workflow Partner",
+      "card2Name": "Claude Code",
+      "card2Desc": "An AI collaborator that helps me review automation scripts, optimize system workflows, and build custom Model Context Protocol (MCP) integrations.",
+      "card2Tags": "MCP,Agentic Workflows,Code Review,Automation"
+    },
+    "process": {
+      "badge": "My Methodology",
+      "title": "Engineering Philosophy",
+      "description": "Applying rigorous engineering discipline and automated workflows to build resilient, secure, and observable enterprise systems.",
+      "v1Title": "Security-First Architecture",
+      "v1Desc": "I architect systems with a 'Zero Trust' mindset, ensuring that security is baked into the infrastructure from day one. By leveraging threat modeling, automated compliance auditing, and infrastructure-as-code principles, I eliminate manual vulnerabilities and enforce proactive, immutable system integrity.",
+      "v2Title": "Proven Engineering Experience",
+      "v2Desc": "Backed by national-level success in electronics, rigorous networking training at ITAcademy, and hands-on corporate IT experience at BHRT. I combine this operational foundation with continuous professional upskilling to tackle complex technical challenges.",
+      "v3Title": "Infrastructure & Automation",
+      "v3Desc": "I bridge traditional system administration with modern automation, leveraging Python, Bash, and PowerShell scripting to streamline cross-platform workflows, optimize system performance, and minimize manual operational overhead."
+    },
+    "stack": {
+      "badge": "Tools & Tech",
+      "title": "Technical Stack",
+      "description": "The technologies I leverage to build, deploy, and secure modern web solutions—chosen for their performance, security, and operational efficiency."
+    },
+    "faq": {
+      "badge": "Good to know",
+      "title": "Frequently asked questions",
+      "description": "Insight into my engineering background and professional approach.",
+      "card1Title": "Technical Expertise",
+      "card2Title": "Professional Vision",
+      "q1": "What is your technical background?",
+      "a1": "I am a certified Computer Network Administrator (ITAcademy) with a technical background in Electronics (Railway School Center Sarajevo). My professional experience includes a tenure at BHRT, where I was responsible for end-to-end corporate IT support. This involved managing Windows client environments, hardware maintenance, network troubleshooting, and server-side administration—ranging from user management to the deployment and hardening of Linux-based infrastructure. I actively transformed manual operational hurdles into efficient, automated workflows, including the creation of centralized operational dashboards that streamlined field interventions.",
+      "q2": "What technologies do you focus on?",
+      "a2": "My core expertise lies in enterprise IT support, systems hardening, and network administration. I scale these operations using Python, Bash, and PowerShell for automation, while utilizing modern frameworks like Astro, React, and Next.js to develop performant technical documentation platforms and knowledge bases that house my systems engineering guides, security research, and development projects.",
+      "q3": "Do you have any competitive achievements?",
+      "a3": "Yes — I am a three-time national champion at the Festival Rada technical exhibition, recognized for innovative IoT and embedded systems engineering, including an IoT Wi-Fi Scoreboard, a Solar Tree energy station, and a Programmable LED Desk.",
+      "q4": "What certifications do you hold?",
+      "a4": "I hold professional credentials in Network Administration, advanced Python, and C2-level English (EF SET). Additionally, I have completed a specialized suite of Anthropic certifications focused on Model Context Protocol (MCP) and agentic workflow integration.",
+      "q5": "Do you use AI in your work?",
+      "a5": "AI is a central pillar of my engineering workflow. I use it as a collaborative partner for architecture reviews, complex script validation, and infrastructure automation. My work with the Model Context Protocol (MCP) allows me to bridge AI intelligence with real-world system data, significantly increasing operational speed and accuracy.",
+      "q6": "Are you a company or freelancer?",
+      "a6": "I am an independent IT professional seeking to integrate directly into established, high-impact corporate teams. My goal is to contribute my skills to global tech leaders like Google, Rockstar Games, Naughty Dog, Adobe, or Microsoft—organizations where I can focus on large-scale infrastructure, complex systems, and industry-defining projects without intermediary hurdles.",
+      "q7": "What kind of positions do you look for?",
+      "a7": "I target roles in corporate IT operations, systems administration, and cybersecurity hardening. I thrive in environments that require robust support strategies and proactive infrastructure management, with a clear path toward specialized security and systems engineering.",
+      "q8": "Do you work with international companies?",
+      "a8": "Yes, I am actively seeking to transition into international roles. While currently based in Sarajevo, I am fully prepared for relocation to support on-site operations or to integrate into global, distributed teams via remote work. With C2-level English proficiency and a background in high-demand environments, I am ready to bring my expertise to a global stage."
+    },
+    "cv": {
+      "badge": "Curriculum Vitae",
+      "title": "The full picture",
+      "description": "My complete professional profile — experience, training, awards, and technical competencies — all in one place.",
+      "cta": "Read my full CV"
+    },
+    "cta": {
+      "badge": "Let's connect",
+      "title": "Ready to work together?",
+      "desc": "Whether your infrastructure requires robust support setups, system administration, or automated scripting workflows — I'm ready to deploy.",
+      "start": "Get in touch"
+    }
   }
 }

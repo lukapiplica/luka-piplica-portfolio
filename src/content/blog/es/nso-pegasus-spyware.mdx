@@ -1,0 +1,204 @@
+---
+title: "Analizando el software espía Pegasus: Informática forense digital con MVT"
+description: "Análisis técnico del software espía Pegasus y exploits zero-click. Guía paso a paso para la informática forense en móviles con el Mobile Verification Toolkit (MVT)."
+publishedAt: 2021-07-21
+author: "Luka Piplica"
+tags: ["cybersecurity", "privacy", "forensics", "malware-analysis", "linux"]
+featured: false
+locale: es
+image: "../../../assets/blog/nso-pegasus-spyware/featured.webp"
+imageAlt: "Logotipo corporativo de NSO Group que representa a los desarrolladores de la suite de vigilancia móvil Pegasus."
+---
+
+La revelación de la campaña del software espía Pegasus por parte de la organización parisina sin fines de lucro <a href="https://forbiddenstories.org/" target="_blank" rel="noopener noreferrer">Forbidden Stories</a> y <a href="https://www.amnesty.org/en/" target="_blank" rel="noopener noreferrer">Amnistía Internacional</a> marcó un hito importante en la ciberseguridad moderna. La investigación reveló que varios actores estatales utilizaron un sofisticado software de vigilancia comercial desarrollado por la empresa israelí <a href="https://en.wikipedia.org/wiki/NSO_Group" target="_blank" rel="noopener noreferrer">NSO Group</a> para espiar a políticos, diplomáticos, activistas de derechos humanos y periodistas a nivel mundial, compartiendo los hallazgos con medios destacados como <a href="https://www.washingtonpost.com/" target="_blank" rel="noopener noreferrer">The Washington Post</a> y <a href="https://www.theguardian.com/international" target="_blank" rel="noopener noreferrer">The Guardian</a>.
+
+Pegasus representa una clase altamente compleja de malware móvil. Una vez que se implementa con éxito en el dispositivo de la víctima, opera silenciosamente en segundo plano, recopilando comunicaciones confidenciales (SMS, WhatsApp, Signal, correos electrónicos), extrayendo registros del sistema, grabando llamadas de voz, rastreando la ubicación GPS en tiempo real y capturando archivos multimedia del entorno a través del micrófono y la cámara del dispositivo.
+
+Esta guía técnica analiza las mecánicas de propagación de Pegasus y proporciona un recorrido paso a paso para realizar análisis forenses digitales en dispositivos iOS y Android utilizando el **Mobile Verification Toolkit (MVT)**.
+
+---
+
+## Mecánicas técnicas: El poder de los exploits Zero-Click
+
+Históricamente, la infección por malware móvil requería algún tipo de interacción por parte de la víctima, como hacer clic en enlaces de phishing, abrir archivos adjuntos maliciosos o ser víctima de ingeniería social. Pegasus, sin embargo, logró un éxito masivo al aprovechar los **exploits zero-click** (sin clics).
+
+Un exploit zero-click no requiere absolutamente ninguna interacción del usuario para comprometer un dispositivo. Estos ataques suelen dirigirse a los demonios (daemons) del sistema que procesan los datos entrantes antes de que el usuario sea notificado. Por ejemplo, al enviar una carga útil (payload) de iMessage o un paquete de WhatsApp específicamente manipulados, el malware desencadena vulnerabilidades de corrupción de memoria (como desbordamientos de enteros o de búfer) dentro de las librerías de renderizado de bajo nivel del sistema operativo (por ejemplo, la librería CoreGraphics de Apple al procesar imágenes PDF o JBIG2).
+
+La aplicación o el demonio se interrumpe de forma silenciosa, ejecuta código de shell (shellcode) con privilegios a nivel de root, descarga la carga útil principal y establece persistencia; todo esto antes de que el teléfono de la víctima suene o muestre una notificación. Estos fallos se clasifican como **exploits zero-day** (de día cero) porque apuntan a vulnerabilidades desconocidas para el proveedor de software, dejando a los dispositivos completamente indefensos hasta que se desarrolle e implemente un parche de seguridad.
+
+---
+
+## Marco forense: Mobile Verification Toolkit (MVT)
+
+El <a href="https://github.com/mvt-project/mvt" target="_blank" rel="noopener noreferrer">Mobile Verification Toolkit (MVT)</a> es un marco de análisis forense modular y de código abierto diseñado para adquirir y analizar registros del sistema móvil, registros de bases de datos y configuraciones del sistema. MVT analiza los artefactos históricos del sistema para identificar Indicadores de Compromiso (IOC) conocidos que coincidan con los rastros de explotación de Pegasus. Las firmas de amenazas conocidas y los conjuntos de datos de IOC se recopilan activamente en el <a href="https://github.com/AmnestyTech/investigations/tree/master/2021-07-18_nso" target="_blank" rel="noopener noreferrer">GitHub de Investigaciones de AmnestyTech</a>.
+
+### Prerrequisitos y configuración del entorno de trabajo forense
+
+Aunque MVT puede ejecutarse en la mayoría de los entornos Linux basados en Debian, esta guía utiliza **Kali Linux** como la estación de trabajo forense principal.
+
+#### 1. Sincronización del entorno forense
+Asegúrate de que todas las librerías de paquetes del sistema estén completamente actualizadas:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+#### 2. Instalación de dependencias principales
+MVT requiere Python 3, compiladores de paquetes y librerías de comunicación USB para interactuar con los dispositivos móviles conectados:
+
+```shell
+sudo apt install -y python3 python3-pip libusb-1.0-0 git
+```
+
+#### 3. Instalación de MVT desde la fuente
+Descarga el repositorio de MVT más reciente, compila el kit de herramientas localmente y actualiza las rutas de ejecución de la shell de tu sistema:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/mvt-project/mvt.git
+cd mvt
+pip3 install .
+```
+
+Para ejecutar los binarios de MVT de forma global, añade la ruta de binarios del usuario local a tu variable de entorno PATH:
+
+```shell
+export PATH=$PATH:/home/$USER/.local/bin
+```
+*(Asegúrate de reemplazar `$USER` con tu nombre de usuario activo en el sistema Linux, o añade este comando directamente a tu archivo `~/.bashrc` o `~/.zshrc`).*
+
+#### 4. Adquisición de firmas de IOC de Amnistía Internacional
+Clona el repositorio oficial de Investigaciones de Amnistía Internacional, el cual contiene la base de datos histórica de los Indicadores de Compromiso (IOC) verificados de Pegasus (específicamente el archivo de firmas `.strix2`):
+
+```shell
+cd ~/Downloads
+git clone https://github.com/AmnestyTech/investigations.git
+```
+
+---
+
+## Informática forense digital en dispositivos iOS
+
+El análisis forense de iOS a través de MVT analiza registros históricos de bases de datos, estructuras SQLite y solicitudes de red almacenadas en caché. Para llevar a cabo esto, primero se debe adquirir una copia de la estructura del sistema operativo del dispositivo objetivo.
+
+### Adquisición de datos: Volcados del sistema de archivos frente a copias de seguridad de iTunes
+
+Existen dos métodos principales para adquirir datos forenses de iOS:
+1.  **Volcado del sistema de archivos (Filesystem Dump):** Requiere un jailbreak completo del kernel de iOS (por ejemplo, utilizando exploits de hardware como <a href="https://checkra.in/" target="_blank" rel="noopener noreferrer">checkra1n</a>). Este método proporciona acceso de lectura absoluto a todo el directorio raíz, las cachés del sistema y las particiones en bruto. Sin embargo, el jailbreak anula las garantías del dispositivo y puede alterar la integridad forense de los archivos del sistema.
+2.  **Copia de seguridad encriptada de iTunes:** Una alternativa no destructiva que mantiene la garantía del sistema. Es fundamental que **la copia de seguridad esté encriptada** con una contraseña local. Las copias de seguridad encriptadas obligan a iOS a exportar bases de datos locales altamente confidenciales (incluido el historial de Safari, los registros de llamadas, las bases de datos de mensajes SMS y los datos de las aplicaciones) que, de lo contrario, se excluirían de las copias de seguridad en texto plano por razones de seguridad.
+
+### Guía forense paso a paso para iOS
+
+1.  Conecta el iPhone objetivo a una estación de trabajo y realiza una **copia de seguridad encriptada** a través de iTunes (Windows/macOS) o utilizando `idevicebackup2` en Linux.
+2.  Localiza la carpeta de la copia de seguridad, la cual lleva el nombre del Identificador Único del Dispositivo (UDID).
+3.  Transfiere la carpeta UDID a tu entorno forense Linux (por ejemplo, dentro de tu directorio `~/Documents`).
+4.  Genera un directorio de destino para la desencriptación y desencripta la copia de seguridad utilizando MVT:
+
+```shell
+mkdir -p ~/Documents/decrypted
+mvt-ios decrypt-backup -p 'YOUR_DECRYPTION_PASSWORD' -d ~/Documents/decrypted ~/Documents/<UDID_FOLDER_NAME>
+```
+
+5. Crea una carpeta de destino para almacenar los informes forenses generados:
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+```
+
+6. Ejecuta el motor de escaneo de MVT, comparando las estructuras de la base de datos de la copia de seguridad de iOS desencriptada con los indicadores STIX2 verificados de Pegasus:
+
+```shell
+mvt-ios check-backup -i ~/Downloads/investigations/2021-07-18_nso/pegasus.strix2 -o ~/Downloads/output_forensics ~/Documents/decrypted
+```
+
+MVT analizará sistemáticamente todas las bases de datos. Si se detecta una firma que coincida con una solicitud maliciosa, un proceso o una carga útil de SMS, se mostrará una advertencia crítica en tu terminal.
+
+![Salida de la herramienta del kit de herramientas MVT y archivos JSON generados en el escritorio de Linux](../../../assets/blog/nso-pegasus-spyware/1.webp)
+
+---
+
+## Informática forense digital en dispositivos Android
+
+El análisis forense en dispositivos Android representa un desafío debido a la naturaleza fragmentada del sistema operativo. MVT utiliza dos vectores de detección principales: la comprobación de la integridad de los archivos APK y el análisis de las bases de datos de telefonía.
+
+### 1. Verificación de integridad y reputación de APKs
+
+Las aplicaciones malévolas en Android a menudo se enmascaran como utilidades legítimas. MVT puede extraer los paquetes instalados directamente del dispositivo y contrastar sus huellas criptográficas (hashes) con las redes globales de inteligencia de amenazas.
+
+1. Activa la **Depuración USB** dentro del menú de Opciones de Desarrollador del dispositivo Android objetivo.
+2. Conecta el dispositivo mediante USB a tu estación de trabajo forense, autorizando las claves ADB en la pantalla del móvil.
+3. Crea una carpeta de destino y descarga todos los binarios APK activos del sistema y del usuario:
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+mvt-android download-apks -o ~/Downloads/output_forensics
+```
+
+4. Para consultar automáticamente los hashes SHA256 de todas las aplicaciones extraídas en la base de datos de <a href="https://www.virustotal.com/gui/" target="_blank" rel="noopener noreferrer">VirusTotal</a>, ejecuta la extracción con la bandera (flag) de la API:
+
+```shell
+mvt-android download-apks -o ~/Downloads/output_forensics --virustotal
+```
+
+### 2. Análisis de bases de datos de telefonía y SMS
+
+Pegasus a menudo inicia sus vectores de infección a través de mensajes SMS maliciosos que contienen enlaces especializados.
+
+1. Inicia una copia de seguridad de la base de datos del proveedor de telefonía del sistema utilizando ADB:
+
+```shell
+adb backup com.android.providers.telephony
+```
+
+2. Autoriza la transferencia de la copia de seguridad en la pantalla del dispositivo objetivo. La base de datos se almacenará localmente como un archivo de copia de seguridad de Android (`backup.ab`).
+3. Para leer el archivo `.ab`, extrae su contenido utilizando la herramienta basada en Java <a href="https://github.com/nelenkov/android-backup-extractor" target="_blank" rel="noopener noreferrer">Android Backup Extractor (ABE)</a>:
+
+```shell
+java -jar ~/Downloads/abe.jar unpack backup.ab backup.tar
+tar -xvf backup.tar
+```
+
+4. Escanea la base de datos de telefonía analizada en busca de enlaces sospechosos que coincidan con la infraestructura de Pegasus:
+
+```shell
+mvt-android check-backup -o sms .
+```
+*(Opcionalmente, utiliza la bandera `-i` para apuntar a un archivo específico de definiciones de IOC).*
+
+---
+
+## Libro de registro forense: Artefactos principales de iOS analizados
+
+Al finalizar el análisis, MVT exporta archivos JSON granulares que detallan los estados de las bases de datos críticas del sistema. Comprender estos archivos es esencial para trazar una línea de tiempo de la explotación.
+
+| Artefacto generado | Ruta de origen en el sistema | Significado técnico forense |
+| :--- | :--- | :--- |
+| **`cache_files.json`** | Bases de datos SQLite en `*Library/Caches/` | Extrae los encabezados y respuestas de solicitudes HTTP/HTTPS. Es fundamental para identificar los activadores iniciales de la descarga zero-click. |
+| **`calls.json`** | `/private/var/mobile/Library/CallHistoryDB/CallHistory.store` | Registro histórico de todos los eventos de telefonía, incluidos los registros de VoIP de aplicaciones seguras de terceros (por ejemplo, WhatsApp, Signal). |
+| **`chrome_favicon.json`** | `*Library/Application Support/Google/Chrome/Default/Favicons` | Analiza los favicons de los sitios web. Es útil para rastrear redirecciones web ocultas que se activan de forma silenciosa (obtén más información sobre las vulnerabilidades de secuestro de favicons en <a href="https://www.youtube.com/watch?v=X7OW5hTt5hY" target="_blank" rel="noopener noreferrer">YouTube</a>). |
+| **`chrome_history.json`** | `*Library/Application Support/Google/Chrome/Default/History` | Base de datos de todas las interacciones con sitios web realizadas dentro del navegador web Chrome. |
+| **`contacts.json`** | `/private/var/mobile/Library/AddressBook/AddressBook.sqlitedb` | Tabla SQLite en bruto que contiene los contactos del sistema. A menudo son vectores objetivo para la recolección de bases de datos. |
+| **`id_status_cache.json`** | `/private/var/mobile/Library/Preferences/com.apple.identityservices.idstatuscache.plist` | Rastrea la validación histórica del sistema de los Apple ID, tokens de autenticación biométrica y claves. |
+| **`interaction_c.json`** | `/private/var/mobile/Library/CoreDuet/People/interactionC.db` | Base de datos de alto valor que monitorea eventos del sistema en segundo plano de bajo nivel y telemetría de interacción del usuario. |
+| **`locationd_clients.json`** | `/private/var/mobile/Library/Caches/locationd/clients.plist` | Caché de todos los procesos y aplicaciones que solicitaron ubicaciones GPS activas del dispositivo. |
+| **`manifest.json`** | `Manifest.db` (Base de datos de copia de seguridad de iTunes) | Actúa como el registro de asignación de archivos para las copias de seguridad de iTunes, mapeando los archivos del dispositivo objetivo con los hashes de la copia de seguridad local. |
+| **`safari_history.json`** | `/private/var/mobile/Library/Safari/History.db` | Historial exhaustivo de búsquedas web, redirecciones y visitas realizadas utilizando el navegador nativo Safari. |
+| **`sms.json`** | `/private/var/mobile/Library/SMS/sms.db` | Contiene todos los mensajes de texto analizados, filtrados específicamente por URLs incrustadas para identificar cargas útiles de phishing. |
+| **`version_history.json`** | `/private/var/db/analyticsd/Analytics-Journal-*.ips` | Diarios analíticos que rastrean las actualizaciones históricas del sistema operativo, los niveles de parches y las configuraciones del kernel. |
+| **`whatsapp.json`** | `*ChatStorage.sqlite` | Registros de chat de WhatsApp desencriptados que muestran los registros de mensajes e hipervínculos HTTP incrustados. |
+
+---
+
+## Conclusión y recomendaciones de seguridad
+
+La amenaza que representan las plataformas de software espía como Pegasus resalta la necesidad urgente de un cambio en la forma en que abordamos la seguridad móvil. El aislamiento de procesos (sandboxing) estándar y los permisos de las aplicaciones ya no son suficientes para detener a los actores respaldados por estados que utilizan exploits de kernel zero-click.
+
+### Prácticas recomendadas esenciales para el endurecimiento móvil
+
+1. **Reducir las superficies de ataque:** Desactiva los servicios que procesan archivos entrantes no solicitados. En los dispositivos iOS modernos, activar el **Modo de aislamiento (Lockdown Mode)** bloquea de forma predeterminada tecnologías web altamente sofisticadas, el procesamiento de gráficos en bruto y los archivos adjuntos que evaden el sandbox.
+2. **Reinicios regulares del dispositivo:** Dado que muchos exploits zero-click dependen de la ejecución en memoria volátil para mantener el sigilo, reiniciar el dispositivo regularmente puede romper las cadenas de explotación e interrumpir la ejecución persistente.
+3. **Realizar auditorías forenses de rutina:** Para las personas de alto riesgo, extraer copias de seguridad del sistema periódicamente y analizarlas con herramientas como MVT es un paso vital en la detección proactiva de amenazas.
+4. **Adoptar hardware y sistemas operativos seguros:** La transición a sistemas operativos endurecidos para la privacidad (como <a href="https://grapheneos.org/" target="_blank" rel="noopener noreferrer">GrapheneOS</a> en Android, o hardware estándar como el Nokia 8110 4G con GerdaOS) mejora significativamente la resiliencia del dispositivo contra los exploits zero-click. Para obtener una perspectiva política y de derechos humanos más amplia sobre Pegasus, mira la reveladora <a href="https://www.theguardian.com/news/2021/jul/19/edward-snowden-calls-spyware-trade-ban-pegasus-revelations" target="_blank" rel="noopener noreferrer">entrevista de Edward Snowden con The Guardian</a>.
+
+*Este recorrido de informática forense digital está destinado únicamente para fines educativos y de diagnóstico, demostrando cómo auditar dispositivos móviles en busca de presuntos indicadores de intrusión y promover la inteligencia proactiva contra amenazas.*

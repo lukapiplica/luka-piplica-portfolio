@@ -1,0 +1,12 @@
+---
+import Error404 from '@/components/patterns/Error404.astro';
+import { getLocales } from '@/i18n';
+
+export function getStaticPaths() {
+  return getLocales().map((locale) => ({ params: { locale } }));
+}
+
+const { locale = Astro.params.locale } = Astro.props;
+---
+
+<Error404 locale={locale} />

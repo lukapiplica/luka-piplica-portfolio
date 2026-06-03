@@ -1,0 +1,330 @@
+{
+  "nav": {
+    "home": "Početna",
+    "blog": "Blog",
+    "projects": "Projekti",
+    "about": "O meni",
+    "contact": "Kontakt",
+    "skipToContent": "Skoči na sadržaj",
+    "openMenu": "Otvori izbornik",
+    "closeMenu": "Zatvori izbornik",
+    "selectLanguage": "Odaberi jezik",
+    "currentLanguage": "Trenutni jezik",
+    "language": "Jezik"
+  },
+  "common": {
+    "readMore": "Pročitaj više",
+    "loading": "Učitavanje…",
+    "backToTop": "Natrag na vrh",
+    "search": "Pretraži",
+    "submit": "Pošalji",
+    "cancel": "Otkaži",
+    "next": "Sljedeće",
+    "previous": "Prethodno"
+  },
+  "blog": {
+    "title": "Tehnički Blog",
+    "description": "Uvidi, vodiči i dokumentacija mog putovanja kroz tehnologiju i sustave.",
+    "readingTime": "{minutes} min čitanja",
+    "publishedOn": "Objavljeno {date}",
+    "updatedOn": "Ažurirano {date}",
+    "writtenBy": "Napisao {author}",
+    "tagsLabel": "Oznake",
+    "featured": "Izdvojeno",
+    "draft": "Nacrt",
+    "noPostsFound": "Nema pronađenih objava.",
+    "tableOfContents": "Sadržaj",
+    "shareThisPost": "Podijeli ovu objavu",
+    "allPosts": "Sve objave",
+    "filterLabel": "Filter",
+    "noPostsForTag": "Nema pronađenih objava za ovu oznaku",
+    "followAlong": "Prati moj rad",
+    "followDescription": "Budite u tijeku — novi članci, razmišljanja i ažuriranja.",
+    "rssFeed": "RSS Feed",
+    "emailLabel": "E-mail",
+    "backToBlog": "Natrag na Blog",
+    "relatedPosts": "Povezane objave",
+    "badge": "Sve objave",
+    "share": "Podijeli:",
+    "minRead": "min čitanja",
+    "onThisPage": "Na ovoj stranici",
+    "updated": "Ažurirano"
+  },
+  "projects": {
+    "title": "Projekti",
+    "description": "Prikaz mog rada, od tehničkih eksperimenata do cjelovitih rješenja.",
+    "viewProject": "Pogledaj projekt",
+    "viewSource": "Izvorni kod",
+    "noProjectsFound": "Nema pronađenih projekata.",
+    "backToProjects": "Natrag na projekte",
+    "moreProjects": "Više projekata"
+  },
+  "search": {
+    "placeholder": "Pretraži blogove i projekte...",
+    "noResults": "Nema rezultata za \"{query}\"",
+    "blogs": "Blogovi",
+    "projects": "Projekti",
+    "clear": "Očisti pretragu",
+    "shortcutNavigate": "Navigacija",
+    "shortcutSelect": "Odaberi",
+    "shortcutHint": "Esc za zatvaranje"
+  },
+  "pagination": {
+    "page": "Stranica {current} od {total}",
+    "previousPage": "Prethodna",
+    "nextPage": "Sljedeća"
+  },
+  "errors": {
+    "pageNotFound": "Stranica nije pronađena",
+    "pageNotFoundMessage": "Stranica koju tražite ne postoji ili je premještena.",
+    "goHome": "Natrag na početnu",
+    "404": {
+      "badge": "404 — stranica nije pronađena",
+      "title": "Stranica nije {found}",
+      "found": "pronađena.",
+      "description": "Ova stranica je premještena, uklonjena ili nikada nije ni postojala. Vratimo vas na pravi put.",
+      "backToHome": "Natrag na početnu",
+      "browseBlog": "Pregledaj blog",
+      "tryInstead": "Pokušajte s jednom od ovih opcija",
+      "links": {
+        "projects": {
+          "title": "Projekti",
+          "description": "Odabrani radovi i studije slučaja."
+        },
+        "blog": {
+          "title": "Blog",
+          "description": "Zapisi o dizajnu, kodu i zanatu."
+        },
+        "contact": {
+          "title": "Kontakt",
+          "description": "Započnite razgovor o svom projektu."
+        }
+      }
+    }
+  },
+  "newsletter": {
+    "heading": "Budite u tijeku",
+    "description": "Primajte moje najnovije članke i tehnološka ažuriranja izravno u svoj ulazni sandučić.",
+    "emailPlaceholder": "vas@email.com",
+    "subscribe": "Pretplati se",
+    "subscribing": "Slanje...",
+    "success": "Provjerite svoj e-mail za potvrdu!",
+    "error": "Nešto je pošlo po zlu. Molimo pokušajte ponovno."
+  },
+  "contact": {
+    "heading": "Povežimo se",
+    "badge": "Stupite u kontakt",
+    "title": "Pošalji mi {message}",
+    "messageWord": "poruku.",
+    "description": "Ispunite obrazac u nastavku ili se javite putem bilo kojeg od ovih kanala. Odgovorit ću vam u roku od jednog radnog dana.",
+    "formHeading": "Pošalji poruku",
+    "otherChannels": "Ostali kanali",
+    "otherChannelsDesc": "Preferirate izravan kanal? Odaberite onaj koji vam najviše odgovara.",
+    "channelNotes": {
+      "email": "Pišite mi",
+      "social": "Pratite moj rad"
+    },
+    "location": {
+      "basedIn": "Sjedište: Bosna i Hercegovina"
+    },
+    "name": "Ime",
+    "email": "E-mail",
+    "subject": "Predmet",
+    "message": "Poruka",
+    "send": "Pošalji poruku",
+    "sending": "Slanje…",
+    "success": "Poruka poslana! Javit ću vam se uskoro.",
+    "error": "Nešto je pošlo po zlu. Molimo pokušajte ponovno."
+  },
+  "theme": {
+    "selectTheme": "Odaberi temu",
+    "lightMode": "Svijetli način",
+    "darkMode": "Tamni način",
+    "systemMode": "Sustav",
+    "toggleTheme": "Promijeni temu",
+    "themeMode": "Režim teme",
+    "colourTheme": "Boja teme",
+    "currentlyLight": "Trenutno svijetlo",
+    "currentlyDark": "Trenutno tamno",
+    "ariaLabelTrigger": "Izbornik teme. Kliknite za promjenu.",
+    "colorSwatchLabel": "{name} tema",
+    "colors": {
+      "orange": "Narančasta",
+      "amber": "Jantar",
+      "lime": "Limeta",
+      "emerald": "Smaragd",
+      "teal": "Tirkizna",
+      "cyan": "Cijan",
+      "sky": "Nebeska",
+      "blue": "Plava",
+      "indigo": "Indigo",
+      "violet": "Ljubičasta",
+      "purple": "Purpurna",
+      "magenta": "Magenta"
+    }
+  },
+  "code": {
+    "copy": "Kopiraj",
+    "copied": "Kopirano",
+    "ariaLabel": "Kopiraj kod u međuspremnik"
+  },
+  "footer": {
+    "copyright": "© {year} {name}. Sva prava pridržana.",
+    "builtWith": "Izrađeno uz Astro Rocket"
+  },
+  "home": {
+    "hero": {
+      "badge": "Dostupan za nove prilike",
+      "titlePart1": "Luka Piplica —",
+      "titlePart2": "Specijalist za IT podršku i sustave",
+      "description": "IT profesionalac usmjeren na rezultate, specijaliziran za korporativnu IT podršku, administraciju Windows i Linux poslužitelja, mrežnu infrastrukturu i progresivno otvrdnjavanje sustava.",
+      "viewCv": "Pogledaj CV",
+      "contactMe": "Kontaktiraj me"
+    },
+    "services": {
+      "badge": "Usluge",
+      "title": "Što radim",
+      "description": "Pružanje pouzdanih tehničkih rješenja kroz slojeve enterprise infrastrukture — od korporativne podrške za radne stanice do upravljanja sustavima i automatizacije radnih procesa.",
+      "sysadmin": {
+        "title": "Admin. sustava i mreža",
+        "description": "Administracija Windows i Linux poslužitelja, Cisco i MikroTik mrežne konfiguracije te održavanje 24/7 visoko dostupne infrastrukture."
+      },
+      "webdev": {
+        "title": "Web rješenja i interni alati",
+        "description": "Korištenje tehnologija Astro, React i Next.js za izgradnju brzih, laganih web sučelja namijenjenih udomljavanju tehničkih arhiva, osobnih portfelja i prilagođenih alata koji pojednostavljuju svakodnevne IT operacije."
+      },
+      "security": {
+        "title": "Otvrdnjavanje i sigurnost sustava",
+        "description": "Praktično otvrdnjavanje poslužitelja (hardening), konfiguracija vatrozida, sigurne kontrole pristupa i predani karijerni put prema okvirima korporativne kibernetičke sigurnosti."
+      },
+      "electronics": {
+        "title": "Elektronika i ugrađeni sustavi",
+        "description": "Inženjering hardvera nagrađivan na državnoj razini, dijagnostika krugova, dizajn prilagođenih višeslojnih tiskanih pločica (PCB) i optimizacija firmwarea na niskoj razini."
+      },
+      "ai": {
+        "title": "Automatizacija infrastrukture i AI",
+        "description": "Orkestracija korporativnih radnih procesa putem Python, Bash i PowerShell skriptiranja za automatizaciju administracije sustava, zadataka održavanja i inteligentnih agentskih operacija."
+      },
+      "operations": {
+        "title": "IT operacije i podrška sustavima",
+        "description": "Upravljanje korporativnim okruženjima radnih stanica, upravljanje životnim ciklusom softvera, upravljanje pravima pristupa i rigorozno rješavanje problema unutar kompleksnih korporativnih infrastruktura visoke dostupnosti."
+      }
+    },
+    "testimonials": {
+      "badge": "Preporuke",
+      "title": "Što kažu kolege i klijenti",
+      "description": "Povratne informacije iz inženjerskih projekata i profesionalnih suradnji.",
+      "t1": {
+        "quote": "Luka je transformirao desetljeća mog raspršenog umjetničkog rada u profesionalni digitalni arhiv visokih performansi. Njegova tehnička preciznost u rukovanju mojom medijskom knjižnicom i predanost dugoročnom očuvanju bili su doista impresivni.",
+        "author": "Sejo Bajraktarević",
+        "role": "Skladatelj i multimedijski umjetnik",
+        "letter": "S"
+      },
+      "t2": {
+        "quote": "Mjesto za buduće povratne informacije. Trenutno fokusiran na pružanje izvrsnosti u trenutnim projektima administracije sustava i kibernetičke sigurnosti.",
+        "author": "Na čekanju",
+        "role": "Buduća referenca",
+        "letter": "N"
+      }
+    },
+    "about": {
+      "badge": "O meni",
+      "titlePart1": "Specijalist za IT podršku &",
+      "titlePart2": "Sistem administrator.",
+      "desc1": "Ja sam IT profesionalac sa sveobuhvatnim iskustvom u održavanju korporativnih sustava, optimizaciji mrežnih postavki i provedbi sigurnih konfiguracija na dugoročnom planu prema kibernetičkoj sigurnosti.",
+      "cta": "Pročitaj moju priču",
+      "experience": "Korporativne IT operacije",
+      "awards": "3x Državni prvak u hardveru",
+      "worldwide": "Certificirani C2 engleski",
+      "location": "Sarajevo, Bosna i Hercegovina"
+    },
+    "projects": {
+      "badge": "Portfelj",
+      "title": "Projekti i eksperimenti",
+      "description": "Raznolika zbirka mojih restauracija hardvera, prilagođenih softverskih alata, digitalnih arhiva i raznih DIY inženjeringa izazova.",
+      "viewAll": "Pogledaj sve projekte"
+    },
+    "cta": {
+      "badge": "Povežimo se",
+      "title": "Jeste li zainteresirani za suradnju?",
+      "description": "Bez obzira na to zahtijeva li vaša tvrtka skalabilnu IT podršku, pouzdanu administraciju sustava ili sigurno otvrdnjavanje infrastrukture — spreman sam donijeti svoje stručno znanje vašem timu.",
+      "start": "Stupite u kontakt",
+      "more": "Više o meni"
+    }
+  },
+  "aboutPage": {
+    "title": "O meni — Luka Piplica — Specijalist za IT podršku i sustave",
+    "description": "Specijalist za IT podršku i sistem administrator koji gradi pouzdane infrastrukture, upravlja korporativnim mrežama i slijedi predani tehnički put prema korporativnoj kibernetičkoj sigurnosti.",
+    "hero": {
+      "badge": "O meni",
+      "titleLine1": "Luka Piplica —",
+      "description": "Praktični IT profesionalac koji uživa u radu na sjecištu korporativne tehničke podrške, administracije enterprise sustava, pouzdanosti mreža i progresivnih sigurnosnih praksi."
+    },
+    "typingWords": "Specijalist za IT podršku,Sistem administrator,Mrežni administrator,Entuzijast za kibernetičku sigurnost,Suradnik na projektima otvorenog koda",
+    "background": {
+      "badge": "Pozadina",
+      "title": "Specijalist za sustave s čvrstim temeljima u preciznoj elektronici",
+      "desc1": "Započeo sam u elektronici — dizajnirajući krugove, lemeći višeslojne tiskane pločice (PCB) i programirajući Arduino mikrokontrolere. Tri uzastopne pobjede na državnom prvenstvu u ugrađenim sustavima usadile su mi duboko poštovanje prema dijagnostici hardvera, inženjeringu na niskoj razini i preciznosti u izvedbi.",
+      "desc2": "Ti temelji su prirodno prerasli u administraciju mreža kroz intenzivnu CCNA obuku na ITAcademy, korporativnu IT podršku na BHRT-u i praktično otvrdnjavanje sustava. Rad u BHRT-ovoj staroj školi i potpuno ručnoj infrastrukturi pružio je iznimno praktično 'vatreno krštenje' u čistoj dijagnostici sustava. Danas je moj profesionalni plan usmjeren na skaliranje s robusne korporativne podrške i upravljanja poslužiteljima izravno u specijalizirane uloge u korporativnoj kibernetičkoj sigurnosti.",
+      "card1Label": "Specijalist za IT podršku i sustave",
+      "card1Name": "Luka Piplica",
+      "card1Desc": "CCNA-obučeni mrežni administrator, Linux/Windows sistem administrator i profesionalac za korporativnu IT podršku fokusiran na pouzdanost infrastrukture i progresivno otvrdnjavanje sustava.",
+      "card1Tags": "Cisco,Windows Server,Linux,IT podrška,Kibernetička sigurnost",
+      "card2Label": "AI partner u radnom procesu",
+      "card2Name": "Claude Code",
+      "card2Desc": "AI suradnik koji mi pomaže u pregledu skripti za automatizaciju, optimizaciji radnih procesa sustava i izgradnji prilagođenih integracija za Model Context Protocol (MCP).",
+      "card2Tags": "MCP,Agentski radni procesi,Pregled koda,Automatizacija"
+    },
+    "process": {
+      "badge": "Moja metodologija",
+      "title": "Filozofija inženjeringa",
+      "description": "Primjena rigorozne inženjerske discipline i automatiziranih radnih procesa radi izgradnje otpornih, sigurnih i nadgledanih korporativnih sustava.",
+      "v1Title": "Arhitektura s naglaskom na sigurnost",
+      "v1Desc": "Projektiram sustave s 'Zero Trust' načinom razmišljanja, osiguravajući da je sigurnost utkana u infrastrukturu od prvog dana. Koristeći modeliranje prijetnji, automatizirani audit usklađenosti i principe infrastrukture kao koda (IaC), uklanjam ručne ranjivosti i provodim proaktivni, nepromjenjivi integritet sustava.",
+      "v2Title": "Dokazano inženjersko iskustvo",
+      "v2Desc": "Uz potporu uspjeha na državnoj razini u elektronici, rigorozne mrežne obuke na ITAcademy i praktičnog korporativnog IT iskustva na BHRT-u. Kombiniram ove operativne temelje s kontinuiranim profesionalnim usavršavanjem kako bih rješavao složene tehničke izazove.",
+      "v3Title": "Infrastruktura i automatizacija",
+      "v3Desc": "Premošćujem tradicionalnu administraciju sustava s modernom automatizacijom, koristeći Python, Bash i PowerShell skriptiranje kako bih pojednostavio međuplatformske radne procese, optimizirao performanse sustava i minimizirao ručni operativni rad."
+    },
+    "stack": {
+      "badge": "Alati i tehnologije",
+      "title": "Tehnički stack",
+      "description": "Tehnologije koje koristim za izgradnju, implementaciju i osiguravanje modernih web rješenja — odabrane zbog svojih performansi, sigurnosti i operativne učinkovitosti."
+    },
+    "faq": {
+      "badge": "Dobro je znati",
+      "title": "Često postavljana pitanja",
+      "description": "Uvid u moju inženjersku pozadinu i profesionalni pristup.",
+      "card1Title": "Tehnička stručnost",
+      "card2Title": "Profesionalna vizija",
+      "q1": "Koje je tvoje tehničko obrazovanje?",
+      "a1": "Ja sam certificirani administrator računalnih mreža (ITAcademy) s tehničkim obrazovanjem u elektronici (Željeznički školski centar Sarajevo). Moje profesionalno iskustvo uključuje rad na BHRT-u, gdje sam bio odgovoran za cjelovitu korporativnu IT podršku. To je uključivalo upravljanje Windows klijentskim okruženjima, održavanje hardvera, rješavanje mrežnih problema i administraciju na strani poslužitelja — u rasponu od upravljanja korisnicima do implementacije i otvrdnjavanja infrastrukture temeljene na Linuxu. Aktivno sam transformirao ručne operativne prepreke u učinkovite, automatizirane radne procese, uključujući izradu centraliziranih operativnih nadzornih ploča koje su pojednostavile intervencije na terenu.",
+      "q2": "Na koje si tehnologije fokusiran?",
+      "a2": "Moja ključna stručnost leži u korporativnoj IT podršci, otvrdnjavanju sustava i administraciji mreža. Skaliram ove operacije koristeći Python, Bash i PowerShell za automatizaciju, dok koristim moderne okvire kao što su Astro, React i Next.js za razvoj visokoučinkovitih platformi za tehničku dokumentaciju i baza znanja koje sadrže moje vodiče za inženjering sustava, sigurnosna istraživanja i razvojne projekte.",
+      "q3": "Imaš li kakvih natjecateljskih postignuća?",
+      "a3": "Da — trostruki sam državni prvak na tehničkoj izložbi Festival rada, prepoznat po inovativnom inženjeringu IoT-a i ugrađenih sustava, uključujući IoT Wi-Fi semafor, energetsku stanicu Solarno stablo (Solar Tree) i programabilni LED stol.",
+      "q4": "Koje certifikate posjeduješ?",
+      "a4": "Posjedujem profesionalne vjerodajnice u administraciji mreža, naprednom Pythonu i engleskom jeziku na razini C2 (EF SET). Osim toga, završio sam specijalizirani skup Anthropic certifikata fokusiranih na Model Context Protocol (MCP) i integraciju agentskih radnih procesa.",
+      "q5": "Koristiš li AI u svom radu?",
+      "a5": "AI je središnji stup mog inženjerskog radnog procesa. Koristim ga kao suradničkog partnera za preglede arhitekture, validaciju složenih skripti i automatizaciju infrastrukture. Moj rad s Model Context Protocolom (MCP) omogućuje mi povezivanje AI inteligencije sa stvarnim podacima iz sustava, čime značajno povećavam operativnu brzinu i točnost.",
+      "q6": "Jesi li tvrtka ili freelancer?",
+      "a6": "Ja sam neovisni IT profesionalac koji se želi izravno integrirati u etablirane korporativne timove visokog učinka. Moj cilj je doprinijeti svojim vještinama globalnim tehnološkim liderima kao što su Google, Rockstar Games, Naughty Dog, Adobe ili Microsoft — organizacijama u kojima se mogu usredotočiti na veliku infrastrukturu, složene sustave i projekte koji definiraju industriju, bez posredničkih prepreka.",
+      "q7": "Koje vrste pozicija tražiš?",
+      "a7": "Ciljam na uloge u korporativnim IT operacijama, administraciji sustava i otvrdnjavanju kibernetičke sigurnosti. Najbolje rezultate postižem u okruženjima koja zahtijevaju robusne strategije podrške i proaktivno upravljanje infrastrukturom, s jasnim putem prema specijaliziranom inženjeringu sigurnosti i sustava.",
+      "q8": "Surađuješ li s međunarodnim tvrtkama?",
+      "a8": "Da, aktivno tražim prijelaz na međunarodne uloge. Iako se trenutno nalazim u Sarajevu, potpuno sam spreman za preseljenje radi podrške operacijama na licu mjesta ili za integraciju u globalne, distribuirane timove putem rada na daljinu. Uz izvrsno poznavanje engleskog jezika na razini C2 i iskustvo u zahtjevnim okruženjima, spreman sam donijeti svoje stručno znanje na globalnu scenu."
+    },
+    "cv": {
+      "badge": "Životopis",
+      "title": "Potpuna slika",
+      "description": "Moj cjeloviti profesionalni profil — iskustvo, obuka, nagrade i tehničke kompetencije — sve na jednom mjestu.",
+      "cta": "Pročitaj moj cijeli CV"
+    },
+    "cta": {
+      "badge": "Povežimo se",
+      "title": "Spremno za zajednički rad?",
+      "desc": "Bez obzira na to zahtijeva li vaša infrastruktura robusne postavke podrške, administraciju sustava ili automatizirane radne procese skriptiranja — spreman sam za implementaciju.",
+      "start": "Stupite u kontakt"
+    }
+  }
+}

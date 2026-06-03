@@ -24,29 +24,29 @@ export function createWebsiteSchema(): WithContext<WebSite> {
 }
 
 /**
- * Create Person schema for Astro Rocket
+ * Create Person schema for an IT & Systems Administration Professional
  */
 export function createPersonSchema(): WithContext<Person> {
   return {
     '@context': 'https://schema.org',
     '@type': 'Person',
-    name: 'Astro Rocket',
-    jobTitle: 'Web Designer & Developer',
+    name: 'Luka Piplica',
+    jobTitle: 'IT Professional & Systems Administrator',
     url: siteConfig.url,
     email: siteConfig.email,
     ...(siteConfig.authorImage ? { image: `${siteConfig.url}${siteConfig.authorImage}` } : {}),
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Veghel',
-      addressRegion: 'Noord-Brabant',
-      addressCountry: 'NL',
+      addressLocality: 'Sarajevo',
+      addressRegion: 'Sarajevo Canton',
+      addressCountry: 'BA',
     },
     sameAs: siteConfig.socialLinks,
   };
 }
 
 /**
- * Create ProfessionalService schema for local SEO
+ * Create ProfessionalService schema for IT Support & Cybersecurity infrastructure
  */
 export function createProfessionalServiceSchema(): WithContext<LocalBusiness> {
   return {
@@ -59,12 +59,12 @@ export function createProfessionalServiceSchema(): WithContext<LocalBusiness> {
     ...(siteConfig.authorImage ? { image: `${siteConfig.url}${siteConfig.authorImage}` } : {}),
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Veghel',
-      addressRegion: 'Noord-Brabant',
-      addressCountry: 'NL',
+      addressLocality: 'Sarajevo',
+      addressRegion: 'Sarajevo Canton',
+      addressCountry: 'BA',
     },
     areaServed: [
-      { '@type': 'Country', name: 'Netherlands' },
+      { '@type': 'Country', name: 'Bosnia and Herzegovina' },
       { '@type': 'Country', name: 'Worldwide' },
     ],
     sameAs: siteConfig.socialLinks,
@@ -96,7 +96,7 @@ export function createOrganizationSchema(): WithContext<Organization> {
 }
 
 /**
- * Create BlogPosting schema for blog posts
+ * Create BlogPosting schema for Technical, SysAdmin, and CyberSec posts
  */
 export function createBlogPostSchema(post: {
   title: string;

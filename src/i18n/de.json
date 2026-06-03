@@ -1,0 +1,330 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "blog": "Blog",
+    "projects": "Projekte",
+    "about": "Über mich",
+    "contact": "Kontakt",
+    "skipToContent": "Zum Inhalt springen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen",
+    "selectLanguage": "Sprache wählen",
+    "currentLanguage": "Aktuelle Sprache",
+    "language": "Sprache"
+  },
+  "common": {
+    "readMore": "Weiterlesen",
+    "loading": "Wird geladen…",
+    "backToTop": "Nach oben",
+    "search": "Suche",
+    "submit": "Absenden",
+    "cancel": "Abbrechen",
+    "next": "Weiter",
+    "previous": "Zurück"
+  },
+  "blog": {
+    "title": "Technik-Blog",
+    "description": "Einblicke, Tutorials und Dokumentationen meiner Reise durch Technologie und Systeme.",
+    "readingTime": "{minutes} Min. Lesezeit",
+    "publishedOn": "Veröffentlicht am {date}",
+    "updatedOn": "Aktualisiert am {date}",
+    "writtenBy": "Geschrieben von {author}",
+    "tagsLabel": "Tags",
+    "featured": "Hervorgehoben",
+    "draft": "Entwurf",
+    "noPostsFound": "Keine Beiträge gefunden.",
+    "tableOfContents": "Inhaltsverzeichnis",
+    "shareThisPost": "Diesen Beitrag teilen",
+    "allPosts": "Alle Beiträge",
+    "filterLabel": "Filter",
+    "noPostsForTag": "Keine Beiträge für dieses Tag gefunden",
+    "followAlong": "Bleib auf dem Laufenden",
+    "followDescription": "Verpasse nichts – neue Artikel, Gedanken und Updates.",
+    "rssFeed": "RSS-Feed",
+    "emailLabel": "E-Mail",
+    "backToBlog": "Zurück zum Blog",
+    "relatedPosts": "Ähnliche Beiträge",
+    "badge": "Blog",
+    "share": "Teilen:",
+    "minRead": "Min. Lesezeit",
+    "onThisPage": "Auf dieser Seite",
+    "updated": "Aktualisiert"
+  },
+  "projects": {
+    "title": "Projekte",
+    "description": "Eine Übersicht meiner Arbeit, von technischen Experimenten bis hin zu vollständigen Lösungen.",
+    "viewProject": "Ansehen",
+    "viewSource": "Quellcode",
+    "noProjectsFound": "Keine Projekte gefunden.",
+    "backToProjects": "Zurück zu den Projekten",
+    "moreProjects": "Weitere Projekte"
+  },
+  "search": {
+    "placeholder": "Blogs und Projekte durchsuchen...",
+    "noResults": "Keine Ergebnisse für \"{query}\" gefunden",
+    "blogs": "Blogs",
+    "projects": "Projekte",
+    "clear": "Suche löschen",
+    "shortcutNavigate": "Navigieren",
+    "shortcutSelect": "Auswählen",
+    "shortcutHint": "Esc zum Schließen"
+  },
+  "pagination": {
+    "page": "Seite {current} von {total}",
+    "previousPage": "Zurück",
+    "nextPage": "Weiter"
+  },
+  "errors": {
+    "pageNotFound": "Seite nicht gefunden",
+    "pageNotFoundMessage": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "goHome": "Zurück zur Startseite",
+    "404": {
+      "badge": "404 — Seite nicht gefunden",
+      "title": "Seite nicht {found}",
+      "found": "gefunden",
+      "description": "Diese Seite wurde verschoben, entfernt oder hat nie existiert. Bringen wir dich zurück auf den richtigen Weg.",
+      "backToHome": "Zurück zur Startseite",
+      "browseBlog": "Im Blog stöbern",
+      "tryInstead": "Versuche stattdessen eine dieser Optionen",
+      "links": {
+        "projects": {
+          "title": "Projekte",
+          "description": "Ausgewählte Arbeiten und Fallstudien."
+        },
+        "blog": {
+          "title": "Blog",
+          "description": "Notizen zu Design, Code und Handwerk."
+        },
+        "contact": {
+          "title": "Kontakt",
+          "description": "Starte ein Gespräch über dein Projekt."
+        }
+      }
+    }
+  },
+  "newsletter": {
+    "heading": "Bleib auf dem Laufenden",
+    "description": "Erhalte meine neuesten Artikel und Tech-Updates direkt in dein Postfach.",
+    "emailPlaceholder": "deine@email.de",
+    "subscribe": "Anmelden",
+    "subscribing": "Wird gesendet...",
+    "success": "Prüfe dein Postfach zur Bestätigung!",
+    "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+  },
+  "contact": {
+    "heading": "Vernetzen wir uns",
+    "badge": "Kontakt aufnehmen",
+    "title": "Sende mir eine {message}",
+    "messageWord": "Nachricht.",
+    "description": "Nutze das untenstehende Formular oder kontaktiere mich über einen dieser Kanäle. Ich antworte innerhalb eines Werktages.",
+    "formHeading": "Nachricht senden",
+    "otherChannels": "Weitere Kanäle",
+    "otherChannelsDesc": "Bevorzugst du einen direkten Kanal? Wähle, was dir am besten passt.",
+    "channelNotes": {
+      "email": "Schreibe mir",
+      "social": "Folge mir"
+    },
+    "location": {
+      "basedIn": "Ansässig in Bosnien und Herzegowina"
+    },
+    "name": "Name",
+    "email": "E-Mail",
+    "subject": "Betreff",
+    "message": "Nachricht",
+    "send": "Nachricht senden",
+    "sending": "Wird gesendet…",
+    "success": "Nachricht gesendet! Ich melde mich in Kürze bei dir.",
+    "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+  },
+  "theme": {
+    "selectTheme": "Design wählen",
+    "lightMode": "Heller Modus",
+    "darkMode": "Dunkler Modus",
+    "systemMode": "Systemstandard",
+    "toggleTheme": "Design umschalten",
+    "themeMode": "Theme-Modus",
+    "colourTheme": "Farbschema",
+    "currentlyLight": "Derzeit hell",
+    "currentlyDark": "Derzeit dunkel",
+    "ariaLabelTrigger": "Design-Menü. Klicken zum Ändern.",
+    "colorSwatchLabel": "{name}-Design",
+    "colors": {
+      "orange": "Orange",
+      "amber": "Bernstein",
+      "lime": "Limette",
+      "emerald": "Smaragd",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "sky": "Himmelblau",
+      "blue": "Blau",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "purple": "Lila",
+      "magenta": "Magenta"
+    }
+  },
+  "code": {
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "ariaLabel": "Code in die Zwischenablage kopieren"
+  },
+  "footer": {
+    "copyright": "© {year} {name}. Alle Rechte vorbehalten.",
+    "builtWith": "Erstellt mit Astro Rocket"
+  },
+  "home": {
+    "hero": {
+      "badge": "Offen für neue Möglichkeiten",
+      "titlePart1": "Luka Piplica —",
+      "titlePart2": "IT-Support & Systemspezialist",
+      "description": "Ergebnisorientierter IT-Profi mit Spezialisierung auf Corporate IT-Support, Windows- & Linux-Serveradministration, Netzwerkinfrastruktur und progressive Systemhärtung.",
+      "viewCv": "Lebenslauf ansehen",
+      "contactMe": "Kontakt aufnehmen"
+    },
+    "services": {
+      "badge": "Dienstleistungen",
+      "title": "Was ich mache",
+      "description": "Bereitstellung zuverlässiger technischer Lösungen über alle Unternehmensinfrastrukturen hinweg – vom Desktop-Support bis hin zum Systemmanagement und zur Workflow-Automatisierung.",
+      "sysadmin": {
+        "title": "System- & Netzwerkadministration",
+        "description": "Windows- und Linux-Serveradministration, Cisco- & MikroTik-Netzwerkkonfigurationen sowie 24/7-Wartung hochverfügbarer Infrastrukturen."
+      },
+      "webdev": {
+        "title": "Web-Lösungen & interne Tools",
+        "description": "Einsatz von Astro, React und Next.js zur Entwicklung schneller, leichtgewichtiger Web-Interfaces für technische Archive, Portfolios und maßgeschneiderte Tools zur Vereinfachung des IT-Alltags."
+      },
+      "security": {
+        "title": "Systemhärtung & Sicherheit",
+        "description": "Praktische Serverhärtung, Firewall-Konfigurationen, sichere Zugriffskontrollen und eine gezielte berufliche Ausrichtung auf Cybersecurity-Frameworks."
+      },
+      "electronics": {
+        "title": "Elektronik & Embedded Systems",
+        "description": "Mehrfach ausgezeichnetes Hardware-Engineering, Schaltungsdiagnose, kundenspezifisches Multi-Layer-PCB-Design und Low-Level-Firmware-Optimierung."
+      },
+      "ai": {
+        "title": "Infrastruktur-Automatisierung & KI",
+        "description": "Orchestrierung von Unternehmens-Workflows mittels Python-, Bash- und PowerShell-Scripting zur Automatisierung der Systemadministration und intelligenter Agenten-Operationen."
+      },
+      "operations": {
+        "title": "IT-Operations & Systemsupport",
+        "description": "Verwaltung von Unternehmens-Desktop-Umgebungen, Software-Lifecycle-Bereitstellung, Zugriffs-Governance und sorgfältige Fehlerbehebung in komplexen, hochverfügbaren Umgebungen."
+      }
+    },
+    "testimonials": {
+      "badge": "Referenzen",
+      "title": "Was Kollegen & Kunden sagen",
+      "description": "Feedback zu Ingenieurprojekten und professionellen Zusammenarbeiten.",
+      "t1": {
+        "quote": "Luka hat jahrzehntelange, verstreute künstlerische Arbeiten in ein professionelles, hochperformantes digitales Archiv verwandelt. Seine technische Präzision im Umgang mit meiner Medienbibliothek und sein Engagement für die langfristige Bewahrung waren beeindruckend.",
+        "author": "Sejo Bajraktarević",
+        "role": "Komponist & Multimedia-Künstler",
+        "letter": "S"
+      },
+      "t2": {
+        "quote": "Platzhalter für zukünftiges Feedback. Fokus liegt derzeit auf der Exzellenz in Systemadministration und Cybersecurity-Projekten.",
+        "author": "Ausstehend",
+        "role": "Zukünftige Referenz",
+        "letter": "A"
+      }
+    },
+    "about": {
+      "badge": "Über mich",
+      "titlePart1": "IT-Support-Spezialist &",
+      "titlePart2": "Systemadministrator.",
+      "desc1": "Ich bin ein IT-Profi mit umfassender Erfahrung in der Wartung von Unternehmenssystemen, der Optimierung von Netzwerkeinrichtungen und der Umsetzung sicherer Konfigurationen auf dem Weg zur Cybersecurity.",
+      "cta": "Meine Geschichte lesen",
+      "experience": "Enterprise IT-Operations",
+      "awards": "3x Staatsmeister Hardware",
+      "worldwide": "C2 Englisch-Zertifikat",
+      "location": "Sarajevo, BiH"
+    },
+    "projects": {
+      "badge": "Portfolio",
+      "title": "Projekte & Experimente",
+      "description": "Eine vielfältige Sammlung meiner Hardwarerestaurierungen, kundenspezifischen Softwaretools, digitalen Archive und diverser technischer DIY-Herausforderungen.",
+      "viewAll": "Alle Projekte ansehen"
+    },
+    "cta": {
+      "badge": "Vernetzen wir uns",
+      "title": "Interesse an einer Zusammenarbeit?",
+      "description": "Ob skalierbarer IT-Support, zuverlässige Systemadministration oder sichere Infrastrukturhärtung – ich bin bereit, mein Know-how in dein Team einzubringen.",
+      "start": "Kontakt aufnehmen",
+      "more": "Mehr über mich"
+    }
+  },
+  "aboutPage": {
+    "title": "Über Luka Piplica — IT-Support & Systemspezialist",
+    "description": "IT-Support-Spezialist und Systemadministrator, der zuverlässige Infrastrukturen aufbaut, Unternehmensnetzwerke verwaltet und einen gezielten technischen Weg in Richtung Cybersecurity einschlägt.",
+    "hero": {
+      "badge": "Über mich",
+      "titleLine1": "Luka Piplica —",
+      "description": "Ein praxisorientierter IT-Profi, der an der Schnittstelle von IT-Support, Systemadministration, Netzwerkzuverlässigkeit und fortschrittlichen Sicherheitspraktiken arbeitet."
+    },
+    "typingWords": "IT-Support-Spezialist,Systemadministrator,Netzwerkadministrator,Cybersecurity-Enthusiast,Open-Source-Mitwirkender",
+    "background": {
+      "badge": "Hintergrund",
+      "title": "Systemspezialist mit Fundament in Präzisionselektronik",
+      "desc1": "Ich begann mit Elektronik – Schaltungsdesign, Löten von Multi-Layer-PCBs und Programmierung von Arduino-Mikrocontrollern. Drei aufeinanderfolgende nationale Meistertitel in Embedded Systems gaben mir ein tiefes Verständnis für Hardware-Diagnose, Low-Level-Engineering und Präzision.",
+      "desc2": "Dieses Fundament ging nahtlos in die Netzwerkadministration über, durch intensives CCNA-Training an der ITAcademy, Corporate IT-Support bei BHRT und praktische Systemhärtung. Das Navigieren durch die manuelle Infrastruktur bei BHRT war eine exzellente Bewährungsprobe in reiner Systemdiagnose. Heute konzentriert sich meine berufliche Roadmap auf den Ausbau von robustem IT-Support und Server-Management hin zu spezialisierten Enterprise-Cybersecurity-Rollen.",
+      "card1Label": "IT-Support & Systemspezialist",
+      "card1Name": "Luka Piplica",
+      "card1Desc": "CCNA-zertifizierter Netzwerkadministrator, Linux/Windows-Systemadministrator und IT-Support-Profi mit Fokus auf Infrastrukturzuverlässigkeit und Systemhärtung.",
+      "card1Tags": "Cisco,Windows Server,Linux,IT-Support,Cybersecurity",
+      "card2Label": "KI-Workflow-Partner",
+      "card2Name": "Claude Code",
+      "card2Desc": "Ein KI-Mitarbeiter, der mich bei der Überprüfung von Automatisierungsskripten, der Optimierung von Workflows und der Erstellung benutzerdefinierter Model Context Protocol (MCP)-Integrationen unterstützt.",
+      "card2Tags": "MCP,Agentic Workflows,Code-Review,Automatisierung"
+    },
+    "process": {
+      "badge": "Meine Methodik",
+      "title": "Ingenieursphilosophie",
+      "description": "Anwendung disziplinierter Ingenieurarbeit und automatisierter Workflows zum Aufbau resilienter, sicherer und beobachtbarer Unternehmenssysteme.",
+      "v1Title": "Security-First-Architektur",
+      "v1Desc": "Ich entwerfe Systeme mit einer 'Zero Trust'-Mentalität und stelle sicher, dass Sicherheit vom ersten Tag an Teil der Infrastruktur ist. Durch Threat Modeling, automatisierte Compliance-Audits und Infrastructure-as-Code-Prinzipien eliminiere ich manuelle Schwachstellen.",
+      "v2Title": "Bewährte Ingenieurserfahrung",
+      "v2Desc": "Gestützt durch nationale Erfolge in der Elektronik, intensives Networking-Training an der ITAcademy und praktische IT-Erfahrung bei BHRT. Ich kombiniere dieses operative Fundament mit kontinuierlicher Weiterbildung, um komplexe technische Herausforderungen zu lösen.",
+      "v3Title": "Infrastruktur & Automatisierung",
+      "v3Desc": "Ich verbinde klassische Systemadministration mit moderner Automatisierung und nutze Python, Bash und PowerShell, um plattformübergreifende Workflows zu optimieren, die Systemleistung zu steigern und den operativen Aufwand zu minimieren."
+    },
+    "stack": {
+      "badge": "Werkzeuge & Tech",
+      "title": "Technischer Stack",
+      "description": "Die Technologien, die ich für den Aufbau, die Bereitstellung und die Absicherung moderner Web-Lösungen einsetze – ausgewählt für Leistung, Sicherheit und Effizienz."
+    },
+    "faq": {
+      "badge": "Gut zu wissen",
+      "title": "Häufig gestellte Fragen",
+      "description": "Einblick in meinen ingenieurtechnischen Hintergrund und professionellen Ansatz.",
+      "card1Title": "Technische Expertise",
+      "card2Title": "Berufliche Vision",
+      "q1": "Was ist dein technischer Hintergrund?",
+      "a1": "Ich bin zertifizierter Computernetzwerkadministrator (ITAcademy) mit technischem Hintergrund in Elektronik (Railway School Center Sarajevo). Meine Erfahrung umfasst eine Tätigkeit bei BHRT, wo ich für den IT-End-to-End-Support verantwortlich war. Dies beinhaltete die Verwaltung von Windows-Client-Umgebungen, Hardwarewartung, Netzwerk-Fehlerbehebung und serverseitige Administration – von der Benutzerverwaltung bis zur Härtung Linux-basierter Infrastrukturen.",
+      "q2": "Auf welche Technologien konzentrierst du dich?",
+      "a2": "Mein Kernfokus liegt auf Enterprise-IT-Support, Systemhärtung und Netzwerkadministration. Ich skaliere diese Aufgaben durch Python, Bash und PowerShell und nutze moderne Frameworks wie Astro, React und Next.js, um performante Dokumentationsplattformen für meine Sicherheitsforschung und Projekte zu entwickeln.",
+      "q3": "Hast du Wettbewerbserfolge erzielt?",
+      "a3": "Ja, ich bin dreifacher Staatsmeister der technischen Ausstellung 'Festival Rada', ausgezeichnet für innovative IoT- und Embedded-System-Engineering-Projekte.",
+      "q4": "Welche Zertifizierungen hältst du?",
+      "a4": "Ich besitze berufliche Qualifikationen in Netzwerkadministration, fortgeschrittenem Python und Englisch auf C2-Niveau (EF SET). Zudem habe ich eine Reihe von Anthropic-Zertifizierungen zu Model Context Protocol (MCP) und Workflow-Integration abgeschlossen.",
+      "q5": "Nutzt du KI in deiner Arbeit?",
+      "a5": "KI ist ein zentraler Pfeiler meines Workflows. Ich nutze sie als Kooperationspartner für Architektur-Reviews, Skript-Validierung und Automatisierung. Meine Arbeit mit dem Model Context Protocol (MCP) erlaubt es mir, KI-Intelligenz direkt mit Systemdaten zu verknüpfen.",
+      "q6": "Bist du ein Unternehmen oder Freiberufler?",
+      "a6": "Ich bin ein unabhängiger IT-Profi, der darauf abzielt, sich direkt in etablierte, wirkungsstarke Unternehmens-Teams zu integrieren – idealerweise bei globalen Tech-Leadern, wo ich mich auf großflächige Infrastrukturen konzentrieren kann.",
+      "q7": "Welche Art von Positionen suchst du?",
+      "a7": "Ich strebe Rollen in den Bereichen IT-Operations, Systemadministration und Cybersecurity an. Ich bevorzuge Umgebungen, die robuste Support-Strategien und proaktives Infrastrukturmanagement erfordern.",
+      "q8": "Arbeitest du mit internationalen Unternehmen?",
+      "a8": "Ja, ich strebe den Wechsel in internationale Rollen an. Aktuell ansässig in Sarajevo, bin ich voll mobil für Vor-Ort-Operationen oder die Integration in verteilte, globale Teams via Remote-Arbeit."
+    },
+    "cv": {
+      "badge": "Lebenslauf",
+      "title": "Das Gesamtbild",
+      "description": "Mein vollständiges berufliches Profil – Erfahrung, Ausbildung, Auszeichnungen und technische Kompetenzen – alles an einem Ort.",
+      "cta": "Vollständigen Lebenslauf lesen"
+    },
+    "cta": {
+      "badge": "Vernetzen wir uns",
+      "title": "Bereit für die Zusammenarbeit?",
+      "desc": "Egal ob deine Infrastruktur robuste Support-Setups, Systemadministration oder automatisierte Skript-Workflows benötigt – ich bin bereit.",
+      "start": "Kontakt aufnehmen"
+    }
+  }
+}

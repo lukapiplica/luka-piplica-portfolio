@@ -1,0 +1,86 @@
+---
+title: "Sejo Bajraktarević Archiv: Digitale Kultur-Plattform"
+description: "Ein hochleistungsfähiges, mehrsprachiges digitales Archiv, entwickelt mit Astro.js und Cloudflare Pages, konzipiert für das sichere Aufbewahren und Streamen jahrzehntelanger Multimedia-Assets eines bedeutenden bosnischen Komponisten."
+url: "https://sejobaron.xyz/de/"
+tags: ["Astro", "Cloudflare Pages", "Tigris S3", "i18n", "Web-Performance"]
+featured: true
+order: 1
+year: 2026
+client: "Sejo Bajraktarević"
+role: "Full-Stack- & Systems-Engineer"
+services: ["Digitale Archivierung", "Cloud-Speicherinfrastruktur", "Medienoptimierung", "Internationalisierung"]
+image: "../../../assets/projects/sejo-bajraktarevic/featured.webp"
+locale: "de"
+---
+
+import ProjectGallery from '../../../components/projects/ProjectGallery.astro';
+import pic1 from '../../../assets/projects/sejo-bajraktarevic/1.webp';
+import pic2 from '../../../assets/projects/sejo-bajraktarevic/2.webp';
+import pic3 from '../../../assets/projects/sejo-bajraktarevic/3.webp';
+import pic4 from '../../../assets/projects/sejo-bajraktarevic/4.webp';
+import pic5 from '../../../assets/projects/sejo-bajraktarevic/5.webp';
+
+## Das Briefing
+
+Das Hauptziel dieses Projekts bestand darin, das jahrzehntelange, vielfältige künstlerische Schaffen von Sejo Bajraktarević – einem prominenten bosnischen Komponisten und Multimedia-Künstler – zu digitalisieren, zu strukturieren und dauerhaft zu bewahren. Das historische Material umfasste verschiedene Medientypen, darunter High-Fidelity-Audioaufnahmen, symphonische Partituren und Dokumentarfilme in voller Länge. 
+
+Die Kernherausforderung lag darin, diesen massiven, unstrukturierten Katalog in eine nahtlose, moderne Web-Experience zu verwandeln. Der Erfolg definierte sich über nahezu verzögerungsfreie Ladezeiten weltweit, garantiertes Multimedia-Streaming ohne Server-Overhead und die barrierefreie globale Zugänglichkeit des gesamten Archivs in mehreren Sprachen.
+
+
+## Was ich gebaut habe
+
+Ich habe ein hochgradig optimiertes, Headless-Digitalarchiv nach dem modernen Jamstack-Ansatz entworfen und bereitgestellt, um traditionelles Servermanagement und Skalierungsprobleme vollständig zu eliminieren.
+
+- **Framework:** Entwickelt mit **Astro.js**, um die strikte „Zero JS by Default“-Island-Architektur zu nutzen. Dies stellt sicher, dass die inhaltsfokussierten Seiten nur ein absolutes Minimum an JavaScript an den Browser senden, wodurch blitzschnelle Baseline-Ladezeiten erreicht werden.
+- **Cloud-Infrastruktur:** Das Deployment der Anwendung erfolgte über **Cloudflare Pages**, wodurch die gesamte Bereitstellungspipeline in ein globales Edge-Netzwerk verlagert wurde, um ultra-niedrige Latenzzeiten und maximale Ausfallsicherheit zu garantieren.
+- **Entkoppelte Asset-Verwaltung:** Um hochauflösende Dateien ohne Aufblähen des Deployment-Bundles zu verwalten, habe ich **Tigris Object Storage** (ein S3-kompatibler Datenspeicher) integriert. Alle großen Multimedia-Assets sind dort isoliert und werden effizient über eine eigene, Cache-optimierte Medien-Subdomain ausgeliefert.
+- **Mehrsprachige Architektur (i18n):** Implementierung eines umfassenden Routing- und Übersetzungsnetzwerks mit nativem Support für vier Sprachen: **Bosnisch, Englisch, Spanisch und Deutsch**, um die globale Auffindbarkeit des Kulturarchivs zu sichern.
+
+
+## Der Prozess
+
+Das Projekt folgte einer strikten Engineering-Pipeline von der Asset-Aggregation bis zum finalen Edge-Deployment:
+
+1. **Datenanalyse & Schema-Design:** Analyse einer massiven Sammlung von Rohdateien, um gemeinsame Muster zu identifizieren. Ich habe ein sauberes, wiederverwendbares Metadaten-Schema strukturiert, das Audio-, Video- und Textinhalte nahtlos verarbeiten kann.
+2. **Infrastruktur-Bereitstellung:** Einrichtung der Tigris S3-Buckets und Konfiguration von Sicherheitsrichtlinien, CORS-Regeln sowie eines dedizierten Subdomain-Proxys über das Cloudflare-Netzwerk, um die zugrundeliegenden Speicher-Endpunkte zu maskieren.
+3. **Pipeline-Optimierung:** Entwicklung maßgeschneiderter Rendering-Blöcke in Astro, um schwere eingebettete Videoelemente elegant zu handhaben. Durch den Einsatz von Lazy-Loading-Techniken wird verhindert, dass der Browser das initiale Rendern der Seite blockiert, während Drittanbieter-Mediaplayer geladen werden.
+4. **Lokalisierungs-Mapping:** Konfiguration von Lokalisierungs-Verzeichnissen (Dictionaries) und Routing-Tabellen mit Sprachpräfixen, um sicherzustellen, dass jeder strukturierte Sammlungseintrag über sve vier Sprachvarianten hinweg korrekt gemappt wird.
+
+
+## Ergebnisse
+
+Die Anwendung wurde erfolgreich aus der lokalen Entwicklung in die Produktion überführt und erzielte herausragende Performance-Metriken:
+
+* **Edge-First-Bereitstellung:** Die Website-Assets werden direkt vom nächstgelegenen Cloudflare-Edge-Knoten gecacht und ausgeliefert, was weltweit zu einer vernachlässigbaren TTFB (Time to First Byte) führt.
+* **Null Infrastruktur-Wartung:** Durch die Entkopplung der Präsentationsebene (Astro) od der Objektspeicherebene (Tigris/S3) läuft das Archiv fundamental serverlos. Das bedeutet, es skaliert automatisch für Tausende gleichzeitiger Besucher bei praktisch null Hosting-Kosten.
+* **Bewahrung von Kultur:** Ein verstreutes, jahrzehntealtes physisches Portfolio wurde erfolgreich in einer einzigen, hochperformanten digitalen Bibliothek vereint, die nun als lebendiges Tribut für einen Meisterkünstler dient.
+
+## Projektgalerie 
+
+<ProjectGallery images={[
+  { 
+    src: pic1, 
+    alt: 'Homepage-Hero-Bereich der Sejo-Bajraktarević-Archiv-Website mit einem sauberen Layout und Sprachauswahl-Dropdown', 
+    caption: 'Der saubere, responsive Homepage-Hero-Bereich des digitalen Multimedia-Erhaltungsprojekts, der ein minimales Layout, eine Typografie-Hierarchie und ein aktives Dropdown-Menü zur Internationalisierung (i18n) zeigt.' 
+  },
+  { 
+    src: pic2, 
+    alt: 'Biografie-Seite, die das Leben, die Geschichte als Multiinstrumentalist und die Meilensteine der Karriere des Komponisten Sejo Bajraktarević detailliert beschreibt', 
+    caption: 'Die spezielle Biografie-Seite (Über den Komponisten), die den Werdegang des Komponisten als Multiinstrumentalist, seine künstlerischen Meilensteine und seinen professionellen Werdegang detailliert beschreibt.' 
+  },
+  { 
+    src: pic3, 
+    alt: 'Medien-Grid-Ansicht des Musikarchivs im Dark Mode, die interaktive Inhaltskarten mit Taxonomie-Tags anzeigt', 
+    caption: 'Die native Dark-Mode-Benutzeroberfläche der Plattform, die das Inhalts-Grid des „Musikarchivs“ anzeigt, mit dynamischen Elementkarten, dedizierten Audio-/Video-Taxonomien und Publikations-Metadaten.'
+  },
+  { 
+    src: pic4, 
+    alt: 'Individuelle Audio-Track-Seite mit historischen Hintergrundinfos, Songtext-Übersetzung und einem schwebenden Musikplayer-Widget', 
+    caption: 'Eine detaillierte Layout-Ansicht einzelner Tracks, komplett mit historischen Aufnahmedetails, strukturierten Songtext-Übersetzungen und einem optimierten, interaktiven, schwebenden Musikplayer-Widget.'
+  },
+  { 
+    src: pic5, 
+    alt: 'Geöffnetes clientseitiges Befehlspaletten-Suchmodal (Overlay), das sofortige Navigationslinks anzeigt', 
+    caption: 'Das vollständig integrierte, clientseitige Befehlspaletten-Suchmodal, das schnelle Navigationslinks und sofortiges Parsen von Schlüsselwörtern über Kollektionen hinweg bietet.'
+  }
+]} />

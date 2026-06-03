@@ -1,0 +1,58 @@
+---
+import BlogLayout from '@/layouts/BlogLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { getLocales } from '@/i18n';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('blog', ({ data }) => {
+    return import.meta.env.PROD ? data.draft !== true : true;
+  });
+
+  const locales = getLocales().filter(locale => locale !== 'en');
+
+  return locales.flatMap((locale) => {
+    const localePosts = allPosts.filter((p) => p.data.locale === locale);
+
+    return localePosts.map((post) => ({
+      params: {
+        locale,
+        slug: post.id.replace(new RegExp(`^${locale}/`), ''),
+      },
+      props: { post },
+    }));
+  });
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+
+// Calculate reading time from actual post body
+const wordsPerMinute = 200;
+const wordCount = (post.body || '').replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
+const readingTime = Math.max(1, Math.ceil(wordCount / wordsPerMinute));
+---
+
+<BlogLayout
+  title={post.data.title}
+  description={post.data.description}
+  publishedAt={post.data.publishedAt}
+  updatedAt={post.data.updatedAt}
+  author={post.data.author}
+  image={post.data.image}
+  imageAlt={post.data.imageAlt}
+  svgSlug={post.data.svgSlug}
+  tags={post.data.tags}
+  slug={post.id}
+  headings={headings}
+  toc={post.data.toc}
+  comments={post.data.comments}
+  locale={post.data.locale}
+  readingTime={readingTime}
+>
+  <Content />
+</BlogLayout>
+
+<style>
+  /* Dummy style to force Astro to collect assets for this page */
+  .force-asset-collection { display: block; }
+</style>

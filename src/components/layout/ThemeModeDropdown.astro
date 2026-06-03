@@ -13,15 +13,22 @@
  * instances (header pill + mobile-menu pill) and view-transition re-mounts.
  */
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 interface Props {
   class?: string;
+  locale?: string;
 }
 
-const { class: className } = Astro.props;
+const { class: className, locale } = Astro.props;
 ---
 
-<div class={cn('relative ttg-wrapper', className)}>
+<div
+  class={cn('relative ttg-wrapper', className)}
+  data-currently-light={t('theme.currentlyLight', locale)}
+  data-currently-dark={t('theme.currentlyDark', locale)}
+  data-aria-label-template={t('theme.ariaLabelTrigger', locale)}
+>
   <!-- Trigger pill -->
   <button
     type="button"
@@ -33,7 +40,7 @@ const { class: className } = Astro.props;
     )}
     aria-haspopup="menu"
     aria-expanded="false"
-    aria-label="Theme: system. Click to change."
+    aria-label={t('theme.ariaLabelTrigger', locale)}
   >
     <!-- Monitor — shown when data-theme-mode="system" (also pre-bootstrap fallback) -->
     <svg class="ttg-icon ttg-icon-system h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -72,7 +79,7 @@ const { class: className } = Astro.props;
       'p-1.5 hidden'
     )}
     role="menu"
-    aria-label="Colour mode"
+    aria-label={t('theme.themeMode', locale)}
   >
     <button type="button" class="ttg-row" role="menuitemradio" aria-checked="false" data-mode="system">
       <span class="ttg-row-icon">
@@ -82,8 +89,8 @@ const { class: className } = Astro.props;
         </svg>
       </span>
       <span class="ttg-row-label">
-        <span class="ttg-row-title">System</span>
-        <span class="ttg-system-sub">Currently light</span>
+        <span class="ttg-row-title">{t('theme.systemMode', locale)}</span>
+        <span class="ttg-system-sub">{t('theme.currentlyLight', locale)}</span>
       </span>
       <svg class="ttg-check h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20 6L9 17l-5-5"/>
@@ -97,7 +104,7 @@ const { class: className } = Astro.props;
         </svg>
       </span>
       <span class="ttg-row-label">
-        <span class="ttg-row-title">Light</span>
+        <span class="ttg-row-title">{t('theme.lightMode', locale)}</span>
       </span>
       <svg class="ttg-check h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20 6L9 17l-5-5"/>
@@ -111,7 +118,7 @@ const { class: className } = Astro.props;
         </svg>
       </span>
       <span class="ttg-row-label">
-        <span class="ttg-row-title">Dark</span>
+        <span class="ttg-row-title">{t('theme.darkMode', locale)}</span>
       </span>
       <svg class="ttg-check h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20 6L9 17l-5-5"/>
@@ -234,13 +241,18 @@ const { class: className } = Astro.props;
 
   function syncAllTriggerLabels(mode: Mode): void {
     document.querySelectorAll<HTMLButtonElement>('.ttg-trigger').forEach((btn) => {
-      btn.setAttribute('aria-label', `Theme: ${mode}. Click to change.`);
+      const wrapper = btn.closest('.ttg-wrapper') as HTMLElement;
+      const label = wrapper?.dataset.ariaLabelTemplate || 'Theme menu. Click to change.';
+      btn.setAttribute('aria-label', label);
     });
   }
 
   function syncSystemSubLine(): void {
-    const text = osIsDark() ? 'Currently dark' : 'Currently light';
     document.querySelectorAll<HTMLElement>('.ttg-system-sub').forEach((el) => {
+      const wrapper = el.closest('.ttg-wrapper') as HTMLElement;
+      const text = osIsDark() 
+        ? (wrapper?.dataset.currentlyDark || 'Currently dark') 
+        : (wrapper?.dataset.currentlyLight || 'Currently light');
       el.textContent = text;
     });
   }

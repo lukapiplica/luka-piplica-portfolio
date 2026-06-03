@@ -1,0 +1,410 @@
+---
+import { t, localizedPath } from '@/i18n';
+import Icon from '@/components/ui/primitives/Icon/Icon.astro';
+import { getCollection } from 'astro:content';
+
+interface Props {
+  locale: string;
+}
+
+const { locale } = Astro.props;
+
+// Build search index at render time — no separate endpoint needed
+const allPosts = await getCollection('blog', ({ data }) => {
+  return import.meta.env.PROD ? data.draft !== true : true;
+});
+
+const allProjects = await getCollection('projects', ({ data }) => {
+  return import.meta.env.PROD ? !data.draft : true;
+});
+
+const searchIndex = [
+  ...allPosts.map((post) => {
+    const postLocale = post.data.locale || 'en';
+    const slug = post.id
+      .replace(new RegExp(`^${postLocale}/`), '')
+      .replace(/\.(md|mdx)$/, '');
+    const url = postLocale === 'en' ? `/blog/${slug}` : `/${postLocale}/blog/${slug}`;
+    return {
+      type: 'blog' as const,
+      title: post.data.title,
+      description: post.data.description,
+      tags: post.data.tags || [],
+      locale: postLocale,
+      url,
+    };
+  }),
+  ...allProjects.map((project) => {
+    const projLocale = project.data.locale || 'en';
+    const slug = project.id
+      .replace(new RegExp(`^${projLocale}/`), '')
+      .replace(/\.(md|mdx)$/, '');
+    const url = projLocale === 'en' ? `/projects/${slug}` : `/${projLocale}/projects/${slug}`;
+    return {
+      type: 'project' as const,
+      title: project.data.title,
+      description: project.data.description,
+      tags: project.data.tags || [],
+      locale: projLocale,
+      url,
+    };
+  }),
+];
+---
+
+<div
+  id="search-modal"
+  class="fixed inset-0 z-[100] hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-label={t('common.search', locale)}
+  data-locale={locale}
+>
+  <!-- Backdrop -->
+  <div
+    class="fixed inset-0 bg-background/50 backdrop-blur-md opacity-0 transition-opacity duration-200"
+    data-search-backdrop
+  ></div>
+
+  <!-- Command Palette -->
+  <div class="fixed inset-0 flex items-start justify-center p-4 overflow-y-auto pt-[12vh] pointer-events-none">
+    <div
+      class="relative w-full max-w-2xl bg-background/95 border border-border shadow-2xl rounded-2xl scale-95 opacity-0 transition-all duration-200 overflow-hidden flex flex-col max-h-[70vh] pointer-events-auto"
+      data-search-panel
+    >
+      <!-- Search Input -->
+      <div class="flex items-center gap-3 px-4 py-4 border-b border-border/80 bg-background-secondary/60">
+        <Icon name="search" class="w-5 h-5 text-foreground-muted" />
+        <input
+          type="text"
+          id="search-input"
+          placeholder={t('search.placeholder', locale)}
+          class="flex-1 bg-transparent text-foreground placeholder-foreground-muted text-base focus:outline-none"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <kbd class="hidden sm:inline-flex h-5 select-none items-center gap-0.5 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-foreground-muted">
+          ESC
+        </kbd>
+        <button
+          type="button"
+          id="search-clear"
+          class="hidden text-foreground-muted hover:text-foreground transition-colors p-1.5 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+          aria-label={t('search.clear', locale)}
+        >
+          <Icon name="x" class="w-4 h-4" />
+        </button>
+      </div>
+
+      <!-- Results -->
+      <div
+        id="search-results"
+        class="flex-1 overflow-y-auto p-3 scrollbar-thin"
+        data-blogs-heading={t('search.blogs', locale)}
+        data-projects-heading={t('search.projects', locale)}
+      >
+        <div id="search-initial" class="py-14 text-center text-foreground-muted">
+          <div class="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4 border border-border/50">
+            <Icon name="search" class="w-5 h-5 text-foreground-muted" />
+          </div>
+          <p class="text-sm font-medium">{t('search.placeholder', locale)}</p>
+        </div>
+
+        <div id="search-empty" class="hidden py-14 text-center text-foreground-muted">
+          <div class="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4 border border-border/50">
+            <Icon name="file-question" class="w-5 h-5 text-foreground-muted" />
+          </div>
+          <p class="text-sm font-medium" id="search-empty-text" data-raw-text={t('search.noResults', locale)}></p>
+        </div>
+
+        <div id="search-results-list" class="hidden"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-4 py-2.5 border-t border-border/60 bg-background-secondary/40 flex items-center justify-between text-[11px] text-foreground-muted font-medium select-none">
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1">
+            <kbd class="px-1 py-0.5 border border-border bg-background rounded">↑↓</kbd> {t('search.shortcutNavigate', locale)}
+          </span>
+          <span class="flex items-center gap-1">
+            <kbd class="px-1.5 py-0.5 border border-border bg-background rounded">Enter</kbd> {t('search.shortcutSelect', locale)}
+          </span>
+        </div>
+        <div>
+          <span>{t('search.shortcutHint', locale)}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Inline search index data -->
+<script type="application/json" id="search-index-data" set:html={JSON.stringify(searchIndex)} />
+
+<script>
+  interface SearchItem {
+    type: 'blog' | 'project';
+    title: string;
+    description: string;
+    tags: string[];
+    locale: string;
+    url: string;
+  }
+
+  const dataEl = document.getElementById('search-index-data');
+  const searchIndex: SearchItem[] = dataEl ? JSON.parse(dataEl.textContent || '[]') : [];
+
+  const modal = document.getElementById('search-modal');
+  if (modal) {
+    const backdrop = modal.querySelector('[data-search-backdrop]') as HTMLElement;
+    const panel = modal.querySelector('[data-search-panel]') as HTMLElement;
+    const input = document.getElementById('search-input') as HTMLInputElement;
+    const clearButton = document.getElementById('search-clear') as HTMLButtonElement;
+    const resultsContainer = document.getElementById('search-results') as HTMLElement;
+    const initialView = document.getElementById('search-initial') as HTMLElement;
+    const emptyView = document.getElementById('search-empty') as HTMLElement;
+    const emptyText = document.getElementById('search-empty-text') as HTMLElement;
+    const resultsList = document.getElementById('search-results-list') as HTMLElement;
+
+    let activeIndex = -1;
+    let itemsList: HTMLAnchorElement[] = [];
+
+    const activeLocale = modal.getAttribute('data-locale') || 'en';
+
+    function openModal() {
+      modal?.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+
+      requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        backdrop.classList.add('opacity-100');
+        panel.classList.remove('scale-95', 'opacity-0');
+        panel.classList.add('scale-100', 'opacity-100');
+        input.focus();
+      });
+
+      document.addEventListener('keydown', handleGlobalKeydown);
+    }
+
+    function closeModal() {
+      backdrop.classList.add('opacity-0');
+      backdrop.classList.remove('opacity-100');
+      panel.classList.add('scale-95', 'opacity-0');
+      panel.classList.remove('scale-100', 'opacity-100');
+
+      setTimeout(() => {
+        modal?.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }, 200);
+
+      document.removeEventListener('keydown', handleGlobalKeydown);
+      input.value = '';
+      clearButton.classList.add('hidden');
+      showInitialState();
+    }
+
+    function showInitialState() {
+      initialView.classList.remove('hidden');
+      emptyView.classList.add('hidden');
+      resultsList.classList.add('hidden');
+      resultsList.innerHTML = '';
+      activeIndex = -1;
+      itemsList = [];
+    }
+
+    function highlightMatches(text: string, query: string): string {
+      if (!query) return text;
+      const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
+      return text.replace(regex, '<mark class="bg-brand-500/20 text-brand-500 dark:text-brand-400 font-semibold px-0.5 rounded-sm">$1</mark>');
+    }
+
+    function renderSearchItemMarkup(item: SearchItem, id: string, query: string): string {
+      const titleHighlighted = highlightMatches(item.title, query);
+      const descHighlighted = highlightMatches(item.description, query);
+      
+      let tagsHtml = '';
+      if (item.tags && item.tags.length > 0) {
+        tagsHtml = `
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            ${item.tags.map(tag => `<span class="text-[10px] leading-none bg-background-tertiary text-foreground-muted px-2 py-1 rounded-full font-medium border border-border/40">${highlightMatches(tag, query)}</span>`).join('')}
+          </div>
+        `;
+      }
+
+      return `
+        <a
+          href="${item.url}"
+          id="${id}"
+          class="block px-4 py-3 rounded-xl border border-transparent transition-all duration-150 hover:bg-secondary/50 group focus:outline-none"
+          data-search-item
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-semibold text-foreground group-hover:text-brand-500 transition-colors">${titleHighlighted}</h4>
+              <p class="text-xs text-foreground-muted leading-relaxed mt-1 line-clamp-2">${descHighlighted}</p>
+              ${tagsHtml}
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-brand-500 opacity-0 group-hover:opacity-100 group-[.active]:opacity-100 transition-all shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </div>
+        </a>
+      `;
+    }
+
+    function performSearch() {
+      const query = input.value.trim().toLowerCase();
+      if (!query) {
+        showInitialState();
+        clearButton.classList.add('hidden');
+        return;
+      }
+
+      clearButton.classList.remove('hidden');
+
+      const filtered = searchIndex.filter(item => {
+        if (item.locale !== activeLocale) return false;
+        return (
+          item.title.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          item.tags.some(tag => tag.toLowerCase().includes(query))
+        );
+      });
+
+      if (filtered.length === 0) {
+        initialView.classList.add('hidden');
+        resultsList.classList.add('hidden');
+        emptyView.classList.remove('hidden');
+        const rawText = emptyText.getAttribute('data-raw-text') || 'No results found for "{query}"';
+        emptyText.textContent = rawText.replace('{query}', input.value.trim());
+        activeIndex = -1;
+        itemsList = [];
+        return;
+      }
+
+      initialView.classList.add('hidden');
+      emptyView.classList.add('hidden');
+      resultsList.classList.remove('hidden');
+
+      const blogs = filtered.filter(item => item.type === 'blog');
+      const projects = filtered.filter(item => item.type === 'project');
+
+      let html = '';
+
+      const blogsHeading = resultsContainer.getAttribute('data-blogs-heading') || 'Blogs';
+      const projectsHeading = resultsContainer.getAttribute('data-projects-heading') || 'Projects';
+
+      let itemCounter = 0;
+
+      if (blogs.length > 0) {
+        html += `
+          <div class="mb-5">
+            <div class="flex items-center gap-2 px-3 mb-2 text-[10px] font-bold text-foreground-muted tracking-wider uppercase select-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+              ${blogsHeading}
+            </div>
+            <div class="space-y-1">
+        `;
+        blogs.forEach(item => {
+          html += renderSearchItemMarkup(item, `search-item-${itemCounter++}`, input.value.trim().toLowerCase());
+        });
+        html += `</div></div>`;
+      }
+
+      if (projects.length > 0) {
+        html += `
+          <div>
+            <div class="flex items-center gap-2 px-3 mb-2 text-[10px] font-bold text-foreground-muted tracking-wider uppercase select-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              ${projectsHeading}
+            </div>
+            <div class="space-y-1">
+        `;
+        projects.forEach(item => {
+          html += renderSearchItemMarkup(item, `search-item-${itemCounter++}`, input.value.trim().toLowerCase());
+        });
+        html += `</div></div>`;
+      }
+
+      resultsList.innerHTML = html;
+
+      itemsList = Array.from(resultsList.querySelectorAll<HTMLAnchorElement>('[data-search-item]'));
+      activeIndex = 0;
+      updateActiveItem();
+    }
+
+    function updateActiveItem() {
+      itemsList.forEach((item, index) => {
+        if (index === activeIndex) {
+          item.classList.add('active', 'bg-secondary/70');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('active', 'bg-secondary/70');
+        }
+      });
+    }
+
+    function handleGlobalKeydown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (itemsList.length === 0) return;
+        activeIndex = (activeIndex + 1) % itemsList.length;
+        updateActiveItem();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (itemsList.length === 0) return;
+        activeIndex = (activeIndex - 1 + itemsList.length) % itemsList.length;
+        updateActiveItem();
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0 && activeIndex < itemsList.length) {
+          e.preventDefault();
+          itemsList[activeIndex].click();
+        }
+      }
+    }
+
+    // Set up triggers
+    function setupSearchTriggers() {
+      const triggers = document.querySelectorAll('[data-search-trigger]');
+      triggers.forEach(trigger => {
+        if ((trigger as any)._searchBound) return;
+        (trigger as any)._searchBound = true;
+        trigger.addEventListener('click', (e) => {
+          e.preventDefault();
+          openModal();
+        });
+      });
+    }
+
+    setupSearchTriggers();
+
+    backdrop.addEventListener('click', closeModal);
+    input.addEventListener('input', performSearch);
+    
+    clearButton.addEventListener('click', () => {
+      input.value = '';
+      input.focus();
+      clearButton.classList.add('hidden');
+      showInitialState();
+    });
+
+    // Global keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const isOpen = !modal?.classList.contains('hidden');
+      if (isOpen) return;
+
+      const isCmdK = (e.metaKey || e.ctrlKey) && e.key === 'k';
+      const isSlash = e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA';
+
+      if (isCmdK || isSlash) {
+        e.preventDefault();
+        openModal();
+      }
+    });
+  }
+</script>

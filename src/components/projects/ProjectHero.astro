@@ -3,6 +3,7 @@ import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import Button from '@/components/ui/form/Button/Button.astro';
 import Icon from '@/components/ui/primitives/Icon/Icon.astro';
+import { t } from '@/i18n';
 
 interface Props {
   title: string;
@@ -16,6 +17,7 @@ interface Props {
   repo?: string;
   image?: ImageMetadata;
   imageAlt?: string;
+  locale?: string;
 }
 
 const {
@@ -29,6 +31,7 @@ const {
   repo,
   image,
   imageAlt,
+  locale,
 } = Astro.props;
 
 const hasMeta = year || client || role;
@@ -102,13 +105,13 @@ const hasMeta = year || client || role;
         {url && (
           <Button href={url} target="_blank" rel="noopener noreferrer" size="md">
             <Icon name="external-link" size="sm" />
-            View live site
+            {locale === 'hr' ? 'Pogledaj uživo' : t('projects.viewProject', locale) || 'View live site'}
           </Button>
         )}
         {repo && (
           <Button href={repo} target="_blank" rel="noopener noreferrer" variant="outline" size="md">
             <Icon name="github" size="sm" />
-            View source
+            {locale === 'hr' ? 'Izvorni kod' : t('projects.viewSource', locale) || 'View source'}
           </Button>
         )}
       </div>

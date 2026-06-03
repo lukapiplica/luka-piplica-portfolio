@@ -62,7 +62,7 @@ const gridClasses = cn(
 <section class={sectionClasses} {...attrs}>
   {showGrid && (
     <div
-      class="bg-grid-pattern pointer-events-none absolute inset-x-0 -inset-y-[20%] opacity-30 hidden md:dark:block"
+      class="bg-grid-pattern pointer-events-none absolute inset-x-0 inset-y-[-20%] opacity-30 hidden md:dark:block"
       style="mask-image: radial-gradient(ellipse 50% 50% at 50% 40%, black 0%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 40%, black 0%, transparent 70%);"
       aria-hidden="true"
     />
@@ -70,20 +70,20 @@ const gridClasses = cn(
 
   {showGlow && (
     <>
-      <div class="pointer-events-none absolute left-1/2 top-1/4 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-500/15 blur-[120px] hidden dark:block" aria-hidden="true" />
-      <div class="pointer-events-none absolute bottom-1/4 right-1/4 h-[400px] w-[400px] rounded-full bg-brand-600/10 blur-[100px] hidden dark:block" aria-hidden="true" />
+      <div class="pointer-events-none absolute left-1/2 top-1/4 h-150 w-150 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-500/15 blur-[120px] hidden dark:block" aria-hidden="true" />
+      <div class="pointer-events-none absolute bottom-1/4 right-1/4 h-100 w-100 rounded-full bg-brand-600/10 blur-[100px] hidden dark:block" aria-hidden="true" />
     </>
   )}
 
   {showBlob && (
     <>
       <div
-        class="pointer-events-none absolute hidden dark:block dark:opacity-[0.20] rounded-full blur-[120px] h-[500px] w-[500px] -left-20 top-0 -translate-y-1/4"
+        class="pointer-events-none absolute hidden dark:block dark:opacity-[0.20] rounded-full blur-[120px] h-125 w-125 -left-20 top-0 -translate-y-1/4"
         style="background: radial-gradient(ellipse at center, var(--color-brand-400) 0%, transparent 70%);"
         aria-hidden="true"
       />
       <div
-        class="pointer-events-none absolute hidden dark:block dark:opacity-[0.20] rounded-full blur-[120px] h-[500px] w-[500px] -right-20 top-0 -translate-y-1/4"
+        class="pointer-events-none absolute hidden dark:block dark:opacity-[0.20] rounded-full blur-[120px] h-125 w-125 -right-20 top-0 -translate-y-1/4"
         style="background: radial-gradient(ellipse at center, var(--color-brand-400) 0%, transparent 70%);"
         aria-hidden="true"
       />
@@ -91,7 +91,7 @@ const gridClasses = cn(
   )}
 
   {bottomFade && (
-    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background-secondary hidden dark:block" aria-hidden="true" />
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-linear-to-b from-transparent to-background-secondary hidden dark:block" aria-hidden="true" />
   )}
 
 
@@ -110,10 +110,10 @@ const gridClasses = cn(
 
   <div class={gridClasses}>
     {/* Content Column */}
-    <div class={cn(contentClasses, 'order-1 lg:order-none animate-hero-stagger')}>
+    <div class={cn(contentClasses, 'order-1 lg:order-0 animate-hero-stagger')}>
       {/* Badge Slot */}
       {hasBadgeSlot && (
-        <div class="mb-[var(--space-heading-gap)]">
+        <div class="mb-(--space-heading-gap)">
           <slot name="badge" />
         </div>
       )}
@@ -121,7 +121,7 @@ const gridClasses = cn(
       {/* Title Slot */}
       {hasTitleSlot && (
         <div class={cn(
-          'hero-title-slot mb-[var(--space-heading-gap)]',
+          'hero-title-slot mb-(--space-heading-gap)',
           '[&>h1]:font-display [&>h1]:text-5xl [&>h1]:leading-[1.1] [&>h1]:font-bold [&>h1]:tracking-tight [&>h1]:text-balance [&>h1]:text-foreground md:[&>h1]:text-6xl lg:[&>h1]:text-7xl',
           '[&>h2]:font-display [&>h2]:text-4xl [&>h2]:leading-[1.1] [&>h2]:font-bold [&>h2]:tracking-tight [&>h2]:text-balance [&>h2]:text-foreground md:[&>h2]:text-5xl lg:[&>h2]:text-6xl'
         )}>
@@ -132,7 +132,7 @@ const gridClasses = cn(
       {/* Description Slot */}
       {hasDescriptionSlot && (
         <div class={cn(
-          'mb-[var(--space-stack-lg)] max-w-xl text-lg leading-relaxed text-foreground-muted',
+          'mb-(--space-stack-lg) max-w-xl text-lg leading-relaxed text-foreground-muted',
           '[&>p]:text-lg [&>p]:leading-relaxed [&>p]:text-foreground-muted',
           layout === 'centered' && 'mx-auto'
         )}>
@@ -156,7 +156,7 @@ const gridClasses = cn(
 
     {/* Aside Column (for split layout) */}
     {layout === 'split' && hasAsideSlot && (
-      <div class="relative z-10 w-full order-2 lg:order-none">
+      <div class="relative z-10 w-full order-2 lg:order-0">
         <slot name="aside" />
       </div>
     )}

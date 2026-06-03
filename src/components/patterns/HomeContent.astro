@@ -1,0 +1,491 @@
+---
+/**
+ * Shared Home Index Content
+ * Handles rendering the homepage content with full internationalization (i18n)
+ * and correct dynamic collection queries filtered by locale.
+ */
+import LandingLayout from '@/layouts/LandingLayout.astro';
+import { Hero } from '@/components/hero';
+import Button from '@/components/ui/form/Button/Button.astro';
+import Badge from '@/components/ui/data-display/Badge/Badge.astro';
+import Card from '@/components/ui/data-display/Card/Card.astro';
+import Icon from '@/components/ui/primitives/Icon/Icon.astro';
+import BlogCard from '@/components/blog/BlogCard.astro';
+import LetterGlitchBand from '@/components/patterns/LetterGlitchBand.astro';
+import { getCollection } from 'astro:content';
+import { t, localizedPath } from '@/i18n';
+
+interface Props {
+  locale: string;
+}
+
+const { locale } = Astro.props;
+
+// Fetch and filter projects by current locale and active state
+const projectItems = await getCollection('projects', ({ data }) => !data.draft && data.locale === locale);
+const featuredProjects = projectItems
+  .sort((a, b) => a.data.order - b.data.order)
+  .slice(0, 4);
+
+// Fetch and filter blog posts by current locale
+const allPosts = await getCollection('blog', ({ data }) => !data.draft && data.locale === locale);
+const posts = allPosts
+  .sort((a, b) => {
+    if (a.data.featured !== b.data.featured) return a.data.featured ? -1 : 1;
+    return b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf();
+  })
+  .slice(0, 3);
+
+const getPostUrl = (postId: string) => {
+  // Strip locale segment from the post ID to resolve the path correctly (e.g. "en/welcome" -> "welcome")
+  const slug = postId.replace(new RegExp(`^${locale}/`), '').replace(/\.mdx?$/, '');
+  return localizedPath(`/blog/${slug}`, locale);
+};
+
+const getProjectUrl = (projectId: string) => {
+  // Strip locale prefix from ID (e.g. "en/welcome" -> "welcome")
+  const slug = projectId.replace(new RegExp(`^${locale}/`), '').replace(/\.mdx?$/, '');
+  return localizedPath(`/projects/${slug}`, locale);
+};
+---
+
+<LandingLayout
+  title={`${t('home.hero.titlePart1', locale)} ${t('home.hero.titlePart2', locale)}`}
+  description={t('home.hero.description', locale)}
+  image="/og-default.svg"
+  includePersonSchema={true}
+  includeProfessionalServiceSchema={true}
+  locale={locale}
+>
+  <!-- Hero -->
+  <Hero layout="centered" size="xl" class="hero-dark-gradient" showScrollIndicator>
+    <Badge slot="badge" variant="brand" pill pulse class="dark:text-brand-200">
+      {t('home.hero.badge', locale)}
+    </Badge>
+
+    <h1 slot="title">
+      <span class="text-brand-600 dark:text-foreground [-webkit-text-fill-color:currentColor]">{t('home.hero.titlePart1', locale)}</span><br />
+      <span class="text-brand-600 dark:text-foreground [-webkit-text-fill-color:currentColor]">{t('home.hero.titlePart2', locale)}</span>
+    </h1>
+
+    <p slot="description">
+      {t('home.hero.description', locale)}
+    </p>
+
+    <Fragment slot="actions">
+      <Button size="lg" href={localizedPath('/blog/luka-piplica-cv', locale)}>
+        {t('home.hero.viewCv', locale)}
+        <Icon name="arrow-right" size="sm" />
+      </Button>
+      <Button size="lg" variant="outline" href={localizedPath('/contact', locale)}>
+        <Icon name="mail" size="sm" />
+        {t('home.hero.contactMe', locale)}
+        <Icon name="arrow-right" size="sm" />
+      </Button>
+    </Fragment>
+  </Hero>
+
+  <!-- Services Section -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <div class="mx-auto max-w-6xl px-6 flex flex-col gap-8">
+      <div class="flex flex-col items-center gap-4 text-center" data-reveal>
+        <div class="flex flex-col items-center gap-6">
+          <Badge variant="brand" pill>{t('home.services.badge', locale)}</Badge>
+          <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+            {t('home.services.title', locale)}
+          </h2>
+        </div>
+        <p class="text-lg text-foreground-muted max-w-2xl mx-auto">
+          {t('home.services.description', locale)}
+        </p>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- Systems & Network Admin -->
+        <Card hover data-reveal>
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="server" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.sysadmin.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.sysadmin.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Web Development -->
+        <Card hover data-reveal data-reveal-delay="1">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="code" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.webdev.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.webdev.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Cybersecurity -->
+        <Card hover data-reveal data-reveal-delay="2">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="shield" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.security.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.security.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Electronics & IoT -->
+        <Card hover data-reveal data-reveal-delay="3">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="cpu" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.electronics.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.electronics.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- AI & MCP Automation -->
+        <Card hover data-reveal data-reveal-delay="4">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="bot" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.ai.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.ai.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Enterprise IT Support -->
+        <Card hover data-reveal data-reveal-delay="5">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="server" size="sm" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('home.services.operations.title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('home.services.operations.description', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Portfolio -->
+  <section id="work" class="relative z-10 py-[var(--space-section-md)] bg-background border-t border-border">
+    <div class="mx-auto max-w-6xl px-6 flex flex-col gap-8">
+      <div class="flex flex-col items-center gap-4 text-center" data-reveal>
+        <div class="flex flex-col items-center gap-6">
+          <Badge variant="brand" pill>{t('home.projects.badge', locale)}</Badge>
+          <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+            {t('home.projects.title', locale)}
+          </h2>
+        </div>
+        <p class="text-lg text-foreground-muted max-w-2xl mx-auto">
+          {t('home.projects.description', locale)}
+        </p>
+      </div>
+
+      {featuredProjects.length > 0 ? (
+        <div class="grid gap-6 md:grid-cols-2">
+          {featuredProjects.map((project) => (
+            <Card variant="elevated" hover padding="lg" href={getProjectUrl(project.id)} class="group flex flex-col" data-reveal>
+              <div class="flex flex-1 flex-col">
+                <div class="mb-3 flex items-start justify-between gap-4">
+                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+                    <Icon name="layers" size="sm" />
+                  </div>
+                  <Icon name="arrow-up-right" size="sm" class="text-foreground-muted group-hover:text-brand-500 transition-colors shrink-0" />
+                </div>
+                <div class="mb-2 flex items-baseline gap-2">
+                  <h3 class="font-display text-lg font-bold text-foreground">{project.data.title}</h3>
+                  {project.data.year && (
+                    <span class="text-xs text-foreground-muted">{project.data.year}</span>
+                  )}
+                </div>
+                <p class="text-sm text-foreground-muted leading-relaxed mb-4 flex-1">{project.data.description}</p>
+                <div class="flex flex-wrap gap-1.5">
+                  {project.data.tags.map((tag) => (
+                    <Badge variant="brand">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div class="py-12 text-center border border-dashed border-border rounded-2xl bg-background-secondary">
+          <Icon name="layers" class="w-10 h-10 text-foreground-muted mx-auto mb-3" />
+          <p class="text-foreground-muted">{t('projects.noProjectsFound', locale)}</p>
+        </div>
+      )}
+
+      <div class="flex justify-center">
+        <Button variant="outline" href={localizedPath('/projects', locale)}>
+          {t('home.projects.viewAll', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <div class="mx-auto max-w-6xl px-6 flex flex-col gap-8">
+      <div class="flex flex-col items-center gap-4 text-center" data-reveal>
+        <div class="flex flex-col items-center gap-6">
+          <Badge variant="brand" pill>{t('home.testimonials.badge', locale)}</Badge>
+          <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+            {t('home.testimonials.title', locale)}
+          </h2>
+        </div>
+        <p class="text-lg text-foreground-muted">
+          {t('home.testimonials.description', locale)}
+        </p>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- Testimonial 1 -->
+        <Card variant="elevated" padding="lg" hover data-reveal>
+          <div class="flex flex-col h-full gap-4">
+            <div class="flex gap-1 text-brand-500" role="img" aria-label="5 out of 5 stars">
+              {[...Array(5)].map(() => (
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              ))}
+            </div>
+            <blockquote class="flex-1 text-foreground-muted leading-relaxed italic">
+              "{t('home.testimonials.t1.quote', locale)}"
+            </blockquote>
+            <div class="flex items-center gap-3 pt-4 border-t border-border">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500/30 to-brand-500/10 flex items-center justify-center text-brand-500 font-bold text-sm shrink-0">
+                {t('home.testimonials.t1.letter', locale)}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-foreground">{t('home.testimonials.t1.author', locale)}</p>
+                <p class="text-xs text-foreground-muted">{t('home.testimonials.t1.role', locale)}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Testimonial 2 -->
+        <Card variant="elevated" padding="lg" hover data-reveal data-reveal-delay="1">
+          <div class="flex flex-col h-full gap-4">
+            <div class="flex gap-1 text-brand-500" role="img" aria-label="5 out of 5 stars">
+              {[...Array(5)].map(() => (
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              ))}
+            </div>
+            <blockquote class="flex-1 text-foreground-muted leading-relaxed italic">
+              "{t('home.testimonials.t2.quote', locale)}"
+            </blockquote>
+            <div class="flex items-center gap-3 pt-4 border-t border-border">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500/30 to-brand-500/10 flex items-center justify-center text-brand-500 font-bold text-sm shrink-0">
+                {t('home.testimonials.t2.letter', locale)}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-foreground">{t('home.testimonials.t2.author', locale)}</p>
+                <p class="text-xs text-foreground-muted">{t('home.testimonials.t2.role', locale)}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Teaser -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <div class="mx-auto max-w-6xl px-6">
+      <div class="grid gap-12 lg:grid-cols-2">
+        <div class="flex flex-col justify-center" data-reveal="right">
+          <div class="flex flex-col gap-6 mb-6">
+            <Badge variant="brand" pill class="self-start">{t('home.about.badge', locale)}</Badge>
+            <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+              {t('home.about.titlePart1', locale)}<br />
+              <span class="text-brand-500">{t('home.about.titlePart2', locale)}</span>
+            </h2>
+          </div>
+          <p class="text-lg text-foreground-muted leading-relaxed mb-8">
+            {t('home.about.desc1', locale)}
+          </p>
+          <Button variant="outline" href={localizedPath('/about', locale)} class="self-start">
+            {t('home.about.cta', locale)}
+            <Icon name="arrow-right" size="sm" />
+          </Button>
+        </div>
+        <Card variant="elevated" padding="lg" class="h-full flex flex-col" data-reveal="left" data-reveal-delay="1">
+          <p class="text-sm text-foreground mb-5 text-center">{t('home.about.badge', locale)}.</p>
+          <div class="grid grid-cols-2 gap-3 flex-1 auto-rows-fr">
+            <!-- IT Operations -->
+            <div class="bg-background-tertiary rounded-xl p-5 flex flex-col items-center justify-center text-center gap-2 border-t-2 border-brand-500/40 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-brand-500 cursor-default h-full">
+              <Icon name="server" class="w-10 h-10 text-brand-500" />
+              <p class="text-sm font-semibold text-foreground">{t('home.about.experience', locale)}</p>
+            </div>
+            <!-- State Championships -->
+            <div class="bg-background-tertiary rounded-xl p-5 flex flex-col items-center justify-center text-center gap-2 border-t-2 border-brand-500/40 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-brand-500 cursor-default h-full">
+              <Icon name="trophy" class="w-10 h-10 text-brand-500" />
+              <p class="text-sm font-semibold text-foreground">{t('home.about.awards', locale)}</p>
+            </div>
+            <!-- EF SET C2 -->
+            <div class="bg-background-tertiary rounded-xl p-5 flex flex-col items-center justify-center text-center gap-2 border-t-2 border-brand-500/40 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-brand-500 cursor-default h-full">
+              <Icon name="globe" class="w-10 h-10 text-brand-500" />
+              <p class="text-sm font-semibold text-foreground">{t('home.about.worldwide', locale)}</p>
+            </div>
+            <!-- Location Card -->
+            <div class="bg-background-tertiary rounded-xl p-5 flex flex-col items-center justify-center text-center gap-2 border-t-2 border-brand-500/40 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-brand-500 cursor-default h-full">
+              <Icon name="map-pin" class="w-10 h-10 text-brand-500" />
+              <p class="text-sm font-semibold text-foreground">{t('home.about.location', locale)}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Blog -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background border-t border-border">
+    <div class="mx-auto max-w-6xl px-6 flex flex-col gap-8">
+      <div class="flex flex-col items-center gap-6 text-center" data-reveal>
+        <Badge variant="brand" pill>{t('nav.blog', locale)}</Badge>
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+          {t('blog.featured', locale)}
+        </h2>
+      </div>
+
+      {posts.length > 0 ? (
+        <div class="grid gap-6 md:grid-cols-3">
+          {posts.map((post) => (
+            <BlogCard
+              title={post.data.title}
+              description={post.data.description}
+              href={getPostUrl(post.id)}
+              publishedAt={post.data.publishedAt}
+              tags={post.data.tags}
+              author={post.data.author}
+              image={post.data.image}
+              svgSlug={post.data.svgSlug}
+              locale={locale}
+              body={post.body}
+            />
+          ))}
+        </div>
+      ) : (
+        <div class="py-12 text-center border border-dashed border-border rounded-2xl bg-background-secondary">
+          <Icon name="file-text" class="w-10 h-10 text-foreground-muted mx-auto mb-3" />
+          <p class="text-foreground-muted">{t('blog.noPostsFound', locale)}</p>
+        </div>
+      )}
+
+      <div class="flex justify-center">
+        <Button variant="outline" href={localizedPath('/blog', locale)}>
+          {t('blog.allPosts', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <!-- Mobile: flat section, no card -->
+    <div class="lg:hidden mx-auto max-w-2xl px-6 text-center" data-reveal>
+      <Badge variant="brand" pill class="mb-6">{t('home.cta.badge', locale)}</Badge>
+      <h2 class="font-display text-4xl font-bold text-foreground mb-4 text-balance">
+        {t('home.cta.title', locale)}
+      </h2>
+      <p class="text-lg text-foreground-muted mb-8 text-balance">
+        {t('home.cta.description', locale)}
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <Button size="lg" href={localizedPath('/contact', locale)} class="cta-btn-brand">
+          {t('home.cta.start', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+        <Button size="lg" variant="outline" href={localizedPath('/about', locale)}>
+          {t('home.cta.more', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+      </div>
+    </div>
+
+    <!-- Desktop: contained LetterGlitch band with glass card -->
+    <LetterGlitchBand>
+      <h2 class="font-display text-4xl font-bold text-foreground mb-4 text-balance">
+        {t('home.cta.title', locale)}
+      </h2>
+      <p class="text-lg text-foreground-muted mb-8 text-balance">
+        {t('home.cta.description', locale)}
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <Button size="lg" href={localizedPath('/contact', locale)} class="hero-btn-brand">
+          {t('home.cta.start', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+        <Button size="lg" variant="outline" href={localizedPath('/about', locale)}>
+          {t('home.cta.more', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+      </div>
+    </LetterGlitchBand>
+  </section>
+</LandingLayout>
+
+<script>
+  function initCountup() {
+    const counters = document.querySelectorAll<HTMLElement>('[data-countup]:not([data-countup-init])');
+    if (counters.length === 0) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        const el = entry.target as HTMLElement;
+        const target = parseInt(el.dataset.countup ?? '0', 10);
+        const suffix = el.dataset.suffix ?? '';
+        const duration = 1200;
+        const start = performance.now();
+        const tick = (now: number) => {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          el.textContent = Math.round(eased * target) + suffix;
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    }, { threshold: 0.4 });
+    counters.forEach((el) => {
+      el.dataset.countupInit = 'true';
+      observer.observe(el);
+    });
+  }
+
+  initCountup();
+</script>

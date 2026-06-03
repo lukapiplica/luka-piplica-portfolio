@@ -21,6 +21,7 @@ interface Props {
   includeOrgSchema?: boolean;
   includePersonSchema?: boolean;
   includeProfessionalServiceSchema?: boolean;
+  locale?: string;
 }
 
 const {
@@ -33,6 +34,7 @@ const {
   includeOrgSchema = false,
   includePersonSchema = false,
   includeProfessionalServiceSchema = false,
+  locale,
 } = Astro.props;
 ---
 
@@ -46,6 +48,7 @@ const {
   includeOrgSchema={includeOrgSchema}
   includePersonSchema={includePersonSchema}
   includeProfessionalServiceSchema={includeProfessionalServiceSchema}
+  locale={locale}
 >
   <Header
     slot="header"
@@ -55,14 +58,15 @@ const {
     colorScheme="default"
     size="lg"
     showCta={false}
-    cta={{ label: 'Astro Rocket', href: 'https://github.com/hansmartens68/Astro-Rocket', icon: 'rocket', trailingIcon: 'download' }}
+    cta={{ label: 'Luka Piplica', href: 'https://github.com/lukapiplica/luka-piplica-portfolio', icon: 'user', trailingIcon: 'download' }}
     showThemeSelector
     autoHide={false}
     scrollProgressPosition="top"
     invertOnReturn={false}
+    locale={locale}
   />
 
   <slot />
 
-  <Footer slot="footer" layout="simple" background="secondary" />
+  <Footer slot="footer" layout="simple" background="secondary" locale={locale} />
 </BaseLayout>

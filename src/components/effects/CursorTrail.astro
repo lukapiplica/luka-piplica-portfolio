@@ -18,13 +18,13 @@ const PARTICLE_COUNT = 16;
 <div
   id="cursor-dot"
   aria-hidden="true"
-  class="cursor-fx fixed top-0 left-0 z-[9999] h-2.5 w-2.5 rounded-full bg-brand-500 opacity-0 will-change-transform pointer-events-none"
+  class="cursor-fx fixed top-0 left-0 z-9999 h-2.5 w-2.5 rounded-full bg-brand-500 opacity-0 will-change-transform pointer-events-none"
 ></div>
 
 <div
   id="cursor-ring-wrap"
   aria-hidden="true"
-  class="cursor-fx fixed top-0 left-0 z-[9999] opacity-0 will-change-transform pointer-events-none"
+  class="cursor-fx fixed top-0 left-0 z-9999 opacity-0 will-change-transform pointer-events-none"
 >
   <div
     id="cursor-ring"
@@ -35,7 +35,7 @@ const PARTICLE_COUNT = 16;
 {Array.from({ length: PARTICLE_COUNT }).map(() => (
   <div
     aria-hidden="true"
-    class="cursor-trail-particle cursor-fx fixed top-0 left-0 z-[9998] h-1.5 w-1.5 rounded-full bg-brand-500 opacity-0 will-change-transform pointer-events-none"
+    class="cursor-trail-particle cursor-fx fixed top-0 left-0 z-9998 h-1.5 w-1.5 rounded-full bg-brand-500 opacity-0 will-change-transform pointer-events-none"
   ></div>
 ))}
 

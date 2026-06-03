@@ -1,0 +1,86 @@
+---
+title: "Sejo Bajraktarević 数字档案库"
+description: "基于 Astro.js 和 Cloudflare Pages 构建的高性能、多语言数字档案库，旨在为波斯尼亚著名作曲家保存并流式传输数十年的多媒体资产。"
+url: "https://sejobaron.xyz"
+tags: ["Astro", "Cloudflare Pages", "Tigris S3", "i18n", "Web Performance"]
+featured: true
+order: 1
+year: 2026
+client: "Sejo Bajraktarević"
+role: "Full-Stack & Systems Engineer"
+services: ["Digital Archiving", "Cloud Storage Infrastructure", "Media Optimization", "Internationalization"]
+image: "../../../assets/projects/sejo-bajraktarevic/featured.webp"
+locale: "zh"
+---
+
+import ProjectGallery from '../../../components/projects/ProjectGallery.astro';
+import pic1 from '../../../assets/projects/sejo-bajraktarevic/1.webp';
+import pic2 from '../../../assets/projects/sejo-bajraktarevic/2.webp';
+import pic3 from '../../../assets/projects/sejo-bajraktarevic/3.webp';
+import pic4 from '../../../assets/projects/sejo-bajraktarevic/4.webp';
+import pic5 from '../../../assets/projects/sejo-bajraktarevic/5.webp';
+
+## 项目概要
+
+该项目标核心目标是将波斯尼亚著名作曲家兼多媒体艺术家塞约·巴伊拉克塔雷维奇（Sejo Bajraktarević）数十年来的多样化艺术作品进行数字化、结构化并永久保存。这些历史遗留内容涵盖多种媒介类型，包括高保真音频轨道、交响乐谱以及完整长度的纪录片电影。
+
+核心挑战在于将这个庞大且无序的目录转化为流畅、现代的 Web 体验。项目的成功意味着需要在全球范围内提供近乎瞬间的加载速度，在不产生服务器开销的情况下确保无懈可击的多媒体流传输，并使整个档案库支持多语言，从而完全面向国际受众开放。
+
+
+## 架构设计
+
+我设计并部署了一个高度优化的无头（Headless）数字档案库，利用现代 Jamstack 方案消除了传统的服务器管理和扩展性瓶颈。
+
+*   **前端框架：** 基于 **Astro.js** 构建，充分利用其严格的“默认零 JavaScript”（Zero JS by Default）孤岛架构（Island Architecture）。这确保了以内容为主的重度页面向客户端浏览器交付极少的 JavaScript，从而维持了近乎瞬间的基础加载速度。
+*   **云基础设施：** 通过 **Cloudflare Pages** 部署应用程序，将整个交付管线移至全球边缘网络，以保证极低的延迟和最大化的正常运行时间。
+*   **解耦资产管理：** 为了处理高分辨率文件而不膨胀部署包，我集成了 **Tigris 对象存储**（兼容 S3 的数据存储）。所有大型多媒体资产都在此进行隔离，并通过一个经过缓存优化的专用媒体子域名进行高效分发。
+*   **多语言架构 (i18n)：** 实现了全面的路由和翻译网络，原生支持四种语言：**波斯尼亚语、英语、西班牙语和德语**，确保该文化档案在国际上完全具备可发现性。
+
+
+## 核心流程
+
+该项目遵循从资产聚合到最终边缘部署的严格工程管线：
+
+1.  **数据洞察与 Schema 设计：** 分析了海量的原始数据文件以寻找共同模式。我构建了一个清晰、可复用的元数据 Schema，能够无缝处理音频、视频和文本。
+2.  **基础设施配置：** 设置了 Tigris S3 存储桶并配置了安全策略、CORS 规则，以及一个通过 Cloudflare 网络进行代理的专用子域名，以隐蔽底层的存储端点。
+3.  **管线优化：** 在 Astro 内设计了定制的渲染块，以优雅地处理重度嵌入式视频元素，采用懒加载（Lazy-loading）技术确保浏览器在获取第三方媒体播放器时不会阻塞初始页面的绘制（Paint）。
+4.  **本地化映射：** 配置了本地化词典和带有语言前缀的路由表，验证每个结构化集合条目在四种语言变体中都能正确映射。
+
+
+## 导入成果
+
+该应用程序成功从本地开发环境推向生产环境，并取得了卓越的性能指标：
+
+*   **边缘优先交付：** 页面资产被缓存并直接从最近的 Cloudflare 边缘节点交付，从而在全球范围内实现了微不足道的 TTFB（第一字节时间）。
+*   **零基础设施维护：** 通过将展现层（Astro）与对象存储层（Tigris/S3）进行完全解耦，档案库在根本上实现了无服务器化（Serverless），这意味着它能以几乎为零的托管成本自动扩展以应对数万名同时在线的访客。
+*   **文化传承与保存：** 成功将零散的、跨越数十年的实体作品集统一到一个单一 alternative、高性能的数字图书馆中，成为对这位大师级艺术家的致敬。
+
+## 项目画廊
+
+<ProjectGallery images={[
+  { 
+    src: pic1, 
+    alt: '塞约·巴伊拉克塔雷维奇档案网站的首页主视觉区，包含整洁的布局和语言选择下拉菜单', 
+    caption: '数字化多媒体保护项目的整洁且响应式首页主视觉区，展示了极简布局、排版层级以及激活的国际化语言选择下拉菜单。' 
+  },
+  { 
+    src: pic2, 
+    alt: '传记页面，详细介绍了作曲家塞约·巴伊拉克塔雷维奇的生平、多乐器演奏历史以及职业生涯里程碑', 
+    caption: '专属的传记页面，详细介绍了作曲家的多乐器演奏历史、艺术里程碑和职业生涯发展路径。' 
+  },
+  { 
+    src: pic3, 
+    alt: '暗黑模式下的音乐档案媒体网格视图，显示带有分类标签的互动内容卡片', 
+    caption: '该平台的原生暗黑模式界面，显示“音乐档案”内容收藏网格，具有动态项目卡片、专属音频/视频分类以及发布元数据。'
+  },
+  { 
+    src: pic4, 
+    alt: '独立音频曲目页面，显示历史背景趣闻、歌词翻译和悬浮音乐播放器小部件', 
+    caption: '独立曲目的详细布局视图，包含历史录音趣闻、结构化歌词翻译以及优化的、互动式悬浮音频播放器小部件。'
+  },
+  { 
+    src: pic5, 
+    alt: '已打开的客户端命令面板搜索模态弹窗，显示即时导航链接', 
+    caption: '完全集成的客户端命令面板搜索模态弹窗，提供跨集合的快速导航链接和即时关键词解析。'
+  }
+]} />

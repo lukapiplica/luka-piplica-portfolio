@@ -1,0 +1,328 @@
+{
+  "nav": {
+    "home": "首页",
+    "blog": "博客",
+    "projects": "项目",
+    "about": "关于",
+    "contact": "联系",
+    "skipToContent": "跳转至内容",
+    "openMenu": "打开菜单",
+    "closeMenu": "关闭菜单",
+    "selectLanguage": "选择语言",
+    "currentLanguage": "当前语言",
+    "language": "语言"
+  },
+  "common": {
+    "readMore": "阅读更多",
+    "loading": "加载中…",
+    "backToTop": "回到顶部",
+    "search": "搜索",
+    "submit": "提交",
+    "cancel": "取消",
+    "next": "下一页",
+    "previous": "上一页"
+  },
+  "blog": {
+    "title": "技术博客",
+    "description": "关于我在技术与系统领域的探索心得、教程及文档记录。",
+    "readingTime": "{minutes} 分钟阅读",
+    "publishedOn": "发布于 {date}",
+    "updatedOn": "更新于 {date}",
+    "writtenBy": "作者：{author}",
+    "tagsLabel": "标签",
+    "featured": "精选",
+    "draft": "草稿",
+    "noPostsFound": "未找到相关文章。",
+    "tableOfContents": "目录",
+    "shareThisPost": "分享此文章",
+    "allPosts": "所有文章",
+    "filterLabel": "筛选",
+    "noPostsForTag": "该标签下没有文章",
+    "followAlong": "保持关注",
+    "followDescription": "第一时间获取最新文章、思考及动态。",
+    "rssFeed": "RSS 订阅",
+    "emailLabel": "电子邮件",
+    "backToBlog": "返回博客",
+    "relatedPosts": "相关文章",
+    "badge": "所有文章",
+    "share": "分享:",
+    "minRead": "分钟阅读",
+    "onThisPage": "本页内容",
+    "updated": "已更新"
+  },
+  "projects": {
+    "title": "项目",
+    "description": "展示我的工作成果，从技术实验到全方位解决方案。",
+    "viewProject": "查看详情",
+    "viewSource": "源代码",
+    "noProjectsFound": "未找到相关项目。",
+    "backToProjects": "返回项目",
+    "moreProjects": "更多项目"
+  },
+  "search": {
+    "placeholder": "搜索博客和项目...",
+    "noResults": "未找到关于 “{query}” 的结果",
+    "blogs": "博客",
+    "projects": "项目",
+    "clear": "清除搜索",
+    "shortcutNavigate": "导航",
+    "shortcutSelect": "选择",
+    "shortcutHint": "按 Esc 关闭"
+  },
+  "pagination": {
+    "page": "第 {current} 页，共 {total} 页",
+    "previousPage": "上一页",
+    "nextPage": "下一页"
+  },
+  "errors": {
+    "pageNotFound": "页面未找到",
+    "pageNotFoundMessage": "您查找的页面不存在或已移动。",
+    "goHome": "返回首页",
+    "404": {
+      "badge": "404 — 页面未找到",
+      "title": "页面未 {found}",
+      "found": "找到。",
+      "description": "此页面已移动、被删除，或从未存在过。让我们带您回到正轨。",
+      "backToHome": "返回首页",
+      "browseBlog": "浏览博客",
+      "tryInstead": "尝试访问以下内容",
+      "links": {
+        "projects": {
+          "title": "项目",
+          "description": "精选作品与案例研究。"
+        },
+        "blog": {
+          "title": "博客",
+          "description": "关于设计、代码和技术的札记。"
+        },
+        "contact": {
+          "title": "联系",
+          "description": "开启关于您项目的对话。"
+        }
+      }
+    }
+  },
+  "newsletter": {
+    "heading": "保持关注",
+    "description": "将我最新的文章和技术更新直接发送到您的收件箱。",
+    "emailPlaceholder": "your@email.com",
+    "subscribe": "订阅",
+    "subscribing": "发送中...",
+    "success": "请检查您的收件箱以完成确认！",
+    "error": "出错了，请稍后再试。"
+  },
+  "contact": {
+    "heading": "与我联系",
+    "badge": "取得联系",
+    "title": "给我发送 {message}",
+    "messageWord": "消息",
+    "description": "使用下方的表单或通过以下渠道联系我。我会在 1 个工作日内回复您。",
+    "formHeading": "发送消息",
+    "otherChannels": "其他渠道",
+    "otherChannelsDesc": "偏好直接沟通？选择最适合您的方式。",
+    "channelNotes": {
+      "email": "给我写信",
+      "social": "保持关注"
+    },
+    "location": {
+      "basedIn": "坐标：波黑"
+    },
+    "name": "姓名",
+    "email": "电子邮箱",
+    "subject": "主题",
+    "message": "内容",
+    "send": "发送消息",
+    "sending": "发送中…",
+    "success": "消息已发送！我会尽快给您回复。",
+    "error": "出错了，请稍后再试。"
+  },
+  "theme": {
+    "selectTheme": "选择主题",
+    "lightMode": "亮色模式",
+    "darkMode": "暗色模式",
+    "systemMode": "系统默认",
+    "toggleTheme": "切换主题",
+    "themeMode": "主题模式",
+    "colourTheme": "配色主题",
+    "currentlyLight": "当前为浅色",
+    "currentlyDark": "当前为深色",
+    "ariaLabelTrigger": "主题菜单。点击修改。",
+    "colorSwatchLabel": "{name}主题",
+    "colors": {
+      "orange": "橙色",
+      "amber": "琥珀色",
+      "lime": "青柠",
+      "emerald": "祖母绿",
+      "teal": "蓝绿色",
+      "cyan": "青色",
+      "sky": "天蓝色",
+      "blue": "蓝色",
+      "indigo": "靛蓝色",
+      "violet": "紫罗兰",
+      "purple": "紫色",
+      "magenta": "洋红色"
+    }
+  },
+  "code": {
+    "copy": "复制",
+    "copied": "已复制",
+    "ariaLabel": "复制代码到剪贴板"
+  },
+  "footer": {
+    "copyright": "© {year} {name}. 保留所有权利。",
+    "builtWith": "基于 Astro Rocket 构建"
+  },
+  "home": {
+    "hero": {
+      "badge": "寻求新的工作机会",
+      "titlePart1": "Luka Piplica —",
+      "titlePart2": "IT 支持与系统专家",
+      "description": "以结果为导向的 IT 专业人士，专注于企业 IT 支持、Windows 及 Linux 服务器管理、网络基础设施维护，以及渐进式系统加固。",
+      "viewCv": "查看简历",
+      "contactMe": "联系我"
+    },
+    "services": {
+      "badge": "服务范围",
+      "title": "我的专业领域",
+      "description": "为企业基础设施层提供可靠的技术解决方案 — 从企业桌面支持到系统管理及工作流自动化。",
+      "sysadmin": {
+        "title": "系统与网络管理",
+        "description": "Windows 和 Linux 服务器管理、Cisco 及 MikroTik 网络配置，以及 24/7 全天候高可用性基础设施维护。"
+      },
+      "webdev": {
+        "title": "Web 解决方案与内部工具",
+        "description": "利用 Astro、React 和 Next.js 构建快速、轻量级的 Web 界面，用于托管技术档案、个人作品集以及简化日常 IT 操作的自定义工具。"
+      },
+      "security": {
+        "title": "系统加固与安全",
+        "description": "实战型服务器加固、防火墙配置、安全访问控制，致力于企业网络安全框架的职业发展路径。"
+      },
+      "electronics": {
+        "title": "电子与嵌入式系统",
+        "description": "曾获国家级奖项的硬件工程经验，精通电路诊断、多层 PCB 定制设计及底层固件优化。"
+      },
+      "ai": {
+        "title": "基础设施自动化与 AI",
+        "description": "通过 Python、Bash 和 PowerShell 脚本编排企业级工作流，实现系统管理、维护任务及智能体自动化运维。"
+      },
+      "operations": {
+        "title": "IT 运维与系统支持",
+        "description": "管理企业桌面环境、软件生命周期配置、访问权限治理，并在复杂的高可用企业基础设施中执行严谨的故障排查。"
+      }
+    },
+    "testimonials": {
+      "badge": "客户评价",
+      "title": "同事与客户的反馈",
+      "description": "来自工程项目与专业合作的反馈。",
+      "t1": {
+        "quote": "Luka 将我数十年零散的艺术作品转化为专业的、高性能的数字档案。他在处理我的媒体库时所展现出的技术精确度以及对长期保存的承诺，令人印象深刻。",
+        "author": "Sejo Bajraktarević",
+        "role": "作曲家与多媒体艺术家"
+      },
+      "t2": {
+        "quote": "未来反馈占位符。目前专注于在现有的系统管理和网络安全项目中交付卓越成果。",
+        "author": "待定",
+        "role": "未来参考"
+      }
+    },
+    "about": {
+      "badge": "关于我",
+      "titlePart1": "IT 支持专家与",
+      "titlePart2": "系统管理员。",
+      "desc1": "我是一名 IT 专业人士，拥有丰富的企业系统维护、网络环境优化经验，并以网络安全为长期发展目标，持续执行严谨的安全配置。",
+      "cta": "阅读我的故事",
+      "experience": "企业 IT 运维",
+      "awards": "3 次国家级硬件大赛冠军",
+      "worldwide": "C2 英语水平认证",
+      "location": "萨拉热窝，波斯尼亚和黑塞哥维那"
+    },
+    "projects": {
+      "badge": "作品集",
+      "title": "项目与实验",
+      "description": "涵盖硬件修复、自定义软件工具、数字档案以及各种 DIY 工程挑战的多样化集合。",
+      "viewAll": "查看所有项目"
+    },
+    "cta": {
+      "badge": "与我联系",
+      "title": "期待合作？",
+      "description": "无论是您的企业需要可扩展的 IT 支持、可靠的系统管理，还是安全的架构加固 — 我都已准备好将我的专业知识带入您的团队。",
+      "start": "取得联系",
+      "more": "了解更多"
+    }
+  },
+  "aboutPage": {
+    "title": "关于 Luka Piplica — IT 支持与系统专家",
+    "description": "IT 支持专家和系统管理员，致力于构建可靠的基础设施，管理企业网络，并坚定地向企业网络安全领域发展。",
+    "hero": {
+      "badge": "关于我",
+      "titleLine1": "Luka Piplica —",
+      "description": "一位深耕企业技术支持、系统管理、网络可靠性及渐进式安全实践的实战型 IT 专业人士。"
+    },
+    "typingWords": "IT 支持专家,系统管理员,网络管理员,网络安全爱好者,开源贡献者",
+    "background": {
+      "badge": "背景",
+      "title": "拥有精密电子基础的系统专家",
+      "desc1": "我的职业生涯始于电子领域 — 设计电路、焊接多层 PCB 以及编程 Arduino 微控制器。在嵌入式系统竞赛中连续三次获得国家冠军的经历，使我对硬件诊断、底层工程和执行精确度有了深刻的认知。",
+      "desc2": "这一基础自然地过渡到了网络管理领域：通过 ITAcademy 的高强度 CCNA 培训、BHRT 的企业 IT 支持工作以及实战中的系统加固经验。在 BHRT 应对传统、纯手动的基础设施，为我的系统诊断能力提供了绝佳的“火炼”试金石。今天，我的职业路线旨在从稳健的企业支持和服务器管理，直接迈向专业的企业网络安全岗位。",
+      "card1Label": "IT 支持与系统专家",
+      "card1Name": "Luka Piplica",
+      "card1Desc": "具备 CCNA 资质的网络管理员，Linux/Windows 系统管理员，专注于基础设施可靠性和渐进式系统加固的企业 IT 支持专业人士。",
+      "card1Tags": "Cisco,Windows Server,Linux,IT 支持,网络安全",
+      "card2Label": "AI 工作流合作伙伴",
+      "card2Name": "Claude Code",
+      "card2Desc": "一个协助我审查自动化脚本、优化系统工作流并构建自定义模型上下文协议 (MCP) 集成的 AI 协作者。",
+      "card2Tags": "MCP,智能体工作流,代码审查,自动化"
+    },
+    "process": {
+      "badge": "我的方法论",
+      "title": "工程哲学",
+      "description": "运用严谨的工程纪律和自动化工作流，构建弹性、安全且可观测的企业系统。",
+      "v1Title": "安全优先架构",
+      "v1Desc": "我以“零信任”思维构建系统，确保从第一天起就将安全融入基础设施。通过利用威胁建模、自动化合规审计和基础设施即代码 (IaC) 原则，我消除了手动漏洞，并强制执行主动且不可变的系统完整性。",
+      "v2Title": "久经考验的工程经验",
+      "v2Desc": "拥有国家级电子竞赛成绩、ITAcademy 的严谨网络培训，以及在 BHRT 的企业 IT 实战经验作为背书。我将这些运维基础与持续的专业技能提升相结合，以应对复杂的技术挑战。",
+      "v3Title": "基础设施与自动化",
+      "v3Desc": "我将传统系统管理与现代自动化相结合，利用 Python、Bash 和 PowerShell 脚本精简跨平台工作流，优化系统性能，并将手动运维成本降至最低。"
+    },
+    "stack": {
+      "badge": "工具与技术",
+      "title": "技术栈",
+      "description": "我用于构建、部署和保护现代 Web 解决方案的技术 — 它们均因其卓越的性能、安全性和运维效率而被选中。"
+    },
+    "faq": {
+      "badge": "了解更多",
+      "title": "常见问题",
+      "description": "深入了解我的工程背景和专业方法。",
+      "card1Title": "技术专长",
+      "card2Title": "职业愿景",
+      "q1": "您的技术背景是什么？",
+      "a1": "我是一位拥有认证的计算机网络管理员（来自 ITAcademy），并拥有电子技术背景（萨拉热窝铁路学校中心）。我的职业经历包括在 BHRT 的任期，我负责端到端的企业 IT 支持。这涵盖了管理 Windows 客户端环境、硬件维护、网络故障排查以及服务器端管理 — 从用户管理到 Linux 基础设施的部署与加固。我积极地将手动运维痛点转化为高效的自动化工作流，包括创建集中式运维仪表板，极大地简化了现场干预工作。",
+      "q2": "您关注哪些技术？",
+      "a2": "我的核心专长在于企业 IT 支持、系统加固和网络管理。我使用 Python、Bash 和 PowerShell 进行自动化扩展，同时利用 Astro、React 和 Next.js 等现代框架，开发高性能的技术文档平台和知识库，用于存储我的系统工程指南、安全研究和开发项目。",
+      "q3": "您有任何竞技成就吗？",
+      "a3": "是的 — 我曾在 Festival Rada 技术展上三度获得全国冠军，凭借创新的物联网和嵌入式系统工程获奖，包括物联网 Wi-Fi 记分牌、太阳能树能源站以及可编程 LED 书桌。",
+      "q4": "您持有哪些证书？",
+      "a4": "我持有网络管理、高级 Python 编程以及 C2 级英语（EF SET）的专业认证。此外，我完成了一系列关于模型上下文协议 (MCP) 和智能体工作流集成的 Anthropic 专项认证。",
+      "q5": "您在工作中会使用 AI 吗？",
+      "a5": "AI 是我工程工作流中的核心支柱。我将其作为架构审查、复杂脚本验证和基础设施自动化的协作伙伴。我通过模型上下文协议 (MCP) 进行的工作，使我能够将 AI 智能与现实世界的系统数据连接起来，显著提高了运维速度和准确性。",
+      "q6": "您是独立经营还是自由职业者？",
+      "a6": "我是一名独立的 IT 专业人士，寻求直接融入成熟且具有影响力的大型企业团队。我的目标是为 Google、Rockstar Games、Naughty Dog、Adobe 或 Microsoft 等全球科技巨头贡献我的技能 — 在这些组织中，我可以专注于大规模基础设施、复杂系统和行业定义的项目，而无需面对中间的各种障碍。",
+      "q7": "您在寻找什么样的职位？",
+      "a7": "我专注于企业 IT 运维、系统管理和网络安全加固领域的岗位。我擅长于需要稳健支持策略和主动基础设施管理的职场环境，并有着明确向安全和系统工程深造的职业道路。",
+      "q8": "您会与国际公司合作吗？",
+      "a8": "是的，我正在积极寻求向国际化岗位转型。虽然目前身处萨拉热窝，但我已做好充分准备进行异地办公以支持现场运营，或通过远程工作融入全球分布式团队。凭借 C2 级的英语水平和在高需求环境下的工作背景，我已准备好将我的专长带向全球舞台。"
+    },
+    "cv": {
+      "badge": "个人简历",
+      "title": "全景概览",
+      "description": "我的完整职业档案 — 经验、培训、奖项和技术能力 — 一目了然。",
+      "cta": "阅读我的完整简历"
+    },
+    "cta": {
+      "badge": "与我联系",
+      "title": "准备好合作了吗？",
+      "desc": "无论是您的基础设施需要稳健的支持方案、系统管理，还是自动化脚本工作流 — 我都已准备好部署。",
+      "start": "取得联系"
+    }
+  }
+}

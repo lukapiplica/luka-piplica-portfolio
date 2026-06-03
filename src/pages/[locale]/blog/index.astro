@@ -1,0 +1,21 @@
+---
+import BlogContent from '@/components/patterns/BlogContent.astro';
+import { getLocales } from '@/i18n';
+
+export function getStaticPaths() {
+  return getLocales().map((locale) => ({ params: { locale } }));
+}
+
+interface Props {
+  locale?: string;
+}
+
+const { locale = Astro.params.locale } = Astro.props;
+---
+
+<BlogContent locale={locale as string} />
+
+<style>
+  /* Dummy style to force Astro to collect assets for this page */
+  .force-asset-collection { display: block; }
+</style>

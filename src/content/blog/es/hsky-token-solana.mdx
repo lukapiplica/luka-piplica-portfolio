@@ -1,0 +1,238 @@
+---
+title: "Lanzamiento de un token SPL personalizado en Solana: Una guía práctica de CLI"
+description: "Una guía paso a paso para desarrolladores sobre cómo crear un token SPL en Solana, compilar dependencias en Rust y administrar metadatos en la blockchain."
+publishedAt: 2022-01-22
+author: "Luka Piplica"
+tags: ["cryptocurrency", "solana", "blockchain", "rust", "linux"]
+featured: false
+locale: es
+image: "../../../assets/blog/hsky-token-solana/featured.webp"
+imageAlt: "Ilustración estilizada dibujada a mano de una moneda de Bitcoin cayendo como un meteoro o cometa en llamas sobre un fondo azul"
+---
+
+El auge de las finanzas descentralizadas (DeFi) y la tokenización ha reconfigurado el ecosistema financiero global. A diferencia de las criptomonedas independientes con blockchains nativas de capa base (como Bitcoin o Solana), los tokens criptográficos se implementan sobre plataformas de contratos inteligentes ya existentes.
+
+Para los desarrolladores que buscan lanzar tokens, **Solana** ha surgido como un ecosistema de primer nivel. Al aprovechar un mecanismo de consenso único conocido como **Proof of History (PoH)**, combinado con las capacidades de procesamiento paralelo del entorno de ejecución **Sealevel**, Solana ofrece tarifas de transacción de menos de una fracción de centavo y tiempos de confirmación de subsegundos.
+
+Esta guía técnica proporciona un recorrido paso a paso para configurar un entorno seguro de Debian Linux exclusivo de CLI, compilar dependencias de blockchain basadas en Rust, acuñar (mint) un token personalizado de la **Solana Program Library (SPL)** y comprender tanto los estándares de metadatos de tokens heredados (legacy) como los modernos.
+
+> **Nota de actualización (19 de mayo de 2026):** Desde entonces, Solana Labs ha depreciado y archivado el repositorio `token-list` basado en GitHub mencionado en esta guía. Los metadatos de los tokens ahora se manejan directamente en la cadena (on-chain) a través de Metaplex. Debido a esta migración, los tokens heredados como HSKY que no se actualizaron al nuevo estándar on-chain ya no son indexados por Solscan, ¡pero los conceptos subyacentes de la blockchain siguen siendo exactamente los mismos!
+
+---
+
+## Arquitectura y prerrequisitos del sistema
+
+Por motivos de seguridad y reproducibilidad, construimos esta arquitectura de tokens dentro de una máquina virtual mínima de **Debian Linux exclusiva de CLI**. Eliminar las interfaces gráficas de usuario (GUIs) reduce la superficie de ataque (attack surface) del sistema y garantiza el máximo aislamiento criptográfico.
+
+### Software y plataformas requeridas
+
+* **SO forense / de acuñación:** <a href="https://www.debian.org/" target="_blank" rel="noopener noreferrer">Debian Linux</a> (instalación exclusiva de CLI)
+* **Control de versiones:** <a href="https://github.com/" target="_blank" rel="noopener noreferrer">GitHub</a> (como host para los assets iniciales del repositorio)
+* **Pasarela de liquidez:** <a href="https://www.binance.com/en" target="_blank" rel="noopener noreferrer">Binance</a> (o cualquier exchange regulado para adquirir tokens de gas)
+* **Wallets de clientes:** <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer">Phantom Wallet</a> (basada en navegador) y <a href="https://solflare.com/" target="_blank" rel="noopener noreferrer">Solflare</a> (interfaz móvil/hardware)
+
+> **Importante:** La creación de cuentas y la ejecución de transacciones en la red Solana requiere gas. Debe adquirir una pequeña fracción de tokens **SOL** para cubrir las tarifas de transacción.
+
+---
+
+## Ejecución en CLI y acuñación paso a paso
+
+### 1. Aprovisionamiento del espacio de trabajo en CLI
+
+Instale un sistema operativo Debian Linux limpio y mínimo en un entorno virtual. Las figuras a continuación ilustran un arranque exitoso de un sistema Debian mínimo:
+
+![Proceso de arranque de Debian Linux CLI en la consola virtual](../../../assets/blog/hsky-token-solana/1.webp)
+
+![Sesión de terminal activa de Debian CLI lista para dependencias](../../../assets/blog/hsky-token-solana/2.webp)
+
+Una vez que haya iniciado sesión en su consola CLI, sincronice su índice de paquetes locales y actualice todos los paquetes base del sistema:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Instalación de la Solana Tool Suite
+
+Para interactuar directamente con el ledger de Solana, instale los binarios oficiales de Solana CLI:
+
+```shell
+sh -c "$(curl -sSfL https://release.solana.com/v1.8.5/install)"
+```
+
+Una vez que el script de instalación finalice, actualice las variables de entorno de su shell activa cerrando la sesión y volviendo a entrar, o ejecutando:
+
+```shell
+source ~/.profile
+```
+
+### 3. Generación de pares de claves criptográficas
+
+Cada wallet en la red de Solana está representada por un par de claves criptográficas asimétricas que consta de una clave pública (dirección de la wallet) y una clave privada (que otorga permisos de transferencia). Genere un nuevo par de claves local:
+
+```shell
+solana-keygen new
+```
+
+Durante la generación, se le solicitará que introduzca una frase de contraseña (passphrase) opcional BIP39. Una vez completado, se mostrarán su clave pública y una frase semilla mnemónica de 12 palabras. 
+
+> **Advertencia:** Su frase semilla de 12 palabras es la clave maestra para sus fondos. Escríbala en un papel fuera de línea (offline) y manténgala segura. Nunca la comparta ni la guarde en texto plano.
+
+![Generación de par de claves en la línea de comandos mostrando la clave pública y la configuración de la frase semilla](../../../assets/blog/hsky-token-solana/3.webp)
+
+### 4. Fondear la wallet de acuñación
+
+Para comprar los tokens SOL necesarios para el gas, utiliza un exchange como Binance:
+
+![Adquisición de tokens SOL nativos en la interfaz del exchange Binance](../../../assets/blog/hsky-token-solana/5.webp)
+
+Después de adquirir SOL, ejecute una transferencia desde el exchange hacia su **clave pública** recién generada (dirección de la wallet):
+
+![Ejecución de un retiro en la blockchain hacia la dirección de la clave pública en CLI](../../../assets/blog/hsky-token-solana/6.webp)
+
+Para verificar que la transacción se ha asentado y consultar su saldo activo directamente desde su terminal de Debian, ejecute:
+
+```shell
+solana balance
+```
+
+### 5. Compilación de Rust y bibliotecas de desarrollo
+
+La interfaz de línea de comandos de la Solana Program Library (SPL) requiere el **compilador de Rust** para construir las configuraciones locales.
+
+Instale Rustup y la toolchain de Cargo por defecto:
+
+```shell
+curl https://sh.rustup.rs -sSf | sh
+```
+*(Presione `1` cuando se le solicite continuar con la instalación estándar).*
+
+![Instalación de la toolchain del compilador de Rust mediante el instalador rustup](../../../assets/blog/hsky-token-solana/7.webp)
+
+Recargue sus perfiles de shell o ejecute `source $HOME/.cargo/env`. A continuación, instale las dependencias de compilación del sistema:
+
+```shell
+sudo apt install -y libudev-dev libssl-dev pkg-config build-essential
+```
+
+Compile e instale la utilidad SPL Token CLI de forma global utilizando Cargo:
+
+```shell
+cargo install spl-token-cli
+```
+
+### 6. Inicialización y acuñación del token SPL
+
+Con nuestras herramientas compiladas y nuestra wallet fondeada, inicializamos el registro del token personalizado en el ledger de Solana.
+
+#### Paso A: Crear el plano del token
+Inicialice un nuevo mint de token SPL desde cero:
+
+```shell
+spl-token create-token
+```
+La terminal mostrará su **Token ID** único (la dirección de mint).
+
+#### Paso B: Establecer una cuenta de token
+Antes de que una wallet pueda contener un token SPL específico, debe establecer una Cuenta de Token Asociada (ATA, por sus siglas en inglés) vinculada a ese ID de mint específico:
+
+```shell
+spl-token create-account <YOUR_TOKEN_ID>
+```
+
+![Inicialización del mint del token SPL y establecimiento de la cuenta de token asociada](../../../assets/blog/hsky-token-solana/8.webp)
+
+#### Paso C: Acuñar el suministro
+Acuñe la cantidad deseada de tokens en su Cuenta de Token Asociada:
+
+```shell
+spl-token mint <YOUR_TOKEN_ID> <MINT_QUANTITY> <YOUR_ASSOCIATED_ACCOUNT_ID>
+```
+
+![Acuñación del suministro de tokens HSKY personalizados en la cuenta local](../../../assets/blog/hsky-token-solana/9.webp)
+
+¡Felicidades! Su token personalizado ya está activo en la blockchain de Solana.
+
+### 7. Transferencia de tokens a los destinatarios
+
+Para distribuir sus tokens, el destinatario debe tener una wallet compatible. Se recomienda ampliamente Solflare para dispositivos móviles, y Phantom Wallet es ideal para navegadores web.
+
+Ejecute una transferencia utilizando el cliente CLI. Las flags `--fund-recipient` y `--allow-unfunded-recipient` cubren automáticamente la tarifa de creación de la Cuenta de Token Asociada en nombre del receptor si este aún no tiene una cuenta abierta para su token:
+
+```shell
+spl-token transfer --fund-recipient --allow-unfunded-recipient <YOUR_TOKEN_ID> <TRANSFER_AMOUNT> <RECIPIENT_WALLET_ADDRESS>
+```
+
+![Ejecución de una transferencia segura de tokens SPL hacia una wallet externa](../../../assets/blog/hsky-token-solana/10.webp)
+
+---
+
+## Verificación de transacciones en Solscan
+
+Las transacciones de Solana se pueden auditar en tiempo real. Pegue su **Token ID** (dirección de mint) en <a href="https://solscan.io/" target="_blank" rel="noopener noreferrer">Solscan</a> para visualizar los historiales de transacciones, el suministro total y las métricas de distribución de los tokens:
+
+![Auditoría de tenencias de tokens HSKY e historiales de transacciones en Solscan](../../../assets/blog/hsky-token-solana/11.webp)
+
+---
+
+## Registro de tokens: Estándares de metadatos heredados frente a modernos
+
+Para mostrar el logotipo, el símbolo y el nombre de su token en wallets descentralizadas y exploradores, debe registrar sus metadatos. 
+
+> **Nota de transición técnica:** Como se destacó en la advertencia de actualización al principio de esta guía, el registro `token-list` basado en GitHub ha sido archivado en favor de Metaplex. Los pasos a continuación detallan el flujo de trabajo heredado (legacy), proporcionando un valioso contexto histórico sobre cómo operaban los primeros registros descentralizados.
+
+### El proceso de registro heredado en GitHub (Referencia histórica)
+
+Anteriormente, Solana utilizaba un repositorio centralizado respaldado por GitHub para mapear las direcciones de los tokens con los assets de sus metadatos.
+
+1.  Prepare un logotipo en formato PNG transparente para su token (de menos de 200KB).
+2.  Cree una cuenta de GitHub, aloje el asset en un repositorio público y nómbrelo `logo.png`:
+
+![Alojamiento de assets visuales del token en un repositorio público de GitHub](../../../assets/blog/hsky-token-solana/12.webp)
+
+3.  Navegue al repositorio oficial <a href="https://github.com/solana-labs/token-list" target="_blank" rel="noopener noreferrer">Solana Labs Token List</a> y haga clic en **Fork**:
+
+![Haciendo un fork del repositorio oficial de la lista de tokens de Solana Labs](../../../assets/blog/hsky-token-solana/13.webp)
+
+4.  Presione `.` en su navegador web dentro del repositorio para el que hizo el fork para iniciar Visual Studio Code Online:
+
+![Acceso al entorno de VS Code basado en la web en GitHub](../../../assets/blog/hsky-token-solana/14.webp)
+
+5.  Localice `assets/mainnet`, cree una subcarpeta nombrada con su **Token ID** y suba su archivo `logo.png`.
+6.  Navegue a `src/tokens/solana.tokenlist.json`, añada el bloque de configuración de metadatos de su token en formato JSON, confirme (commit) los cambios y envíe un **Pull Request (PR)** al repositorio padre de Solana Labs.
+
+### El producto de token final
+
+Una vez indexado, el token HSKY muestra su nombre personalizado, suministro y logotipo de manera fluida en las wallets web descentralizadas:
+
+![Token HSKY personalizado procesado y mostrado en la interfaz de la wallet web](../../../assets/blog/hsky-token-solana/15.webp)
+
+<div style={{ maxWidth: '280px', margin: '0 auto' }}>
+
+![Vista móvil del token HSKY personalizado en wallets descentralizadas](../../../assets/blog/hsky-token-solana/16.webp)
+
+</div>
+
+---
+
+## Glosario técnico: Léxico de integración blockchain
+
+| Term / Component | Technical Overview | Practical Operational Role |
+| :--- | :--- | :--- |
+| **SPL Token** | Token de la Solana Program Library | El estándar de token que rige los assets personalizados fungibles y no fungibles en la blockchain de Solana. |
+| **Solana Tool Suite** | Cliente de línea de comandos para la interacción con el ledger | Comandos utilizados para comunicarse directamente con los nodos RPC de Solana, verificar saldos y consultar registros de transacciones. |
+| **Asymmetric Keypair** | Conjunto de claves criptográficas pública y privada | El sistema de identidad central en redes públicas. El par de claves asimétricas consta de la clave pública (la dirección) y la clave privada (que autoriza las firmas). |
+| **Mnemonic Seed Phrase** | Secuencia de diccionario BIP39 de 12 palabras | Una representación legible por humanos de la semilla privada utilizada para derivar sus claves privadas criptográficas. |
+| **Rust & Cargo** | Lenguaje de sistemas con memoria segura y compilador | La suite de entorno de ejecución para desarrolladores utilizada para construir binarios de contratos inteligentes y suites de herramientas de alto rendimiento. |
+| **`spl-token-cli`** | Suite de comandos de tokens compilada en Rust | El cliente de línea de comandos específico utilizado para desplegar, acuñar (mint), congelar y transferir tokens personalizados. |
+| **Associated Token Account** | Dirección derivada por programa (PDA) | Una cuenta de programa específica creada on-chain para mapear la dirección de la wallet de un usuario con un mint de token particular. |
+| **Metaplex Protocol** | Estándar de metadatos on-chain | El estándar moderno y descentralizado de contratos inteligentes utilizado para acuñar, mostrar y gestionar los metadatos de NFTs y tokens fungibles. |
+| **Solscan** | Explorador de transacciones de la blockchain | Una herramienta de auditoría del ledger basada en la web que se utiliza para visualizar transacciones, monitorear el uso de gas y verificar a los poseedores de tokens. |
+
+---
+
+## Conclusión y retrospectiva arquitectónica
+
+La construcción de un token personalizado directamente desde la CLI enseña principios clave de los ledgers descentralizados, la criptografía de clave pública y los motores de ejecución de contratos inteligentes. Mientras que la vía de metadatos heredada basada en GitHub ha sido reemplazada por el estándar moderno de metadatos derivados por programas (PDA) on-chain de Metaplex, la creación criptográfica subyacente, el ciclo de vida de la acuñación y las estructuras de wallet de la Solana Program Library permanecen completamente iguales.
+
+*Desplegar assets personalizados en ledgers descentralizados demuestra cómo la criptografía pública moderna y la automatización de sistemas permiten herramientas financieras globales fluidas e ingeniería sin permisos (permissionless).*

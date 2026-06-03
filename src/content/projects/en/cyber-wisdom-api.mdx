@@ -1,0 +1,104 @@
+---
+title: "Cyber Wisdom API"
+description: "A lightweight FastAPI microservice optimized for Docker and Hugging Face Spaces that generates dynamic, GitHub-optimized 'Cyber Sun Tzu' quotes directly into vector SVG images for real-time profile integration."
+url: "https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg"
+repo: "https://github.com/lukapiplica/wisdom-endpoint"
+tags: ["FastAPI", "Python", "Docker", "Hugging Face", "Backend Development"]
+featured: false
+order: 2
+year: 2026
+role: "Backend & Systems Engineer"
+services: ["API Development", "Containerization", "Cloud Hosting"]
+---
+
+## About the project
+
+The **Cyber Wisdom API** is a high-performance, lightweight, stateless microservice built with FastAPI and Python. Designed to run seamlessly inside isolated container environments, it generates dynamic, styled vector graphics (SVGs) containing "Cyber Sun Tzu" quotes.
+
+Instead of relying on heavy, static asset servers or complex database overhead, this service computes and renders UI-optimized vector assets on the fly. It was built specifically to solve the problem of stale content in static markdown files, injecting real-time, context-aware cybersecurity wisdom every time a GitHub Profile README is pulled by a client browser.
+
+### Live Demo
+
+Here is a live, real-time render generated directly by the microservice running on Hugging Face Spaces. Every time you refresh this page, a new piece of digital wisdom is computed on the fly:
+
+<div class="flex justify-center my-6">
+  <img src="https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg" alt="Cyber Wisdom API Live" />
+</div>
+
+
+## Core Features & Architecture
+
+The service bypasses the standard constraints of static image hosting by generating raw vector code directly at the endpoint layer.
+
+- **Dynamic SVG Generation:** Quotes are parsed and rendered directly into custom vector data natively within the API payload. This completely removes the need to store, manage, or clean up temporary static image assets on the host system.
+- **GitHub UI Optimization:** The visual layout features a carefully calculated dark theme palette designed to map seamlessly to GitHub’s native dark-mode user interface, preventing visual jarring or layout asymmetry.
+- **Native Auto-Refresh:** By utilizing specific cache-busting behavior at the HTTP endpoint level, the service ensures that unique profile loads trigger a fresh initialization sequence, pulling a new token of digital wisdom on every request.
+- **Enterprise Container Ready:** The entire ecosystem is packaged into a minimal, immutable Docker image, allowing it to be spun up instantly across cloud providers, private clusters, or serverless platforms like Hugging Face Spaces.
+
+
+## Technical Architecture & Container Design
+
+The microservice architecture relies on decoupled layers to minimize latency and memory consumption, guaranteeing rapid delivery of vector payloads under heavy concurrent traffic.
+
+### 1. Vector Pipeline (FastAPI Backend)
+
+The core endpoint processes incoming HTTP requests, selects a quote record using a pseudo-random distribution algorithm, and injects the text string directly into an optimized SVG template configuration. The content is returned with an explicit MIME type of `image/svg+xml`, prompting the browser client to render the graphic data natively rather than processing it as raw text.
+
+### 2. Isolated Docker Runtime
+
+To ensure the microservice is fully immutable and cross-platform compatible, a custom `Dockerfile` isolates the application logic. The base layer uses a slimmed-down Python footprint, enforcing minimal package overhead to shrink the attack surface and optimize cold-start performance in serverless runtimes.
+
+
+## Deployment & Production Infrastructure
+
+The project is architected for a zero-maintenance, infrastructure-as-code deployment pipeline. It targets Hugging Face Spaces utilizing the Docker SDK, exposing a hardcoded port mapping tailored for automated container orchestration.
+
+### Hugging Face Cloud Infrastructure Configuration
+
+To deploy the workspace smoothly, the container includes specific runtime metadata parsed natively by cloud orchestrators:
+
+```yaml
+---
+title: Cyber Wisdom API
+emoji: ⚡
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+---
+```
+
+This ensures the container platform can dynamically provision underlying compute resources, route inbound port traffic to 7860, and expose the public SVG distribution link securely to external users.
+
+
+## Local Environment Verification
+
+Developers looking to fork or test the microservice locally can spin up the environment using standard Python dependency managers:
+
+```bash
+# Clone the repository
+git clone https://github.com/lukapiplica/wisdom-endpoint.git
+cd wisdom-endpoint
+
+# Install isolated dependencies
+pip install -r requirements.txt
+
+# Start the local development server
+uvicorn main:app --reload --port 7860
+```
+
+Once running, the endpoint dynamically renders the SVG graphic and returns the generated vector canvas immediately at http://localhost:7860/quote.svg.
+
+
+## Production Integration
+
+Integrating the live vector component into any markdown portfolio takes just a single line of standard declarative code. It behaves natively like a standard image asset while maintaining structural layout integrity across both desktop and mobile layouts:
+
+```markdown
+![Cyber Wisdom](https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg)
+```
+
+## Licensing
+
+This service is open source and distributed under the **MIT License**. It remains fully forkable, customizable, and ready for deployment into any cluster environment.
+

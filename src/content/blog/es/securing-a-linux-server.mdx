@@ -1,0 +1,224 @@
+---
+title: "Hardening de VPS: Guía Práctica para Asegurar un Servidor Linux"
+description: "Una guía estándar para asegurar instalaciones limpias de Linux, configurar criptografía de clave pública, desplegar firewalls UFW y mitigar amenazas de forma proactiva."
+publishedAt: 2022-10-09
+author: "Luka Piplica"
+tags: ["linux", "security", "sysadmin", "devops", "hardening"]
+featured: false
+locale: es
+image: "../../../assets/blog/securing-a-linux-server.mdx/featured.webp"
+imageAlt: "Pantalla retro verde con un mensaje de advertencia de seguridad que dice Acceso Denegado"
+---
+
+En el momento en que un nuevo servidor privado virtual (VPS) o instancia en la nube se aprovisiona con una dirección IP pública, se convierte en un objetivo. Botnets de amenazas automatizadas escanean constantemente los rangos globales de IPv4, intentando explotar puertos por defecto, descifrar credenciales débiles mediante fuerza bruta e identificar servicios del sistema sin parches. Dejar un servidor funcionando con las configuraciones por defecto es una invitación abierta a la intrusión.
+
+Establecer una línea base de seguridad sólida y robusta (hardening) es un prerrequisito vital para cualquier despliegue en producción, ya sea para alojar aplicaciones web simples, servidores de bases de datos o redes complejas de API.
+
+Esta guía práctica proporciona un plano de seguridad paso a paso para robustecer una instalación limpia de Linux (dirigida específicamente a distribuciones Debian y Ubuntu), configurar un acceso criptográfico seguro, desplegar firewalls de estado e implementar flujos de trabajo proactivos para la mitigación de amenazas.
+
+---
+
+## Especificación de la Arquitectura de Hardening
+
+En lugar de desplegar complejas herramientas de terceros, el hardening eficiente de un servidor aprovecha las utilidades estables e integradas del subsistema Linux. Las especificaciones de defensa principales implementadas en esta guía se detallan a continuación:
+
+| Vector de Seguridad | Software / Protocolo | Objetivo Técnico |
+| :--- | :--- | :--- |
+| **Sistema Operativo** | Debian / Ubuntu | Entorno limpio de servidor Linux en la capa base |
+| **Ciclo de Vida de Paquetes** | `unattended-upgrades` | Programación y ejecución automatizada de parches de seguridad críticos |
+| **Autorización de Acceso** | Claves Criptográficas Ed25519 | Autorización de par de claves asimétricas de alta velocidad e inmune a canales laterales |
+| **Defensa de Red** | UFW (Uncomplicated Firewall) | Filtrado estricto de paquetes de estado (política de denegación por defecto) |
+| **Ocultamiento del Host** | Filtro ICMP (`before.rules`) | Descarta peticiones de eco entrantes para ocultar la presencia activa del servidor ante escáneres |
+
+---
+
+## Fase 1: Sincronización de Paquetes y Automatización de Parches
+
+Mantener los paquetes de software actualizados es la defensa individual más efectiva contra las CVE (Vulnerabilidades y Exposiciones Comunes) conocidas.
+
+### 1. Sincronización Manual del Sistema
+
+Comience realizando una actualización manual y una mejora de paquetes para garantizar una línea base limpia:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Automatización de Parches de Seguridad Críticos
+
+Para entornos de producción, realizar actualizaciones manuales del sistema a diario resulta inviable. Configuramos el sistema para aplicar automáticamente las actualizaciones de seguridad mediante la utilidad `unattended-upgrades`.
+
+Instale el paquete requerido:
+
+```shell
+sudo apt install -y unattended-upgrades
+```
+
+Para habilitar las actualizaciones en segundo plano y configurar la frecuencia de entrega de los paquetes, reconfigure las reglas de prioridad de los paquetes:
+
+```shell
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
+*(Seleccione **Yes** cuando se le solicite habilitar la descarga e instalación automática en segundo plano de paquetes críticos de seguridad).*
+
+> **Nota del Sistema:** Dependiendo de las garantías de tiempo de actividad (uptime) de su servicio, debe monitorear cuidadosamente las actualizaciones automáticas. Aunque los parches de seguridad son muy críticos, los conflictos menores entre paquetes pueden, en ocasiones, interrumpir daemons especializados en ejecución.
+
+---
+
+## Fase 2: Robustecimiento del Acceso por Shell Remoto (SSH)
+
+Asegurar el daemon del Secure Shell (SSH) es un paso fundamental en el hardening de un servidor. Por defecto, SSH opera en el puerto 22 y a menudo permite autenticaciones basadas en contraseñas, lo que lo deja vulnerable a ataques automatizados de fuerza bruta.
+
+### 1. Preparación del Directorio y Restricciones de Seguridad
+
+Cree una carpeta `.ssh` segura dentro de su directorio de usuario y establezca permisos de archivo estrictos:
+
+```shell
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+```
+*(Un estado de permisos `700` garantiza que solo el propietario del directorio tenga permisos de lectura, escritura y ejecución, evitando que otros usuarios locales vean o alteren sus credenciales).*
+
+### 2. Generación de Pares de Claves Criptográficas Ed25519
+
+Reemplazamos por completo la autenticación por contraseña por la autenticación mediante pares de claves asimétricas. Seleccionamos el algoritmo moderno de curva **Ed25519** porque es significativamente más rápido que el legado RSA, presenta tamaños de clave más cortos y es estructuralmente inmune a los ataques de canales laterales.
+
+Ejecute el comando del generador en su máquina cliente local (PowerShell de Windows, terminal de macOS o Linux):
+
+```shell
+ssh-keygen -t ed25519
+```
+*Consejo: Proteja siempre su par de claves con una contraseña (passphrase) robusta. Esto garantiza que incluso si su archivo de clave privada se ve comprometido, no se pueda descifrar sin dicha contraseña.*
+
+### 3. Despliegue de la Clave Pública en el Host Remoto
+
+A continuación, copie su clave pública recién generada (`id_ed25519.pub`) en el archivo `authorized_keys` del servidor de destino.
+
+* **Cliente Linux / macOS:**
+    ```shell
+    ssh-copy-id -i ~/.ssh/id_ed25519.pub SERVER_USER@SERVER_IP
+    ```
+* **Cliente Windows PowerShell:**
+    ```powershell
+    scp $env:USERPROFILE/.ssh/id_ed25519.pub SERVER_USER@SERVER_IP:~/.ssh/authorized_keys
+    ```
+
+Una vez copiada, verifique que puede autenticarse de forma remota sin introducir la contraseña de su cuenta.
+
+### 4. Restricción de la Configuración del Daemon SSH
+
+Con las claves ya implementadas, inicie sesión en su servidor y edite el archivo de configuración del daemon del servidor SSH para deshabilitar los inicios de sesión por contraseña y personalizar los comportamientos de la red:
+
+```shell
+sudo nano /etc/ssh/sshd_config
+```
+
+Incorpore o modifique las siguientes directivas:
+
+1. **Asignación de Puerto Personalizado:** Cambie el puerto SSH por defecto a un puerto alto personalizado (por ejemplo, `4723`) para evitar que los escáneres automatizados de bots apunten al puerto 22:
+    ```text
+    Port 4723
+    ```
+2. **Restricciones de la Familia IP:** Limite el daemon para que escuche estrictamente en IPv4 (reemplazando la directiva `any` por defecto):
+    ```text
+    AddressFamily inet
+    ```
+3. **Deshabilitar Inicios de Sesión Directos como Root:** Evite la autenticación administrativa directa como root, obligando a los usuarios a conectarse a través de cuentas estándar y escalar privilegios mediante `sudo`:
+    ```text
+    PermitRootLogin no
+    ```
+4. **Forzar Inicios de Sesión Solo Mediante Claves:** Deshabilite por completo los inicios de sesión débiles basados en contraseñas:
+    ```text
+    PasswordAuthentication no
+    ```
+
+Guarde el archivo y reinicie el daemon del sistema SSH para aplicar la configuración:
+
+```shell
+sudo systemctl restart sshd
+```
+
+> **Advertencia:** No cierre su sesión de terminal activa después de reiniciar el daemon SSH. Abra una nueva ventana de terminal y verifique que puede conectarse con éxito utilizando su puerto personalizado y su clave privada. Esto evita que se quede fuera del sistema en caso de haber cometido un error tipográfico en el archivo de configuración.
+
+---
+
+## Fase 3: Despliegue de un Firewall de Estado (UFW)
+
+Un firewall de estado (stateful firewall) monitorea las conexiones activas y bloquea el tráfico de red no autorizado antes de que alcance sus aplicaciones.
+
+### 1. Auditoría de Sockets de Red Activos
+
+Antes de bloquear el tráfico, verifique qué sockets de red están escuchando activamente en su host:
+
+```shell
+sudo ss -tupln
+```
+*(Analice la salida para asegurarse de no bloquear los puertos utilizados por servicios activos críticos como bases de datos, servidores web o cachés de clave-valor).*
+
+### 2. Aplicación de Reglas del Firewall
+
+Instale la utilidad Uncomplicated Firewall (UFW):
+
+```shell
+sudo apt install -y ufw
+```
+
+Establezca las reglas de autorización de puertos de destino. Dado que cambiamos nuestro puerto SSH al `4723`, autorizamos el tráfico TCP entrante en ese puerto personalizado específico:
+
+```shell
+sudo ufw allow 4723/tcp
+```
+
+Habilite el firewall y verifique su estado:
+
+```shell
+sudo ufw enable
+sudo ufw status verbose
+```
+*(La salida del estado debería confirmar una política de denegación por defecto para el tráfico entrante, con el puerto `4723` autorizado para el tráfico TCP).*
+
+---
+
+## Fase 4: Ocultamiento Defensivo de la Red (Descarte de ICMP)
+
+Por defecto, los servidores Linux responden a las solicitudes de eco del Protocolo de Mensajes de Control de Internet (ICMP), más comúnmente conocidas como **pings**. Aunque resultan útiles para diagnosticar la conectividad de la red, los hackers y las botnets utilizan barridos de ping (ping sweeps) para descubrir hosts activos en línea y mapear rangos de red objetivo.
+
+Deshabilitar las respuestas de ping hace que su servidor parezca una dirección IP inactiva ante los barridos automatizados, reduciendo la visibilidad del perfil de su objetivo.
+
+1. Abra el archivo principal de reglas de pre-enrutamiento de UFW:
+    ```shell
+    sudo nano /etc/ufw/before.rules
+    ```
+2. Ubique la sección etiquetada como `# ok icmp codes for INPUT`.
+3. Directamente en la parte superior de este bloque (antes de cualquier regla de aceptación coincidente), inserte la directiva de descarte (drop):
+    ```text
+    -A ufw-before-input -p icmp --icmp-type echo-request -j DROP
+    ```
+4. Guarde los cambios y reinicie el servidor para aplicar las reglas de enrutamiento de paquetes:
+    ```shell
+    sudo reboot now
+    ```
+
+Una vez que el sistema complete el reinicio, intente hacer ping al host desde una máquina externa. La solicitud expirará (timeout), lo que indica que el servidor está ocultando con éxito su presencia en la red.
+
+---
+
+## Glosario Técnico: Léxico de Fortalecimiento (Hardening)
+
+| Término / Utilidad | Perspectiva Técnica | Beneficio Visual y de Seguridad |
+| :--- | :--- | :--- |
+| **`unattended-upgrades`** | Gestor automatizado de parches de seguridad | Recupera y aplica periódicamente parches críticos de CVE en segundo plano, manteniendo las dependencias seguras sin supervisión manual del administrador. |
+| **Claves Ed25519** | Algoritmo de curva elíptica asimétrica | Proporciona acceso de alta seguridad basado en criptografía de curva elíptica, ofreciendo velocidades más rápidas y una menor huella de clave que el legado RSA. |
+| **`sshd_config`** | Archivo de configuración del sistema del daemon SSH | El archivo central utilizado para restringir las políticas de acceso, personalizar puertos, forzar inicios de sesión solo mediante claves y deshabilitar el acceso directo como root. |
+| **`ss`** | Utilidad de estadísticas de sockets | Una herramienta moderna de línea de comandos utilizada para auditar puertos TCP/UDP activos, sockets de escucha y IDs de procesos. |
+| **UFW** | Envoltorio de Firewall Incomplicado | Una interfaz de línea de comandos para iptables, que proporciona una interfaz fácil de usar para gestionar políticas de filtrado de paquetes de estado. |
+| **ICMP Echo Request** | Paquete del Protocolo de Mensajes de Control de Internet | Un paquete de diagnóstico enviado para verificar la presencia en la red de un host. Descartar estos paquetes oculta su servidor de los escáneres automatizados. |
+
+---
+
+## Conclusión y Retrospectiva Arquitectónica
+
+El fortalecimiento (hardening) de un servidor Linux es un proceso continuo de modelado de amenazas y reducción de la superficie de ataque de su sistema. Aunque ningún servidor es completamente invulnerable, el despliegue de estos principios básicos de defensa en profundidad —forzar el acceso SSH solo mediante claves, automatizar los parches, configurar un firewall de estado y descartar las solicitudes de ping de la red— eleva significativamente la barrera de entrada, protegiendo su host y sus servicios de los barridos automatizados de bots y las campañas de fuerza bruta.
+
+*La implementación de una configuración robusta de defensa en profundidad en servidores expuestos al público demuestra cómo la aplicación sistemática de políticas y el modelado proactivo de amenazas constituyen la piedra angular de la ingeniería de nube segura y la confiabilidad de la infraestructura.*

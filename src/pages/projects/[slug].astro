@@ -4,11 +4,11 @@ import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
   const allProjects = await getCollection('projects', ({ data }) => {
-    return import.meta.env.PROD ? data.draft !== true : true;
+    return data.locale === 'en' && (import.meta.env.PROD ? data.draft !== true : true);
   });
 
   return allProjects.map((project) => ({
-    params: { slug: project.id.replace(/\.mdx?$/, '') },
+    params: { slug: project.id.replace(/^en\//, '').replace(/\.mdx?$/, '') },
     props: {
       project,
       related: allProjects
@@ -35,6 +35,12 @@ const { Content } = await render(project);
   image={project.data.image}
   imageAlt={project.data.imageAlt}
   related={related}
+  locale={project.data.locale}
 >
   <Content />
 </ProjectLayout>
+
+<style>
+  /* Dummy style to force Astro to collect assets for this page */
+  .force-asset-collection { display: block; }
+</style>

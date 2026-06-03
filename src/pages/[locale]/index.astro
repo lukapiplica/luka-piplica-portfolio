@@ -1,0 +1,16 @@
+---
+import HomeContent from '@/components/patterns/HomeContent.astro';
+import { getLocales } from '@/i18n';
+
+export function getStaticPaths() {
+  return getLocales().map((locale) => ({ params: { locale } }));
+}
+
+interface Props {
+  locale?: string;
+}
+
+const { locale = Astro.params.locale } = Astro.props;
+---
+
+<HomeContent locale={locale as string} />

@@ -1,0 +1,104 @@
+---
+title: "Cyber Wisdom API"
+description: "Ein leichtgewichtiger FastAPI-Mikroservice, optimiert für Docker und Hugging Face Spaces, der dynamische, für GitHub optimierte „Cyber-Sun-Tzu“-Zitate direkt in Vektor-SVG-Bilder für die Echtzeit-Profilintegration generiert."
+url: "https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg"
+repo: "https://github.com/lukapiplica/wisdom-endpoint"
+tags: ["FastAPI", "Python", "Docker", "Hugging Face", "Backend-Entwicklung"]
+featured: false
+order: 2
+year: 2026
+role: "Backend- & Systems-Engineer"
+services: ["API-Entwicklung", "Containerisierung", "Cloud-Hosting"]
+locale: "de"
+---
+
+## Über das Projekt
+
+Die **Cyber Wisdom API** ist ein hochperformanter, leichtgewichtiger, zustandsloser (stateless) Mikroservice, der mit FastAPI und Python entwickelt wurde. Er ist so konzipiert, dass er nahtlos in isolierten Container-Umgebungen läuft und dynamische, gestaltete Vektorgrafiken (SVGs) generiert, die „Cyber-Sun-Tzu“-Zitate enthalten.
+
+Anstatt sich auf schwere, statische Asset-Server oder komplexen Datenbank-Overhead zu verlassen, berechnet und rendert dieser Service UI-optimierte Vektor-Assets im laufenden Betrieb (on the fly). Er wurde speziell entwickelt, um das Problem von veralteten Inhalten in statischen Markdown-Dateien zu lösen, indem er jedes Mal, wenn ein GitHub-Profil-README von einem Client-Browser aufgerufen wird, in Echtzeit kontextbezogene Cybersecurity-Weisheiten einbindet.
+
+### Live-Demo
+
+Hier ist ein Live-Echtzeit-Render, der direkt von dem auf Hugging Face Spaces laufenden Mikroservice generiert wird. Jedes Mal, wenn Sie diese Seite aktualisieren, wird ein neues Stück digitale Weisheit spontan berechnet:
+
+<div class="flex justify-center my-6">
+  <img src="https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg" alt="Cyber Wisdom API Live" />
+</div>
+
+
+## Kernfunktionen & Architektur
+
+Der Service umgeht die Standardbeschränkungen des statischen Image-Hostings, indem er rohen Vektorcode direkt auf der Endpoint-Ebene generiert.
+
+- **Dynamische SVG-Generierung:** Zitate werden geparst und nativ innerhalb der API-Payload direkt in benutzerdefinierte Vektordaten gerendert. Dadurch entfällt die Notwendigkeit, temporäre statische Bild-Assets auf dem Host-System komplett zu speichern, zu verwalten oder zu bereinigen.
+- **GitHub-UI-Optimierung:** Das visuelle Layout verfügt über eine sorgfältig berechnete Dark-Theme-Palette, die sich nahtlos in die native Dark-Mode-Benutzeroberfläche von GitHub einfügt, um visuelle Brüche oder Layout-Asymmetrien zu verhindern.
+- **Nativer Auto-Refresh:** Durch die Nutzung eines spezifischen Cache-Busting-Verhaltens auf HTTP-Endpoint-Ebene stellt der Service sicher, dass eindeutige Profilaufrufe eine neue Initialisierungssequenz auslösen, die bei jeder Anfrage ein neues Token digitaler Weisheit abruft.
+- **Enterprise-Container-Ready:** Das gesamte Ökosystem ist in ein minimales, immutables Docker-Image gepackt, sodass es sofort über Cloud-Anbieter, private Cluster oder serverlose Plattformen wie Hugging Face Spaces hinweg gestartet werden kann.
+
+
+## Technische Architektur & Container-Design
+
+Die Mikroservice-Architektur setzt auf entkoppelte Layer, um Latenzzeiten und Speicherverbrauch zu minimieren und eine schnelle Bereitstellung von Vektor-Payloads bei starkem simultanem Traffic zu garantieren.
+
+### 1. Vektor-Pipeline (FastAPI Backend)
+
+Der Kern-Endpoint verarbeitet eingehende HTTP-Anfragen, wählt mithilfe eines Pseudozufallsalgorithmus einen Datensatz aus den Zitaten aus und injiziert den Text-String direkt in eine optimierte SVG-Template-Konfiguration. Der Inhalt wird mit dem expliziten MIME-Typ `image/svg+xml` zurückgegeben, was den Browser-Client veranlasst, die Grafikdaten nativ zu rendern, anstatt sie als rohen Text zu verarbeiten.
+
+### 2. Isolierte Docker-Runtime
+
+Um sicherzustellen, dass der Mikroservice vollständig immutabel und plattformübergreifend kompatibel ist, isoliert ein benutzerdefiniertes `Dockerfile` die Anwendungslogik. Der Basis-Layer verwendet einen reduzierten Python-Footprint und erzwingt einen minimalen Paket-Overhead, um die Angriffsfläche zu verkleinern und die Cold-Start-Performance in serverlosen Runtimes zu optimieren.
+
+
+## Deployment & Produktionsinfrastruktur
+
+Das Projekt ist für eine wartungsfreie Infrastructure-as-Code-Deployment-Pipeline konzipiert. Es ist für Hugging Face Spaces unter Verwendung des Docker SDK optimiert und macht ein fest codiertes Port-Mapping nutzbar, das auf die automatisierte Container-Orchestrierung zugeschnitten ist.
+
+### Konfiguration der Hugging Face Cloud-Infrastruktur
+
+Um den Workspace reibungslos bereitzustellen, enthält der Container spezifische Runtime-Metadaten, die von Cloud-Orchestratoren nativ geparst werden:
+
+```yaml
+---
+title: Cyber Wisdom API
+emoji: ⚡
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+---
+```
+
+Dies stellt sicher, dass die Container-Plattform die zugrunde liegenden Rechenressourcen dynamisch bereitstellen, den eingehenden Port-Traffic an 7860 leiten und den öffentlichen SVG-Distributionslink sicher für externe Benutzer freigeben kann.
+
+
+## Verifizierung der lokalen Umgebung
+
+Entwickler, die den Mikroservice lokal forken oder testen möchten, können die Umgebung mit Standard-Python-Abhängigkeitsmanagern starten:
+
+```bash 
+# Repository klonen
+git clone [https://github.com/lukapiplica/wisdom-endpoint.git](https://github.com/lukapiplica/wisdom-endpoint.git)
+cd wisdom-endpoint
+
+# Isolierte Abhängigkeiten installieren
+pip install -r requirements.txt
+
+# Lokalen Entwicklungsserver starten
+uvicorn main:app --reload --port 7860
+```
+
+Sobald der Service läuft, rendert der Endpoint die SVG-Grafik dynamisch und gibt das generierte Vektor-Canvas sofort unter http://localhost:7860/quote.svg zurück.
+
+
+## Integration in die Produktion
+
+Die Integration der Live-Vektorkomponente in jedes Markdown-Portfolio erfordert nur eine einzige Zeile deklarativen Standardcodes. Sie verhält sich nativ wie ein Standard-Bild-Asset, während die strukturelle Layout-Integrität sowohl bei Desktop- als auch bei mobilen Layouts erhalten bleibt:
+
+```markdown
+![Cyber Wisdom](https://lukapiplica-cyber-wisdom-api.hf.space/quote.svg)
+```
+
+## Lizenzierung
+
+Dieser Service ist Open Source und wird unter der **MIT-Lizenz** vertrieben. Er bleibt vollständig forkbar, anpassbar und bereit für das Deployment in jeder Cluster-Umgebung.

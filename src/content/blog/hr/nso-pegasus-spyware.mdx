@@ -1,0 +1,204 @@
+---
+title: "Analiza špijunskog softvera Pegasus: Digitalna forenzika uz MVT"
+description: "Tehnička analiza špijunskog softvera Pegasus i zero-click napada. Vodič za digitalnu forenziku pametnih telefona (iOS i Android) uz pomoć alata Mobile Verification Toolkit (MVT)."
+publishedAt: 2021-07-21
+author: "Luka Piplica"
+tags: ["cybersecurity", "privacy", "forensics", "malware-analysis", "linux"]
+featured: false
+locale: hr
+image: "../../../assets/blog/nso-pegasus-spyware/featured.webp"
+imageAlt: "Korporativni logotip NSO Group koji predstavlja programere paketa za mobilni nadzor Pegasus."
+---
+
+Razotkrivanje kampanje špijunskog softvera Pegasus od strane pariške neprofitne organizacije <a href="https://forbiddenstories.org/" target="_blank" rel="noopener noreferrer">Forbidden Stories</a> i organizacije <a href="https://www.amnesty.org/en/" target="_blank" rel="noopener noreferrer">Amnesty International</a> označilo je veliku prekretnicu u modernoj kibernetičkoj sigurnosti. Istraga je otkrila da je nekoliko državnih aktera koristilo sofisticirani komercijalni nadzorni softver koji je razvila izraelska tvrtka <a href="https://en.wikipedia.org/wiki/NSO_Group" target="_blank" rel="noopener noreferrer">NSO Group</a> kako bi špijunirali političare, diplomate, aktiviste za ljudska prava i novinare diljem svijeta, dijeleći nalaze s istaknutim medijima kao što su <a href="https://www.washingtonpost.com/" target="_blank" rel="noopener noreferrer">The Washington Post</a> i <a href="https://www.theguardian.com/international" target="_blank" rel="noopener noreferrer">The Guardian</a>.
+
+Pegasus predstavlja iznimno složenu klasu mobilnog zlonamjernog softvera (malwarea). Nakon što se uspješno instalira na ciljni uređaj, radi tiho u pozadini, prikupljajući osjetljivu komunikaciju (SMS, WhatsApp, Signal, e-poštu), izdvajajući zapise sustava (logove), snimajući telefonske pozive, prateći GPS lokaciju u stvarnom vremenu te snimajući zvuk i video iz okoline putem mikrofona i kamere uređaja.
+
+Ovaj tehnički vodič analizira mehanizme propagacije Pegasusa i pruža korak-po-korak pregled provođenja digitalne forenzike na iOS i Android uređajima pomoću alata **Mobile Verification Toolkit (MVT)**.
+
+---
+
+## Tehnički mehanizmi: Moć Zero-Click eksploita
+
+Povijesno gledano, infekcija mobilnim zlonamjernim softverom zahtijevala je neki oblik interakcije žrtve — kao što je klikanje na phishing poveznice, otvaranje zlonamjernih privitaka ili podlijeganje tehnikama socijalnog inženjeringa. Pegasus je, međutim, postigao ogroman uspjeh iskorištavanjem **zero-click eksploita** (napada bez klika).
+
+Zero-click eksploit ne zahtijeva apsolutno nikakvu interakciju korisnika kako bi kompromitirao uređaj. Ovi napadi obično ciljaju sistemske demone (daemons) koji obrađuju dolazne podatke prije nego što korisnik uopće primi obavijest. Na primjer, slanjem posebno oblikovanog iMessage korisnog tereta (payload) ili WhatsApp paketa, zlonamjerni softver aktivira ranjivosti korupcije memorije (kao što su prekoračenje cijelih brojeva ili prekoračenje međuspremnika) unutar biblioteka niske razine operativnog sustava zaduženih za iscrtavanje (npr. Appleova CoreGraphics biblioteka koja obrađuje PDF ili JBIG2 slike).
+
+Aplikacija ili demon se tiho sruše, izvršavaju shellcode s povlasticama korijenskog (root) korisnika, preuzimaju glavni zlonamjerni teret i uspostavljaju trajnost (persistence) — i to sve prije nego što ciljani telefon uopće zazvoni ili prikaže bilo kakvu obavijest. Ove se pogreške klasificiraju kao **zero-day eksploiti** (ranjivosti nultog dana) jer ciljaju propuste koji su nepoznati proizvođaču softvera, ostavljajući uređaje potpuno bespomoćnima sve dok se ne razvije i ne implementira sigurnosna zakrpa.
+
+---
+
+## Forenzički okvir: Mobile Verification Toolkit (MVT)
+
+<a href="https://github.com/mvt-project/mvt" target="_blank" rel="noopener noreferrer">Mobile Verification Toolkit (MVT)</a> je modularni forenzički okvir otvorenog koda dizajniran za prikupljanje i analizu zapisa mobilnih sustava, zapisa baza podataka i konfiguracija sustava. MVT analizira povijesne artefakte sustava kako bi identificirao poznate indikatore kompromitacije (IOC) koji odgovaraju tragovima eksploitacije Pegasusa. Poznate signature prijetnji i skupovi podataka o IOC-ima aktivno se prikupljaju na <a href="https://github.com/AmnestyTech/investigations/tree/master/2021-07-18_nso" target="_blank" rel="noopener noreferrer">GitHub repozitoriju AmnestyTech Investigations</a>.
+
+### Preduvjeti i postavljanje forenzičke radne stanice
+
+Iako se MVT može pokrenuti na većini Linux okruženja baziranih na Debianu, ovaj vodič koristi **Kali Linux** kao primarnu forenzičku radnu stanicu.
+
+#### 1. Sinkronizacija forenzičkog okruženja
+Provjerite jesu li sve biblioteke paketa sustava potpuno ažurirane:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+#### 2. Instalacija ključnih zavisnosti
+MVT zahtijeva Python 3, kompilatore paketa i biblioteke za USB komunikaciju kako bi mogao komunicirati s povezanim mobilnim uređajima:
+
+```shell
+sudo apt install -y python3 python3-pip libusb-1.0-0 git
+```
+
+#### 3. Instalacija MVT-a iz izvornog koda
+Preuzmite najnoviji MVT repozitorij, kompajlirajte alat lokalno i ažurirajte putanje izvršavanja u ljusci (shell) vašeg sustava:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/mvt-project/mvt.git
+cd mvt
+pip3 install .
+```
+
+Kako biste MVT izvršne datoteke mogli pokretati globalno, dodajte lokalnu putanju korisničkih binarnih datoteka u svoju varijablu okruženja PATH:
+
+```shell
+export PATH=$PATH:/home/$USER/.local/bin
+```
+*(Obavezno zamijenite `$USER` sa svojim aktivnim korisničkim imenom na Linux sustavu ili dodajte ovu naredbu izravno u svoju `~/.bashrc` ili `~/.zshrc` datoteku).*
+
+#### 4. Preuzimanje IOC signatura organizacije Amnesty International
+Klonirajte službeni repozitorij Amnesty International Investigations koji sadrži povijesnu bazu podataka provjerenih indikatora kompromitacije (IOC) za Pegasus (konkretno datoteku sa signaturama `.strix2`):
+
+```shell
+cd ~/Downloads
+git clone https://github.com/AmnestyTech/investigations.git
+```
+
+---
+
+## Digitalna forenzika na iOS uređajima
+
+Forenzika iOS sustava putem alata MVT analizira povijesne zapise baza podataka, SQLite strukture i predmemorirane (cached) mrežne zahtjeve. Kako bi se to provelo, najprije se mora pribaviti kopija strukture operativnog sustava ciljnog uređaja.
+
+### Prikupljanje podataka: Preslika datotečnog sustava u odnosu na iTunes sigurnosne kopije
+
+Postoje dvije primarne metode za prikupljanje forenzičkih podataka iz iOS-a:
+1. **Preslika datotečnog sustava (Filesystem Dump):** Zahtijeva potpuno otključavanje (jailbreak) iOS jezgre (kernel) pomoću hardverskih eksploita kao što je <a href="https://checkra.in/" target="_blank" rel="noopener noreferrer">checkra1n</a>. Ova metoda pruža apsolutno pravo čitanja cjelokupnog korijenskog (root) direktorija, sistemske predmemorije i sirovih particija. Međutim, jailbreaking poništava jamstvo uređaja i može narušiti forenzički integritet sistemskih datoteka.
+2. **Šifrirana iTunes sigurnosna kopija (Backup):** Nedestruktivna alternativa koja zadržava jamstvo sustava. Ključno je da **sigurnosna kopija mora biti šifrirana** lokalnom lozinkom. Šifrirane sigurnosne kopije prisiljavaju iOS da izveze iznimno osjetljive lokalne baze podataka (uključujući povijest preglednika Safari, zapise poziva, baze podataka SMS poruka i podatke aplikacija) koje bi inače, iz sigurnosnih razloga, bile isključene iz sigurnosnih kopija u čistom tekstu (plain text).
+
+### Korak-po-korak iOS forenzički vodič
+
+1. Povežite ciljni iPhone s radnom stanicom i napravite **šifriranu sigurnosnu kopiju** putem iTunesa (Windows/macOS) ili pomoću alata `idevicebackup2` na Linuxu.
+2. Pronađite mapu sa sigurnosnom kopijom koja je nazvana prema jedinstvenom identifikatoru uređaja (UDID).
+3. Prenesite UDID mapu u svoje Linux forenzičko okruženje (npr. u vaš `~/Documents` direktorij).
+4. Generirajte odredišni direktorij za dešifriranje i dešifrirajte sigurnosnu kopiju pomoću MVT-a:
+
+```shell
+mkdir -p ~/Documents/decrypted
+mvt-ios decrypt-backup -p 'YOUR_DECRYPTION_PASSWORD' -d ~/Documents/decrypted ~/Documents/<UDID_FOLDER_NAME>
+```
+
+5. Kreirajte odredišnu mapu za pohranu generiranih forenzičkih izvještaja:
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+```
+
+6. Pokrenite MVT alat za skeniranje i usporedite strukture baza podataka dešifrirane iOS sigurnosne kopije s provjerenim Pegasus STIX2 indikatorima:
+
+```shell
+mvt-ios check-backup -i ~/Downloads/investigations/2021-07-18_nso/pegasus.strix2 -o ~/Downloads/output_forensics ~/Documents/decrypted
+```
+
+MVT će sustavno analizirati sve baze podataka. Ako se otkrije signatura koja odgovara zlonamjernom zahtjevu, procesu ili zlonamjernom teretu (payloadu) u SMS-u, u vašem će se terminalu prikazati kritično upozorenje.
+
+![MVT alat, izlazni podaci i generirane JSON datoteke na radnoj površini Linuxa](../../../assets/blog/nso-pegasus-spyware/1.webp)
+
+---
+
+## Digitalna forenzika na Android uređajima
+
+Forenzika na Android uređajima predstavlja izazov zbog fragmentirane prirode samog operativnog sustava. MVT koristi dva primarna vektora detekcije: provjeru integriteta APK datoteka i analizu baza podataka telefonije.
+
+### 1. Provjera integriteta i reputacije APK datoteka
+
+Zlonamjerne aplikacije na Androidu često se maskiraju u bezopasne alate. MVT može izdvojiti instalirane pakete izravno s uređaja i usporediti njihove kriptografske sažetke (hashes) s globalnim mrežama za prikupljanje informacija o prijetnjama (threat intelligence).
+
+1. Omogućite **USB otklanjanje pogrešaka (USB Debugging)** unutar izbornika Opcije programera (Developer Options) na ciljnom Android uređaju.
+2. Povežite uređaj putem USB-a na svoju forenzičku radnu stanicu i autorizirajte ADB ključeve na zaslonu mobitela.
+3. Kreirajte odredišnu mapu i preuzmite sve aktivne APK binarne datoteke sustava i korisnika:
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+mvt-android download-apks -o ~/Downloads/output_forensics
+```
+
+4. Kako biste automatski provjerili SHA256 sažetke (hashes) svih izvađenih aplikacija u bazi podataka <a href="https://www.virustotal.com/gui/" target="_blank" rel="noopener noreferrer">VirusTotal</a>, pokrenite ekstrahiranje uz API zastavicu (flag):
+
+```shell
+mvt-android download-apks -o ~/Downloads/output_forensics --virustotal
+```
+
+### 2. Analiza baze podataka telefonije i SMS-a
+
+Pegasus često pokreće vektore infekcije putem zlonamjernih SMS poruka koje sadrže posebne poveznice.
+
+1. Pokrenite izradu sigurnosne kopije baze podataka pružatelja usluga telefonije u sustavu pomoću ADB-a:
+
+```shell
+adb backup com.android.providers.telephony
+```
+
+2. Autorizirajte prijenos sigurnosne kopije na zaslonu ciljnog uređaja. Baza podataka bit će pohranjena lokalno kao Android Backup datoteka (`backup.ab`).
+3. Kako biste pročitali `.ab` arhivu, izdvojite njezin sadržaj pomoću alata <a href="https://github.com/nelenkov/android-backup-extractor" target="_blank" rel="noopener noreferrer">Android Backup Extractor (ABE)</a> koji se temelji na Javi:
+
+```shell
+java -jar ~/Downloads/abe.jar unpack backup.ab backup.tar
+tar -xvf backup.tar
+```
+
+4. Skenirajte analiziranu bazu podataka telefonije u potrazi za sumnjivim poveznicama koje odgovaraju infrastrukturi Pegasusa:
+
+```shell
+mvt-android check-backup -o sms .
+```
+*(Dodatno, upotrijebite zastavicu `-i` kako biste usmjerili alat na specifičnu datoteku s definicijama IOC-a).*
+
+---
+
+## Forenzički zapisnik: Analizirani ključni iOS artefakti
+
+Nakon analize, MVT izvozi detaljne JSON datoteke koje prikazuju stanja kritičnih sistemskih baza podataka. Razumijevanje ovih datoteka ključno je za rekonstrukciju kronologije kompromitacije.
+
+| Generirani artefakt | Izvorna putanja u sustavu | Tehnički forenzički značaj |
+| :--- | :--- | :--- |
+| **`cache_files.json`** | `*Library/Caches/` SQLite baze podataka | Izdvaja zaglavlja i odgovore HTTP/HTTPS zahtjeva. Ključno za identificiranje početnih okidača za preuzimanje bez klika (zero-click). |
+| **`calls.json`** | `/private/var/mobile/Library/CallHistoryDB/CallHistory.store` | Povijesni zapisnik svih telefonskih događaja, uključujući VoIP zapise iz sigurnih aplikacija trećih strana (npr. WhatsApp, Signal). |
+| **`chrome_favicon.json`** | `*Library/Application Support/Google/Chrome/Default/Favicons` | Analizira ikone (favicons) web stranica. Pomaže u praćenju skrivenih preusmjeravanja na webu koja su se pokrenula u pozadini (saznajte više o ranjivostima otmice favicona na <a href="https://www.youtube.com/watch?v=X7OW5hTt5hY" target="_blank" rel="noopener noreferrer">YouTubeu</a>). |
+| **`chrome_history.json`** | `*Library/Application Support/Google/Chrome/Default/History` | Baza podataka svih interakcija s web stranicama unutar preglednika Chrome. |
+| **`contacts.json`** | `/private/var/mobile/Library/AddressBook/AddressBook.sqlitedb` | Sirova SQLite tablica koja sadrži kontakte iz sustava. Često su meta za masovno izvlačenje podataka (database harvest). |
+| **`id_status_cache.json`** | `/private/var/mobile/Library/Preferences/com.apple.identityservices.idstatuscache.plist` | Prati povijesnu provjeru valjanosti Apple ID-ova, biometrijskih autentifikacijskih tokena i ključeva u sustavu. |
+| **`interaction_c.json`** | `/private/var/mobile/Library/CoreDuet/People/interactionC.db` | Baza podataka visoke vrijednosti koja prati pozadinske događaje na niskoj razini sustava i telemetriju korisničkih interakcija. |
+| **`locationd_clients.json`** | `/private/var/mobile/Library/Caches/locationd/clients.plist` | Predmemorija svih procesa i aplikacija koje su zahtijevale aktivne GPS lokacije uređaja. |
+| **`manifest.json`** | `Manifest.db` (baza podataka iTunes sigurnosne kopije) | Djeluje kao registar dodjele datoteka za iTunes sigurnosne kopije, povezujući datoteke ciljnog uređaja s lokalnim sažecima (hashes) sigurnosne kopije. |
+| **`safari_history.json`** | `/private/var/mobile/Library/Safari/History.db` | Iscrpna povijest pretraživanja weba, preusmjeravanja i posjeta izvršenih pomoću izvornog preglednika Safari. |
+| **`sms.json`** | `/private/var/mobile/Library/SMS/sms.db` | Sadrži sve analizirane tekstualne poruke, filtrirane posebno za ugrađene URL-ove kako bi se identificirali zlonamjerni phishing sadržaji. |
+| **`version_history.json`** | `/private/var/db/analyticsd/Analytics-Journal-*.ips` | Analitički dnevnici koji prate povijest ažuriranja operativnog sustava, razine zakrpa i konfiguracije jezgre (kernel). |
+| **`whatsapp.json`** | `*ChatStorage.sqlite` | Dešifrirani zapisi WhatsApp chatova koji prikazuju povijest poruka i ugrađene HTTP hiperveze. |
+
+---
+
+## Zaključak i sigurnosne preporuke
+
+Prijetnja koju predstavljaju platforme za špijunažu poput Pegasusa naglašava hitnu potrebu za promjenom načina na koji pristupamo sigurnosti mobilnih uređaja. Standardno izolirano okruženje (sandboxing) i dopuštenja aplikacija više nisu dovoljni za zaustavljanje aktera sponzoriranih od strane država koji koriste eksploite jezgre bez potrebe za klikom (zero-click kernel exploits).
+
+### Ključne najbolje prakse za jačanje sigurnosti mobilnih uređaja
+
+1. **Smanjite površinu napada:** Onemogućite usluge koje obrađuju neželjene dolazne datoteke. Na modernim iOS uređajima, omogućavanje opcije **Lockdown Mode** prema zadanim postavkama blokira visoko sofisticirane web tehnologije, sirovu grafičku analizu i privitke koji zaobilaze sandboxing.
+2. **Redovito ponovno pokretanje uređaja:** Budući da se mnogi eksploiti bez klika oslanjaju na izvršavanje u radnoj memoriji (RAM) kako bi ostali neotkriveni, redovito ponovno pokretanje uređaja može prekinuti lance eksploitacije i onemogućiti trajno izvršavanje zlonamjernog koda.
+3. **Provodite rutinske forenzičke revizije:** Za visokorizične pojedince, rutinsko izdvajanje sigurnosnih kopija sustava i njihova analiza pomoću alata kao što je MVT vitalan je korak u proaktivnom otkrivanju prijetnji.
+4. **Usvojite siguran hardver i operativne sustave:** Prijelaz na operativne sustave s naprednom zaštitom privatnosti (kao što je <a href="https://grapheneos.org/" target="_blank" rel="noopener noreferrer">GrapheneOS</a> na Androidu ili standardni hardver poput Nokije 8110 4G koja pokreće GerdaOS) značajno poboljšava otpornost uređaja na eksploite bez klika. Za širu političku perspektivu i perspektivu ljudskih prava o Pegasusu, pogledajte zanimljiv <a href="https://www.theguardian.com/news/2021/jul/19/edward-snowden-calls-spyware-trade-ban-pegasus-revelations" target="_blank" rel="noopener noreferrer">intervju Edwarda Snowdena za The Guardian</a>.
+
+*Ovaj vodič kroz digitalnu forenziku namijenjen je isključivo u edukativne i dijagnostičke svrhe, demonstrirajući kako revidirati mobilne uređaje u potrazi za sumnjivim indikatorima upada i poticati proaktivno prikupljanje informacija o prijetnjama.*

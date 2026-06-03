@@ -18,7 +18,7 @@ const blog = defineCollection({
       svgSlug: z.string().optional(),
       draft: z.boolean().default(false),
       featured: z.boolean().default(false),
-      locale: z.enum(['en', 'es', 'fr']).default('en'),
+      locale: z.enum(['en', 'de', 'ja', 'es', 'zh', 'hr']).default('en'),
       /** Per-post override: hide table of contents on this post */
       toc: z.boolean().optional(),
       /** Per-post override: hide comments on this post */
@@ -33,7 +33,7 @@ const pages = defineCollection({
     title: z.string(),
     description: z.string(),
     updatedAt: z.coerce.date().optional(),
-    locale: z.enum(['en', 'es', 'fr']).default('en'),
+    locale: z.enum(['en', 'de', 'ja', 'es', 'zh', 'hr']).default('en'),
   }),
 });
 
@@ -63,7 +63,7 @@ const faqs = defineCollection({
     answer: z.string(),
     category: z.string().optional(),
     order: z.number().default(0),
-    locale: z.enum(['en', 'es', 'fr']).default('en'),
+    locale: z.enum(['en', 'de', 'ja', 'es', 'zh', 'hr']).default('en'),
   }),
 });
 
@@ -86,6 +86,7 @@ const projects = defineCollection({
       role: z.string().optional(),
       services: z.array(z.string()).default([]),
       draft: z.boolean().default(false),
+      locale: z.enum(['en', 'de', 'ja', 'es', 'zh', 'hr']).default('en'),
     }),
 });
 

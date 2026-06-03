@@ -33,7 +33,7 @@ import ThemeSelector from '@/components/layout/ThemeSelector.astro';
 import ThemeSelectorDropdown from '@/components/layout/ThemeSelectorDropdown.astro';
 import LanguageSwitcher from '@/components/layout/LanguageSwitcher.astro';
 import siteConfig from '@/config/site.config';
-import { isEnabled as i18nIsEnabled } from '@/i18n';
+import { isEnabled as i18nIsEnabled, t, localizedPath } from '@/i18n';
 
 export interface NavItem {
   label: string;
@@ -72,6 +72,7 @@ interface Props extends HTMLAttributes<'header'> {
   scrollProgressPosition?: 'top' | 'bottom';
   autoHide?: boolean;
   invertOnReturn?: boolean;
+  locale?: string;
   /**
    * Max width of the inner container (only applies when `shape='bar'`).
    * Defaults to `'6xl'` (the historical width).
@@ -105,6 +106,7 @@ const {
   hideLogo = false,
   maxWidth = '6xl',
   class: className,
+  locale,
   ...attrs
 } = Astro.props;
 
@@ -119,15 +121,16 @@ const maxWidthClass = {
 const effectiveShowScrollProgress = showScrollProgress || (isFloating && !autoHide);
 const isInvert = colorScheme === 'invert';
 
-const defaultNav = getNavItems().map((item: NavConfigItem) => ({
-  label: item.label,
-  href: item.href,
+const defaultNav: NavItem[] = getNavItems().map((item: NavConfigItem) => ({
+  label: t(`nav.${item.label.toLowerCase()}`, locale) || item.label,
+  href: localizedPath(item.href, locale),
 }));
 const navItems: NavItem[] = nav || [...extraNav, ...defaultNav];
 
 const currentPath = Astro.url.pathname;
-const isLandingPage = currentPath === '/';
-const ctaHref = cta.href?.startsWith('#') && !isLandingPage ? `/${cta.href}` : cta.href;
+const isLandingPage = currentPath === '/' || currentPath.match(/^\/[a-z]{2}\/?$/);
+const homePath = localizedPath('/', locale);
+const ctaHref = cta.href?.startsWith('#') && !isLandingPage ? `${homePath}${cta.href}` : cta.href;
 
 const hasLogoSlot = Astro.slots.has('logo');
 const hasNavSlot = Astro.slots.has('nav');
@@ -178,7 +181,7 @@ const buttonId = `${menuId}-button`;
         (hasLogoSlot ? (
           <slot name="logo" />
         ) : (
-          <a href="/" class="flex items-center gap-2">
+          <a href={homePath} class="flex items-center gap-2">
             <Logo size={size === 'sm' ? 'md' : 'lg'} forceDark={isInvert} class="bg-brand-600" />
             <span
               class={cn(
@@ -230,15 +233,32 @@ const buttonId = `${menuId}-button`;
           <slot name="actions" />
         ) : (
           <>
+            {/* Search trigger */}
+            <button
+              type="button"
+              data-search-trigger
+              aria-label={t('common.search', locale)}
+              class={cn(
+                'hidden md:inline-flex items-center justify-center rounded-md p-2 cursor-pointer',
+                'transition-colors duration-(--transition-fast)',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isFloating
+                  ? 'hdr-invert-text'
+                  : 'text-foreground-muted hover:text-foreground hover:bg-secondary/70'
+              )}
+            >
+              <Icon name="search" size="md" />
+            </button>
+
             {showThemeToggle && (
               <div class="hidden md:flex">
-                <ThemeModeDropdown class={isFloating ? 'hdr-invert-text' : undefined} />
+                <ThemeModeDropdown class={isFloating ? 'hdr-invert-text' : undefined} locale={locale} />
               </div>
             )}
 
             {showThemeSelector && (
               <div class="hidden md:flex">
-                <ThemeSelectorDropdown class={isFloating ? 'hdr-invert-text' : undefined} />
+                <ThemeSelectorDropdown class={isFloating ? 'hdr-invert-text' : undefined} locale={locale} />
               </div>
             )}
 
@@ -305,6 +325,23 @@ const buttonId = `${menuId}-button`;
           </>
         )
       }
+
+      {/* Mobile search trigger */}
+      <button
+        type="button"
+        data-search-trigger
+        aria-label={t('common.search', locale)}
+        class={cn(
+          'inline-flex items-center justify-center rounded-md p-2 md:hidden cursor-pointer',
+          'transition-colors',
+          'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+          isFloating
+            ? 'hdr-invert-text hover:bg-secondary/40'
+            : 'text-foreground-muted hover:text-foreground hover:bg-secondary'
+        )}
+      >
+        <Icon name="search" size="md" />
+      </button>
 
       {
         showMobileMenu && layout !== 'minimal' && (
@@ -416,8 +453,8 @@ const buttonId = `${menuId}-button`;
             {showThemeToggle && (
               <div class="border-border mt-3 border-t pt-3">
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-sm text-foreground-muted">Theme mode</span>
-                  <ThemeModeDropdown />
+                  <span class="text-sm text-foreground-muted">{t('theme.themeMode', locale)}</span>
+                  <ThemeModeDropdown locale={locale} />
                 </div>
               </div>
             )}
@@ -425,8 +462,8 @@ const buttonId = `${menuId}-button`;
             {showThemeSelector && (
               <div class="border-border mt-3 border-t pt-3">
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-sm text-foreground-muted">Colour theme</span>
-                  <ThemeSelector />
+                  <span class="text-sm text-foreground-muted">{t('theme.colourTheme', locale)}</span>
+                  <ThemeSelector locale={locale} />
                 </div>
               </div>
             )}
@@ -434,7 +471,7 @@ const buttonId = `${menuId}-button`;
             {showLanguageSwitcher && (
               <div class="border-border mt-3 border-t pt-3">
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-sm text-foreground-muted">Language</span>
+                  <span class="text-sm text-foreground-muted">{t('nav.language', locale)}</span>
                   <LanguageSwitcher />
                 </div>
               </div>

@@ -1,0 +1,99 @@
+---
+title: "PS4-Hardware-Restaurierung & Linux-Kernel-Exploitation"
+description: "Ein Deep-Dive-Projekt im Bereich Hardware-Restaurierung und Systems Engineering, das eine vollständige physische Überholung, thermisches Management und einen manuellen Firmware-Exploit zum Booten einer isolierten Linux-Umgebung umfasst."
+tags: ["Hardware-Entwicklung", "Kernel-Exploits", "Linux", "Systems-Hardening"]
+featured: false
+order: 4
+year: 2022
+role: "Systems- & Hardware-Engineer"
+services: ["Thermisches Management", "Firmware-Exploitation", "Low-Level-Umgebungs-Setup"]
+image: "../../../assets/projects/ps4-restoration/featured.webp"
+locale: "de"
+---
+
+## Das Briefing
+Gaming-Konsolen für Endverbraucher leiden über längere Lebenszyklen hinweg oft pod starkem thermischen Throttling und Leistungsabfällen, die durch Staubansammlungen und brüchig gewordene Wärmeleitpads oder -pasten verursacht werden. Dieses Systems-Engineering-Projekt konzentrierte sich auf die vollständige physische Restaurierung, thermische Optimierung und die Kernel-Einführung (Exploitation) einer PlayStation 4 Slim-Konsole.  
+
+**Rechtlicher Haftungsausschluss:** Ich nutze diese PS4, um aus reiner technischer Neugier Linux zu installieren und damit zu experimentieren. Ich unterstütze oder toleriere keine Softwarepiraterie; dieser Artikel dient ausschließlich Bildungszwecken! Ich übernehme keine Verantwortung für Ihre Handlungen!  
+
+Das Ziel war zweigeteilt: Erstens sollte das kritische thermische Throttling durch ein vollständiges Hardware-Teardown und eine präzise chemische Reinigung behoben werden; zweitens sollte ein kontrolliertes Firmware-Upgrade auf exakt die Version 9.00 durchgeführt werden, um über einen manuellen Web-Vektor-Kernel-Exploit (exfathax) eine unabhängige Linux-Laufzeitumgebung für Testzwecke sicher zu booten.
+
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+</p>
+
+## Aufgabenbereiche & Umsetzung
+Ich habe den gesamten Lebenszyklus dieses Projekts eigenständig durchgeführt und den Workflow zwischen physischem Hardware-Engineering und Low-Level-System-Exploitation aufgeteilt.
+
+
+## Hardware-Restaurierung & thermisches Management
+* **Vollständiges Teardown:** Durchführung einer umfassenden strukturellen Demontage des Konsolengehäuses, um Zugang zum Mainboard, den Lüftern und der internen Kühlkörperbaugruppe zu erhalten.
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+</p>
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+</p>
+* **Chemische Dekontamination:** Einsatz von hochreinem Isopropylalkohol (IPA), um alte, degradierte originale Wärmeleitpasten rückstandslos zu entfernen, ohne die umliegenden empfindlichen SMD-Bauteile (Surface-Mount Devices) zu beschädigen.
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+</p>
+* **Upgrade der thermischen Schnittstelle:** Reinigung der internen Kühlrippen und Applikation von Hochleistungs-Wärmeleitpaste (Arctic MX-4) durch ein optimiertes, gleichmäßiges Auftragen in einer dünnen Schicht. Dies senkte die Lautstärke der Konsole drastisch und beseitigte thermische Engpässe unter Rechenlast vollständig.
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+</p>
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+</p>
+
+
+## Firmware-Manipulation & Exploitation
+* **Air-Gapped OS-Optimierung:** Isolation der Konsole von automatisierten Sony-Netzwerk-Update-Pfaden durch vollständiges Umschreiben der System-Netzwerkschnittstellen. Automatische Telemetrie und Downloads wurden deaktiviert und ein spezielles primäres/sekundäres DNS-Routing (`192.241.221.79` / `165.227.83.145`) konfiguriert, um eingehende Vendor-Payloads sicher zu blockieren.
+* **Manuelles Firmware-Upgrade:** Konstruktion einer strikt vorgegebenen statischen Ordnerstruktur (`/PS4/UPDATE/PS4UPDATE.PUP`) na jednom exFAT-formatierten Blockspeichermedium, gefolgt vom Staging und Deployment eines offiziellen 9.00-Recovery-Systempartition-Images über einen lokalen Medien-Boot.
+
+<p align="center">
+  <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+</p>
+
+* **Kernel-Speicher-Exploitation:** Nutzung spezialisierter Web-Host-Caching-Tools (GoldHEN-Payload-Ökosysteme via Karo) zusammen mit einem externen Mechanismus zur Injektion roher Binärdaten (`exfathax.img`), das via Rufus auf ein USB-Laufwerk geschrieben wurde. Dies löste einen Speicherbegrenzungs-Bypass (Memory Boundary Bypass) über eine Sicherheitslücke im exFAT-Dateisystem-Parser aus.
+
+
+## Technischer Stack & Hardware-Matrix
+* **Hardware-Materialien:** Arctic MX-4 Wärmeleitpaste, Isopropylalkohol-Dekontaminationsmittel, spezialisierte Präzisionsschraubendreher
+* **Exploitation-Frameworks:** GoldHEN Payloads, Web-Exploit-Vector-Engines (Karo), Rufus Block-Writer
+* **Ziel-Betriebssystemarchitekturen:** Orbis OS (BSD-basiert), angepasste Client-seitige Embedded-Linux-Umgebungen
+
+
+## System-Workflow-Pipeline
+Die gesamte Bereitstellungspipeline folgte einer strikten Sequenz, um sicherzustellen, dass die Hardware-Stabilität vollständig etabliert war, bevor instabile Kernel-Speichermodifikationen zur Laufzeit ausgeführt wurden:
+
+```mermaid
+graph TD
+    A[Physisches Gehäuse-Teardown] --> B[Wärmeleitpasten-Dekontamination]
+    B --> C[Arctic MX-4 Rekalibration]
+    C --> D[Air-Gapped Netzwerk-Konfiguration]
+    D --> E[Manuelles 9.00 Firmware-Flash]
+    E --> F[Web-Host Cache & exFAThax Trigger]
+    F --> G[GoldHEN / Linux Payload Ausführung]
+```
+
+## Hardware- & System-Artefakt-Ledger
+Nachfolgend finden Sie die technischen Spezifikationen der Bereitstellungszustände und Materialien, die während des gesamten System-Lebenszyklus verwaltet wurden:
+
+| Systemkomponente | Technologie / Framework | Implementierungsstrategie |
+| :--- | :--- | :--- |
+| **Thermische Schnittstelle** | Arctic MX-4 Kohlenstoff-Verbindung | Erneuerung der Paste mit hoher thermischer Leitfähigkeit |
+| **Firmware-Basis** | Sony System Image v9.00 | Gezielter Upgrade-Pfad über das Recovery-System |
+| **Exploit-Vektor** | Webkit / exFAT-Dateisystemfehler | Manuelle Payload-Cache-Injektion über den Webbrowser |
+| **Payload-Handler** | GoldHEN-Ökosystem | Low-Level Homebrew- & Kernel-Zugriffsvermittler |
+| **Netzwerk-Gateway** | Custom Air-Gapped Manuelles DNS | Blockade von Sony-Telemetrie & Update-Vektoren |
+
+## Endergebnis
+<p align="center">
+    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+</p>
+
+### Fazit & Projektstatus
+> **HINWEIS:** Falls Fehler auftreten oder die Konsole abstürzt, starten Sie die PS4 neu und versuchen Sie es erneut! Dieser Jailbreak ist nicht persistent, was bedeutet, dass nach einem Herunterfahren oder einem Neustart alle Schritte wiederholt werden müssen. Eine Lösung hierfür ist, die PS4 in den Restmodus (Bereitschaftsmodus) zu versetzen, oder die Payload-Auslieferung lokal über einen ESP32- oder Raspberry-Pi-Mikrocontroller zu automatisieren.
+
+Die physische Restaurierung war ein vollständiger Erfolg: Die internen Lüftergeräusche der Konsole wurden dauerhaft eliminiert und thermisch bedingte Abstürze erfolgreich verhindert. Der Low-Level-exfathax-Kernel-Exploit erreichte eine Erfolgsquote bei der Initialisierung von ca. 80 % und bietet eine voll funktionsfähige Sandbox-Umgebung, die sich ideal für fortlaufende Linux-Kernel-Experimente i die Erforschung angepasster eingebetteter Systeme eignet.

@@ -1,0 +1,86 @@
+---
+title: "Arhiv Seje Bajraktarevića"
+description: "Visokoučinkoviti, višejezični digitalni arhiv izgrađen pomoću Astro.js frameworka i Cloudflare Pages platforme, projektiran za očuvanje i streaming desetljeća multimedijske građe istaknutog bosanskog skladatelja."
+url: "https://sejobaron.xyz"
+tags: ["Astro", "Cloudflare Pages", "Tigris S3", "i18n", "Web Performance"]
+featured: true
+order: 1
+year: 2026
+client: "Sejo Bajraktarević"
+role: "Full-Stack i Systems Engineer"
+services: ["Digitalno arhiviranje", "Infrastruktura cloud pohrane", "Optimizacija medija", "Internacionalizacija"]
+image: "../../../assets/projects/sejo-bajraktarevic/featured.webp"
+locale: "hr"
+---
+
+import ProjectGallery from '../../../components/projects/ProjectGallery.astro';
+import pic1 from '../../../assets/projects/sejo-bajraktarevic/1.webp';
+import pic2 from '../../../assets/projects/sejo-bajraktarevic/2.webp';
+import pic3 from '../../../assets/projects/sejo-bajraktarevic/3.webp';
+import pic4 from '../../../assets/projects/sejo-bajraktarevic/4.webp';
+import pic5 from '../../../assets/projects/sejo-bajraktarevic/5.webp';
+
+## Ukratko o projektu
+
+Primarni cilj ovog projekta bio je digitalizirati, strukturirati i sačuvati desetljeća raznovrsnog umjetničkog rada Seje Bajraktarevića, istaknutog bosanskog skladatelja i multimedijskog umjetnika. Naslijeđeni sadržaj obuhvaćao je više vrsta medija, uključujući audio zapise visoke vjernosti (*high-fidelity*), simfonijske partiture i dugometražne dokumentarne filmove. 
+
+Glavni izazov bio je transformirati ovaj masivni, neorganizirani katalog u besprijekorno, moderno web iskustvo. Uspjeh je značio isporuku gotovo trenutačne brzine učitavanja na globalnoj razini, osiguravanje neprobojnog medijskog streaminga bez opterećenja poslužitelja i pretvaranje cijelog arhiva u potpuno pristupačan sadržaj za međunarodnu publiku na više jezika.
+
+
+## Što sam izgradio
+
+Projektirao sam i implementirao visoko optimizirani, *headless* digitalni arhiv koristeći moderan Jamstack pristup kako bih eliminirao tradicionalno upravljanje poslužiteljima i probleme sa skaliranjem.
+
+- **Framework:** Izgrađen pomoću **Astro.js**-a kako bi se iskoristila njegova stroga *"Zero JS by Default"* arhitektura otoka (*island architecture*). To osigurava da stranice s teškim sadržajem šalju minimalni JavaScript u klijentski preglednik, zadržavajući gotovo trenutačne osnovne brzine učitavanja.
+- **Cloud infrastruktura:** Aplikaciju sam postavio putem **Cloudflare Pages** platforme, pomičući cijeli pipeline isporuke na globalnu edge mrežu kako bih zajamčio ultra nisku latenciju i maksimalno vrijeme neprekidnog rada (*uptime*).
+- **Odvojeno upravljanje resursima (Decoupled Asset Management):** Za rukovanje datotekama visoke rezolucije bez napuhavanja deployment paketa (*deployment bundle*), integrirao sam **Tigris Object Storage** (S3 kompatibilno spremište podataka). Svi multimedijski resursi velikih razmjera izolirani su ovdje i učinkovito se poslužuju putem namjenske, cache-optimizirane medijske poddomene.
+- **Višejezična arhitektura (i18n):** Implementirao sam sveobuhvatnu mrežu usmjeravanja i prevođenja s nativnom podrškom za četiri jezika: **bosanski, engleski, španjolski i njemački**, osiguravajući da je kulturni arhiv u potpunosti pretraživ na globalnoj razini.
+
+
+## Proces
+
+Projekt je pratio strogi inženjerski pipeline od agregacije resursa do konačnog deploymenta na edge mrežu:
+
+1. **Analiza podataka i dizajn sheme:** Analizirao sam masivnu zbirku sirovih datoteka kako bih pronašao zajedničke obrasce. Strukturirao sam čistu, ponovljivu shemu metapodataka koja može neometano upravljati audio, video i tekstualnim zapisima.
+2. **Priprema infrastrukture (Provisioning):** Postavio sam Tigris S3 bucket-e i konfigurirao sigurnosne politike, CORS pravila i namjenski poddomenski proxy kroz Cloudflare mrežu kako bih maskirao izvorne krajnje točke pohrane (*storage endpoints*).
+3. **Optimizacija pipelinea:** Razvio sam prilagođene blokove za renderiranje unutar Astro-a kako bi se elegantno rukovalo teškim ugrađenim video elementima, koristeći tehnike lijenog učitavanja (*lazy-loading*) kako bih osigurao da preglednik ne blokira početno iscrtavanje stranice dok dohvaća video playere trećih strana.
+4. **Mapiranje lokalizacije:** Konfigurirao sam rječnike lokalizacije i tablice usmjeravanja s prefiksima jezika, verificirajući da se svaki unos u strukturiranoj kolekciji ispravno mapira kroz sve četiri jezične varijante.
+
+
+## Rezultati
+
+Aplikacija je uspješno prebačena iz lokalnog razvoja u produkciju sa sjajnim metrikama performansi:
+
+* **Edge-First isporuka:** Resursi stranice se keširaju i isporučuju izravno s najbližeg Cloudflare edge čvora, što rezultira zanemarivim TTFB-om (Time to First Byte) na globalnoj razini.
+* **Nula održavanja infrastrukture:** Razdvajanjem prezentacijskog sloja (Astro) od sloja za pohranu objekata (Tigris/S3), arhiv je u svojoj bazi serverless, što znači da se automatski skalira na tisuće istodobnih posjetitelja uz praktički nula troškova hostinga.
+* **Očuvanje kulture:** Uspješno je objedinjen razbacani, desetljećima star fizički portfelj u jednu digitalnu knjižnicu visokih performansi koja služi kao trajni uvid u rad vrhunskog umjetnika.
+
+## Galerija projekta
+
+<ProjectGallery images={[
+  { 
+    src: pic1, 
+    alt: 'Naslovni odjeljak (hero section) početne stranice web-mjesta Arhiva Sejo Bajraktarević s čistim rasporedom i padajućim izbornikom za odabir jezika', 
+    caption: 'Čist i prilagodljiv (responsive) naslovni odjeljak početne stranice projekta digitalnog očuvanja multimedije, koji prikazuje minimalistički raspored, tipografsku hijerarhiju i aktivni padajući izbornik za odabir jezika za internacionalizaciju (i18n).' 
+  },
+  { 
+    src: pic2, 
+    alt: 'Stranica biografije koja detaljno opisuje život, multiinstrumentalnu povijest i prekretnice u karijeri skladatelja Seje Bajraktarevića', 
+    caption: 'Namjenska stranica biografije (O skladatelju) koja detaljno opisuje skladateljevu multiinstrumentalnu povijest, umjetničke prekretnice i profesionalni karijerni put.' 
+  },
+  { 
+    src: pic3, 
+    alt: 'Mrežni prikaz (grid view) medija glazbenog arhiva u tamnom načinu rada koji prikazuje interaktivne kartice sadržaja s taksonomskim oznakama', 
+    caption: 'Izvorno sučelje platforme u tamnom načinu rada (dark mode) koje prikazuje mrežni sadržaj zbirke „Glazbeni arhiv“, s dinamičkim karticama stavki, namjenskim audio/video taksonomijama i metapodacima o publikaciji.'
+  },
+  { 
+    src: pic4, 
+    alt: 'Stranica pojedinačnog audiozapisa koja prikazuje povijesne zanimljivosti, prijevod teksta pjesme i plutajući widget glazbenog playera', 
+    caption: 'Detaljan prikaz rasporeda pojedinačnog zapisa, upotpunjen povijesnim pojedinostima o snimanju, strukturiranim prijevodima stihova i optimiziranim, interaktivnim plutajućim widgetom audio-playera.'
+  },
+  { 
+    src: pic5, 
+    alt: 'Otvoreni skočni prozor (modal overlay) za pretraživanje palete naredbi na strani klijenta koji prikazuje trenutačne navigacijske veze', 
+    caption: 'Potpuno integrirani skočni prozor za pretraživanje palete naredbi na strani klijenta (client-side), koji pruža brze navigacijske veze i trenutačnu analizu ključnih riječi kroz zbirke.'
+  }
+]} />

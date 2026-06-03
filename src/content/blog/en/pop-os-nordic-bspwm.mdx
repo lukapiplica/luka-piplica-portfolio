@@ -1,0 +1,453 @@
+---
+title: "Crafting a Sleek Nordic Desktop: BSPWM Customization on Pop!_OS"
+description: "A comprehensive guide to building a minimal, high-performance tiling window manager environment using BSPWM, Polybar, Picom, and ZSH on Pop!_OS, themed around the elegant Nordic palette."
+publishedAt: 2021-07-19
+author: "Luka Piplica"
+tags: ["linux", "bspwm", "dotfiles", "customization", "nord"]
+featured: false
+locale: en
+image: "../../../assets/blog/pop-os-nordic-bspwm/featured.webp"
+imageAlt: "Isometric GIF showing a vintage computer screen casing opening to reveal and deploy a built-in mechanical keyboard."
+---
+
+Tiling window managers (WMs) are highly praised in the Unix community for their lightweight footprint, extreme customization potential, and efficiency. By replacing traditional desktop environments with keyboard-driven window management, developers can achieve a highly optimized workflow. 
+
+This guide details the step-by-step configuration of a custom desktop environment based on **Pop!_OS** and **BSPWM** (Binary Space Partitioning Window Manager). Grounded in the popular **Nordic** color palette, this setup combines minimalist aesthetics with powerful utility.
+
+---
+
+## Workspace Showcase
+
+Here is a visual overview of the completed environment running various customized system and terminal utilities:
+
+![Combined view of the customized Nordic desktop environment](../../../assets/blog/pop-os-nordic-bspwm/1.webp)
+
+---
+
+## Core System Architecture
+
+To replicate this environment, we replace the standard GNOME desktop of Pop!_OS with a modular setup of individual utilities. The table below lists the technical specifications of the environment:
+
+| Component | Software / Project | Description |
+| :--- | :--- | :--- |
+| **Operating System** | <a href="https://pop.system76.com/" target="_blank" rel="noopener noreferrer">Pop!_OS</a> | Debian/Ubuntu-based stable Linux distribution |
+| **Window Manager** | <a href="https://github.com/baskerville/bspwm" target="_blank" rel="noopener noreferrer">BSPWM</a> | Binary space partitioning tiling window manager |
+| **Hotkey Daemon** | <a href="https://github.com/baskerville/sxhkd" target="_blank" rel="noopener noreferrer">Sxhkd</a> | Simple X hotkey daemon |
+| **Status Bar** | <a href="https://github.com/polybar/polybar" target="_blank" rel="noopener noreferrer">Polybar</a> | Fast and easy-to-use status bar generator |
+| **X Compositor** | <a href="https://github.com/ibhagwan/picom" target="_blank" rel="noopener noreferrer">Picom (ibhagwan fork)</a> | Compositor with rounded corners and dual-kawase blur |
+| **App Launcher** | <a href="https://github.com/davatorium/rofi" target="_blank" rel="noopener noreferrer">Rofi</a> | A window switcher, application launcher, and dmenu replacement |
+| **Terminal Emulator** | <a href="https://github.com/alacritty/alacritty" target="_blank" rel="noopener noreferrer">Alacritty</a> | GPU-accelerated terminal emulator |
+| **Shell & Theme** | <a href="https://ohmyz.sh/" target="_blank" rel="noopener noreferrer">Zsh</a> + <a href="https://github.com/romkatv/powerlevel10k" target="_blank" rel="noopener noreferrer">Powerlevel10k</a> | High-performance interactive shell environment |
+| **Visual Theming** | <a href="https://www.gnome-look.org/p/1267246/" target="_blank" rel="noopener noreferrer">Nordic Dark GTK</a> | Clean dark GTK theme inspired by arctic colors |
+| **Icons & Cursor** | <a href="https://www.gnome-look.org/s/Gnome/p/1332404" target="_blank" rel="noopener noreferrer">Flattery Dark</a> & <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue</a> | Flat icons and sleek modern cursor pointers |
+| **Primary Font** | <a href="https://fonts.google.com/specimen/Source+Code+Pro" target="_blank" rel="noopener noreferrer">Source Code Pro</a> | Monospaced typeface optimized for coding readability |
+
+---
+
+## Step-by-Step Installation & Compilation
+
+This walkthrough assumes you are starting from a clean installation of Pop!_OS. To ensure absolute control over dependencies and optimal performance, we will compile several core components directly from source.
+
+### 1. Synchronizing Repositories & System Packages
+
+Before downloading dependencies, ensure your local package database is up-to-date and all base system programs are fully upgraded:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Installing and Configuring BSPWM
+
+BSPWM is a lightweight tiling window manager that represents windows as the leaves of a full binary tree.
+
+#### Fetching Core Dependencies
+
+Compile and run BSPWM safely by installing the necessary XCB and system libraries:
+
+```shell
+sudo apt install -y build-essential git vim xcb libxcb-util0-dev libxcb-ewmh-dev libxcb-randr0-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-xinerama0-dev libasound2-dev libxcb-xtest0-dev libxcb-shape0-dev
+```
+
+#### Compiling from Source
+
+Clone the official repository, compile the binary, and perform a system-wide installation:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/baskerville/bspwm.git
+cd bspwm
+make
+sudo make install
+```
+
+#### Initializing Configurations
+
+Establish the configuration directory structure and copy the default initialization script:
+
+```shell
+mkdir -p ~/.config/bspwm
+cp examples/bspwmrc ~/.config/bspwm/
+chmod +x ~/.config/bspwm/bspwmrc
+cd ..
+```
+
+---
+
+### 3. Setting Up the Simple X Hotkey Daemon (sxhkd)
+
+Unlike other tiling window managers, BSPWM does not handle keyboard inputs directly. Instead, it relies on a separate daemon, **sxhkd**, to bind key presses to commands.
+
+#### Compiling sxhkd
+
+```shell
+git clone https://github.com/baskerville/sxhkd.git
+cd sxhkd
+make
+sudo make install
+```
+
+#### Configuring Keybindings
+
+Create the configuration directory and stage the example hotkey definitions:
+
+```shell
+mkdir -p ~/.config/sxhkd
+cp ../bspwm/examples/sxhkdrc ~/.config/sxhkd/
+cd ..
+```
+
+> **Configuration Note:** If you modify `~/.config/sxhkd/sxhkdrc`, verify the defined terminal emulator is correct. If you are testing within a standard GNOME shell environment before transitioning, adjust the default terminal command block to invoke `gnome-terminal`.
+
+---
+
+### 4. Compiling Polybar for Status Displays
+
+Polybar is a highly modular tool that generates sleek, customizable status bars.
+
+#### Fetching Build Dependencies
+
+```shell
+sudo apt install -y cmake cmake-data pkg-config python3-sphinx libcairo2-dev libxcb1-dev libxcb-util0-dev libxcb-randr0-dev libxcb-composite0-dev python3-xcbgen xcb-proto libxcb-image0-dev libxcb-ewmh-dev libxcb-icccm4-dev libxcb-xkb-dev libxcb-xrm-dev libxcb-cursor-dev libasound2-dev libpulse-dev libjsoncpp-dev libmpdclient-dev libcurl4-openssl-dev libnl-genl-3-dev
+```
+
+#### Compiling and Installing
+
+```shell
+git clone --recursive https://github.com/polybar/polybar
+cd polybar
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+cd ../..
+```
+
+---
+
+### 5. Compiling Picom with Experimental Backends
+
+Standard desktop environments use composite systems to manage windows. For BSPWM, we use a custom fork of **Picom** (maintained by `ibhagwan`) which supports smooth dual-kawase blur, active window transparency, and elegant rounded window corners.
+
+#### Fetching Dependencies
+
+```shell
+sudo apt install -y meson libxext-dev libxcb1-dev libxcb-damage0-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-render-util0-dev libxcb-render0-dev libxcb-randr0-dev libxcb-composite0-dev libxcb-image0-dev libxcb-present-dev libxcb-xinerama0-dev libpixman-1-dev libdbus-1-dev libconfig-dev libgl1-mesa-dev libpcre2-dev libevdev-dev uthash-dev libev-dev libx11-xcb-dev
+```
+
+#### Generating the Binary with Ninja
+
+```shell
+git clone https://github.com/ibhagwan/picom.git
+cd picom
+git submodule update --init --recursive
+meson --buildtype=release . build
+ninja -C build
+sudo ninja -C build install
+cd ..
+```
+
+---
+
+### 6. Core Desktop Components: Rofi & Alacritty
+
+With the core window management architecture installed, we fetch our application menu and main terminal environment:
+
+```shell
+sudo apt install -y rofi alacritty
+```
+
+#### Setting up Custom Configurations
+
+We pull the pre-configured dotfiles repository to extract our tailored configurations:
+
+```shell
+git clone https://github.com/lukapiplica/dots.git
+mkdir -p ~/.config/alacritty
+cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+```
+
+> **Hardware Acceleration Tip:** If you encounter the error `GLSL 3.30 is not supported` on older graphics cards or virtual environments, force software rasterization by modifying Alacritty's desktop configuration file:
+> 
+> ```shell
+> sudo nano /usr/share/applications/com.alacritty.Alacritty.desktop
+> ```
+> Replace the line `Exec=alacritty` with `Exec=bash -c "LIBGL_ALWAYS_SOFTWARE=1 alacritty"`.
+
+---
+
+## Interface Polishing & Environment Tuning
+
+Now we configure ZSH, themes, fonts, wallpapers, and lock screens to tie the Nordic workspace aesthetic together.
+
+### 1. Typography & Font Caching
+
+Inject the primary monospaced codebase typeface to ensure proper rendering of symbols and terminal glyphs:
+
+```shell
+sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+fc-cache -fv
+```
+
+### 2. Setting wallpapers via Feh
+
+To handle wallpaper placement programmatically upon login, install the **feh** command-line utility:
+
+```shell
+sudo apt install feh -y
+mkdir -p ~/Wall
+cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+```
+
+Inject the background startup command into your `bspwmrc` to run upon window manager initialization:
+
+```shell
+echo 'feh --bg-fill $HOME/Wall/Wallpapers/wallpaper2.jpeg &' >> ~/.config/bspwm/bspwmrc
+```
+
+### 3. Activating Custom Polybar Themes
+
+Export our customized Polybar setups and copy required TrueType fonts to support status bar icons:
+
+```shell
+mkdir -p ~/.config/polybar
+cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
+sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
+fc-cache -fv
+```
+
+### 4. Interactive Shell Optimization (ZSH & Powerlevel10k)
+
+Switch the default shell shell environment from standard Bash to ZSH, then download the **Oh-My-ZSH** framework:
+
+```shell
+sudo apt install zsh -y
+sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+#### Applying the Powerlevel10k Prompt
+
+```shell
+git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+```
+
+Modify the environment configuration:
+1. Open your terminal profile (`nano ~/.zshrc`).
+2. Set the active theme line to: `ZSH_THEME="powerlevel10k/powerlevel10k"`.
+3. Save and close. Run `source ~/.zshrc` or type `p10k configure` to step through the visual setup assistant.
+
+### 5. Developing in Vim: Integrating Nordic Themes
+
+Port the Nordic color matrix into Vim, and install the aesthetic **Vim-Airline** status utility:
+
+```shell
+mkdir -p ~/.vim/colors
+cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+```
+
+Clone the Airline extension:
+
+```shell
+git clone https://github.com/vim-airline/vim-airline.git ~/Downloads/vim-airline
+cp -r ~/Downloads/vim-airline/* ~/.vim/
+```
+
+Activate the configuration rules in your editor profile:
+
+```shell
+echo 'colorscheme nord' >> ~/.vimrc
+echo "let g:airline_theme='base16'" >> ~/.vimrc
+```
+
+### 6. Rofi Application Menu Customization
+
+Copy the Nord theme file and configure it as the primary interface:
+
+```shell
+mkdir -p ~/.config/rofi/themes
+cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+rofi-theme-selector
+```
+
+> **Theme Activation:** Navigate to the `Nord theme` within the selector, press **Enter** to preview, and apply it globally by typing **Alt + a**.
+>
+> To bind Rofi as our default application launcher, update your keybindings:
+> ```shell
+> nano ~/.config/sxhkd/sxhkdrc
+> ```
+> Modify the key combination for application spawning from `dmenu_run` to `rofi -show drun`.
+
+---
+
+## Workspace Productivity & CLI Utilities
+
+To build a fully functional development workstation, we install several command-line programs and visual utilities that populate our customized workspaces.
+
+![Nordic customized desktop displaying advanced system monitors and visualizers](../../../assets/blog/pop-os-nordic-bspwm/2.webp)
+
+### Custom CLI Suite Installation
+
+Install modern visualizers, system hardware monitors, and file managers using standard package repositories:
+
+```shell
+# Systems monitor (Htop)
+sudo apt install htop -y
+
+# Matrix rain screen effect (Cmatrix)
+sudo apt install cmatrix -y
+
+# Minimal image viewer (Sxiv)
+sudo apt install sxiv -y
+
+# Terminal-based file navigator (Ranger)
+sudo apt install ranger -y
+
+# Digital terminal clock (Tty-clock)
+sudo apt install tty-clock -y
+```
+
+### Advanced Visualizer & System Information Engines
+
+#### CAVA (Console-based Audio Visualizer)
+
+Compile CAVA to generate bar visualizers based on real-time ALSA/PulseAudio input signals:
+
+```shell
+sudo add-apt-repository ppa:hsheth2/ppa -y
+sudo apt update
+sudo apt install cava -y
+```
+
+#### pfetch (Minimalist System Info Fetcher)
+
+```shell
+git clone https://github.com/dylanaraps/pfetch.git ~/Downloads/pfetch
+sudo install ~/Downloads/pfetch/pfetch /usr/local/bin/
+```
+
+#### Chafa (Terminal Character Art Engine)
+
+Chafa parses standard images and transforms them into highly detailed terminal-rendered character art:
+
+```shell
+git clone https://github.com/hpjansson/chafa.git ~/Downloads/chafa
+cd ~/Downloads/chafa
+./autogen.sh
+make
+sudo make install
+cd ~
+```
+
+#### Snake (Terminal Recreation of a Classic)
+
+Recreate the classic Nokia snake game using python-pygame libraries:
+
+```shell
+sudo apt install python3-pip -y
+python3 -m pip install -U pygame --user
+git clone https://github.com/Unixado/Snake.git ~/Downloads/Snake
+```
+
+Run the game directly from terminal sessions:
+
+```shell
+python3 ~/Downloads/Snake/src/game.py
+```
+
+![Terminal Snake game running inside the customized environment](../../../assets/blog/pop-os-nordic-bspwm/3.webp)
+
+#### Lollypop (Modern Desktop Audio Player)
+
+```shell
+sudo add-apt-repository ppa:gnumdk/lollypop -y
+sudo apt update
+sudo apt install lollypop -y
+```
+
+---
+
+## Customizing GTK & Firefox Aesthetics
+
+For an operating system interface to feel unified, both applications and web browsers must share the same color scheme.
+
+### 1. Desktop Interface Integration via Lxappearance
+
+To load and assign custom widget styles, icon packs, and cursors on lightweight window managers, install LXAppearance:
+
+```shell
+sudo apt install lxappearance -y
+```
+
+Open `lxappearance` to select and apply the downloaded Nordic design assets:
+* **GTK Design Skin:** <a href="https://www.gnome-look.org/p/1267246/" target="_blank" rel="noopener noreferrer">Nordic Dark theme</a>
+* **Icon Library:** <a href="https://www.gnome-look.org/s/Gnome/p/1332404" target="_blank" rel="noopener noreferrer">Flattery Dark icons</a>
+* **Mouse Pointer Pack:** <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue cursor</a>
+
+### 2. Minimalist Browser Theming (Firefox & Minimal Functional Fox)
+
+Download the custom Minimalist userChrome setup to remove standard title bars, center web elements, and match browser borders with the Nordic color palette:
+
+```shell
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
+cp -r ~/Downloads/dots/.firefoxthemes ~/
+```
+
+1. Launch **Firefox**.
+2. Navigate to **Preferences > Home**.
+3. Locate **Homepage and new windows**, select **Custom URLs**, and input the target path pointing to your local start page:
+   `file:///home/<YOUR_USERNAME>/.firefoxthemes/startpage/Startpage/index.html`
+4. Restart the application to initialize the layout changes.
+
+---
+
+## Keyboard Shortcuts & Desktop Navigation
+
+Tiling window managers optimize productivity by keeping your hands on the home row of your keyboard. The Windows/Super key (`super`) is configured as the primary modifier key.
+
+Below is the standard reference list of default and custom desktop hotkeys:
+
+| Key Combination | Targeted Event / Action |
+| :--- | :--- |
+| <kbd>super + Enter</kbd> | Launches a GPU-accelerated Alacritty terminal instance |
+| <kbd>super + Space</kbd> | Opens the Rofi application menu to launch GUI tools |
+| <kbd>super + Escape</kbd> | Reloads sxhkd configuration rules instantly |
+| <kbd>super + Alt + r</kbd> | Restarts the BSPWM Window Manager |
+| <kbd>super + w</kbd> | Destroys/closes the active window in focus |
+| <kbd>super + [1-0]</kbd> | Navigates between workspaces 1 to 10 |
+| <kbd>super + g</kbd> | Swaps the focused window with the main master frame |
+| <kbd>super + m</kbd> | Toggles full-screen layout magnification |
+| <kbd>super + [h,j,k,l]</kbd> | Moves window focus directionally (Left, Down, Up, Right) |
+| <kbd>super + Alt + [h,j,k,l]</kbd> | Expands the boundary of the focused window outward |
+| <kbd>super + Alt + Shift + [h,j,k,l]</kbd> | Contracts the boundary of the focused window inward |
+| <kbd>super + s</kbd> | Toggles floating mode on the selected window |
+| <kbd>super + Ctrl + [Arrow Keys]</kbd> | Moves a floating window across coordinates |
+
+---
+
+## Conclusion & Professional Retrospective
+
+Rebuilding a desktop environment from modular CLI utilities demonstrates the flexibility and depth of Linux-based systems. Beyond the clean, minimal Nordic design, this BSPWM and Pop!_OS workspace offers significant performance advantages: reduced CPU/memory overhead, absolute control over hotkey mapping, and a highly responsive workspace tailored for advanced software development workflows.
+
+*Whether you are a developer, systems administrator, or Linux enthusiast, crafting your own keyboard-driven workspace is a highly rewarding investment in your daily developer experience and operational efficiency.*

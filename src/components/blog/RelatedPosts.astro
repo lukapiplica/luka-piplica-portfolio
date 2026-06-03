@@ -1,6 +1,7 @@
 ---
 import BlogCard from './BlogCard.astro';
 import { getCollection } from 'astro:content';
+import { t, localizedPath } from '@/i18n';
 
 interface Props {
   currentSlug: string;
@@ -39,17 +40,17 @@ const relatedPosts = allPosts
 // Generate URLs for each post (remove locale prefix from id)
 const getPostUrl = (postId: string) => {
   const slug = postId.replace(`${locale}/`, '');
-  return `/blog/${slug}`;
+  return localizedPath(`/blog/${slug}`, locale);
 };
 ---
 
 {relatedPosts.length > 0 && (
-  <section class="border-t border-border py-[var(--space-section-sm)]">
-    <h2 class="font-display text-2xl font-bold text-foreground mb-[var(--space-stack-lg)]">
-      Related Posts
+  <section class="border-t border-border py-(--space-section-sm)">
+    <h2 class="font-display text-2xl font-bold text-foreground mb-(--space-stack-lg)">
+      {t('blog.relatedPosts', locale)}
     </h2>
 
-    <div class="grid gap-[var(--space-stack-lg)] md:grid-cols-2 lg:grid-cols-3">
+    <div class="grid gap-(--space-stack-lg) md:grid-cols-2 lg:grid-cols-3">
       {relatedPosts.map((post) => (
         <BlogCard
           title={post.data.title}
@@ -60,6 +61,8 @@ const getPostUrl = (postId: string) => {
           author={post.data.author}
           image={post.data.image}
           svgSlug={post.data.svgSlug}
+          locale={locale}
+          body={post.body}
         />
       ))}
     </div>

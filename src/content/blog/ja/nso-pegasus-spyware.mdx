@@ -1,0 +1,203 @@
+---
+title: "Pegasusスパイウェアの分析：MVTによるデジタルフォレンジック"
+description: "NSOグループのPegasusスパイウェア、ゼロクリック伝播メカニズム、およびMobile Verification Toolkit (MVT)を使用したモバイル端末フォレンジックの詳細な技術分析。"
+publishedAt: 2021-07-21
+author: "Luka Piplica"
+tags: ["cybersecurity", "privacy", "forensics", "malware-analysis", "linux"]
+featured: false
+locale: ja
+image: "../../../assets/blog/nso-pegasus-spyware/featured.webp"
+imageAlt: "Pegasusモバイル監視スイートの開発元であるNSOグループのコーポレートロゴ。"
+---
+
+パリを拠点とする非営利団体<a href="https://forbiddenstories.org/" target="_blank" rel="noopener noreferrer">Forbidden Stories</a>と<a href="https://www.amnesty.org/en/" target="_blank" rel="noopener noreferrer">アムネスティ・インターナショナル</a>によるPegasus（ペガサス）スパイウェアキャンペーンの暴露は、現代のサイバーセキュリティにおける重大な節目となりました。この調査により、複数の国家主体がイスラエルの企業<a href="https://en.wikipedia.org/wiki/NSO_Group" target="_blank" rel="noopener noreferrer">NSO Group</a>の開発した高度な商用監視ソフトウェアを利用し、世界中の政治家、外交官、人権活動家、ジャーナリストを標的にしていたことが明らかになり、その結果は<a href="https://www.washingtonpost.com/" target="_blank" rel="noopener noreferrer">The Washington Post</a>や<a href="https://www.theguardian.com/international" target="_blank" rel="noopener noreferrer">The Guardian</a>などの有力メディアを通じて共有されました。
+
+Pegasusは非常に複雑な種類のモバイルマルウェアを象徴しています。ターゲットのデバイスへのインストールに成功すると、バックグラウンドで隠密に動作し、機密性の高い通信（SMS、WhatsApp、Signal、電子メール）の収集、システムログの抽出、音声通話の録音、リアルタイムのGPS位置追跡を行い、さらにデバイスのマイクやカメラを通じて周囲のメディアをキャプチャします。
+
+本技術ガイドでは、Pegasusの伝播メカニズムを分析し、**Mobile Verification Toolkit (MVT)**を使用してiOSおよびAndroidデバイスのデジタルフォレンジックを実行するための段階的な手順を解説します。
+
+---
+
+## 技術的メカニズム：ゼロクリック攻撃の威力
+
+歴史的に見ると、モバイルマルウェアの感染には、フィッシングリンク、悪意のある添付ファイル、またはソーシャルエンジニアリングなど、何らかの形で被害者のインタラクション（操作）が必要でした。しかし、Pegasusは**ゼロクリック攻撃（Zero-Click Exploits）**を活用することで、極めて高い成功率を収めました。
+
+ゼロクリック攻撃は、デバイスを侵害するためにユーザーの操作を一切必要としません。これらの攻撃は通常、ユーザーに通知が表示される前に、受信データを処理するシステムデーモンを標的にします。例えば、特別に細工されたiMessageのペイロードやWhatsAppのパケットを送信することにより、マルウェアは低レベルのオペレーティングシステム描画ライブラリ（PDFやJBIG2画像を処理するAppleのCoreGraphicsライブラリなど）の内部でメモリ破損脆弱性（整数オーバーフローやバッファオーバーフローなど）を引き起こします。
+
+アプリケーションやデーモンは密かにクラッシュし、ルートレベルの権限でシェルコードを実行してメインのペイロードをダウンロードし、永続性を確立します。これらすべてが、標的のスマートフォンが鳴ったり通知を表示したりする前に完了します。これらのバグは、ソフトウェアベンダーに知られていない脆弱性を標的にしているため、**ゼロデイ脆弱性（Zero-Day Exploits）**に分類され、セキュリティパッチが開発・適用されるまでデバイスは完全に無防備な状態に置かれます。
+
+---
+
+## フォレンジックフレームワーク：Mobile Verification Toolkit (MVT)
+
+<a href="https://github.com/mvt-project/mvt" target="_blank" rel="noopener noreferrer">Mobile Verification Toolkit (MVT)</a>は、モバイルのシステムログ、データベースレコード、システム設定を取得および分析するために設計された、オープンソースのモジュール式フォレンジック分析フレームワークです。MVTは、過去のシステムアーティファクトをパース（解析）し、Pegasusの悪用痕跡と一致する既知の侵害指標（IOC: Indicators of Compromise）を特定します。既知の脅威シグネチャおよびIOCデータセットは、<a href="https://github.com/AmnestyTech/investigations/tree/master/2021-07-18_nso" target="_blank" rel="noopener noreferrer">AmnestyTech Investigations GitHub</a>上で活発にまとめられています。
+
+### 前提条件とフォレンジック環境のセットアップ
+
+MVTはほとんどのDebian系Linux環境で動作しますが、本ガイドでは**Kali Linux**を主要なフォレンジックワークステーションとして使用します。
+
+#### 1. フォレンジック環境の同期
+すべてのシステムパッケージライブラリが完全に最新であることを確認します：
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+#### 2. 必須依存関係のインストール
+MVTを動作させるには、Python 3、パッケージコンパイラ、および接続されたモバイルデバイスと通信するためのUSB通信ライブラリが必要です：
+
+```shell
+sudo apt install -y python3 python3-pip libusb-1.0-0 git
+```
+
+#### 3. ソースコードからのMVTのインストール
+最新のMVTリポジトリをダウンロードし、ツールキットをローカルでコンパイルして、システムシェルの実行パス（PATH）を更新します：
+
+```shell
+cd ~/Downloads
+git clone https://github.com/mvt-project/mvt.git
+cd mvt
+pip3 install .
+```
+
+MVTのバイナリをグローバルに実行するには、ローカルユーザーのバイナリパスを環境変数（PATH）に追加します：
+
+```shell
+export PATH=$PATH:/home/$USER/.local/bin
+```
+*（必ず `$USER` を有効なLinuxシステムのユーザー名に置き換えるか、このコマンドを `~/.bashrc` または `~/.zshrc` ファイルに直接追加してください）。*
+
+#### 4. アムネスティ・インターナショナルのIOCシグネチャの取得
+検証済みのPegasus侵害指標（特に `.stix2` シグネチャファイル）の過去のデータベースが含まれている、アムネスティ・インターナショナルの公式調査リポジトリをクローンします：
+
+```shell
+cd ~/Downloads
+git clone https://github.com/AmnestyTech/investigations.git
+```
+
+---
+
+## iOSデバイスのデジタルフォレンジック
+
+MVTによるiOSフォレンジックでは、過去のデータベースレコード、SQLiteの構造、およびキャッシュされたネットワークリクエストを分析します。これを実行するには、まず対象デバイスのオペレーティングシステム構造のコピーを取得する必要があります。
+
+### データ取得：ファイルシステムダンプ vs. iTunesバックアップ
+
+iOSのフォレンジックデータを取得するには、主に2つの方法があります：
+1. **ファイルシステムダンプ：** iOSカーネルの完全な脱獄（ジェイルブレイク）（例：<a href="https://checkra.in/" target="_blank" rel="noopener noreferrer">checkra1n</a> などのハードウェア脆弱性の利用）が必要です。この方法では、ルートディレクトリ全体、システムキャッシュ、および生のパーティションへの絶対的な読み取りアクセスが可能になります。しかし、脱獄を行うとデバイスの保証が無効になり、システムファイルのフォレンジック的な整合性が損なわれる可能性があります。
+2. **暗号化されたiTunesバックアップ：** デバイスの保証を維持できる非破壊的な代替方法です。極めて重要な点として、**バックアップはローカルパスワードで暗号化されている必要があります**。暗号化されたバックアップを行うことで、iOSはセキュリティ上の理由から通常のプレーンテキストバックアップでは除外される、非常に機密性の高いローカルデータベース（Safariの履歴、通話履歴、SMSメッセージのデータベース、アプリケーションデータなど）を強制的にエクスポートします。
+
+### iOSフォレンジックの段階的な手順
+
+1. 対象のiPhoneをワークステーションに接続し、iTunes（Windows/macOS）またはLinux上の `idevicebackup2` を使用して**暗号化されたバックアップ**を実行します。
+2. デバイス固有の識別子（UDID）にちなんで名付けられたバックアップフォルダを確認します。
+3. UDIDフォルダをLinuxのフォレンジック環境（例：`~/Documents` ディレクトリ内）に転送します。
+4. 復号先のターゲットディレクトリを作成し、MVTを使用してバックアップを復号します：
+
+```shell
+mkdir -p ~/Documents/decrypted
+mvt-ios decrypt-backup -p 'YOUR_DECRYPTION_PASSWORD' -d ~/Documents/decrypted ~/Documents/<UDID_FOLDER_NAME>
+```
+
+5. 生成されたフォレンジックレポートを保存するための出力先ターゲットフォルダを作成します：
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+```
+
+6. MVTスキャンエンジンを実行し、復号されたiOSバックアップのデータベース構造を、検証済みのPegasus STIX2指標（IOC）と照合・比較します：
+
+```shell
+mvt-ios check-backup -i ~/Downloads/investigations/2021-07-18_nso/pegasus.strix2 -o ~/Downloads/output_forensics ~/Documents/decrypted
+```
+
+MVTはすべてのデータベースをシステム的にパース（解析）します。悪意のあるリクエスト、プロセス、またはSMSペイロードと一致するシグネチャが検出された場合、ターミナルに重大な警告出力が表示されます。
+
+![Linuxデスクトップ上のMVTツールキットの出力と生成されたJSONファイル](../../../assets/blog/nso-pegasus-spyware/1.webp)
+
+---
+
+## Androidデバイスのデジタルフォレンジック
+
+Androidデバイスのフォレンジックは、オペレーティングシステムの断片化（フラグメンテーション）という性質上、困難を伴います。MVTは主に、APKファイルの整合性チェックと、通話関連データベースのパースという2つの検出ベクトルを利用します。
+
+### 1. APKの整合性と評判（レピュテーション）の検証
+
+Android上の悪意のあるアプリケーションは、しばしば無害なユーティリティを装います。MVTは、インストールされているパッケージをデバイスから直接抽出し、その暗号化ハッシュを世界的な脅威インテリジェンスネットワークと照合することができます。
+
+1. 対象のAndroidデバイスの「開発者向けオプション」メニュー内で、**USBデバッグ**を有効にします。
+2. モバイル画面でADBキーを承認し、USB経由でデバイスをフォレンジックワークステーションに接続します。
+3. 出力フォルダを作成し、アクティブなすべてのシステムおよびユーザーのAPKバイナリをダウンロードします：
+
+```shell
+mkdir -p ~/Downloads/output_forensics
+mvt-android download-apks -o ~/Downloads/output_forensics
+```
+
+4. 抽出されたすべてのアプリケーションのSHA256ハッシュを<a href="https://www.virustotal.com/gui/" target="_blank" rel="noopener noreferrer">VirusTotal</a>のデータベースに対して自動的に照会するには、APIフラグを指定して抽出を実行します：
+
+```shell
+mvt-android download-apks -o ~/Downloads/output_forensics --virustotal
+```
+
+### 2. 通話およびSMSデータベースの分析
+
+Pegasusは多くの場合、特殊なリンクを含む悪意のあるSMSメッセージを介して感染ベクターを始動させます。
+
+1. ADBを使用して、システムの通話プロバイダ（テレフォニー）データベースのバックアップを実行します：
+
+```shell
+adb backup com.android.providers.telephony
+```
+2. 対象デバイスの画面でバックアップの転送を承認します。データベースはAndroidバックアップファイル（`backup.ab`）としてローカルに保存されます。
+3. `.ab` アーカイブを読み込むために、Javaベースのツール <a href="https://github.com/nelenkov/android-backup-extractor" target="_blank" rel="noopener noreferrer">Android Backup Extractor (ABE)</a> を使用して内容を抽出します：
+
+```shell
+java -jar ~/Downloads/abe.jar unpack backup.ab backup.tar
+tar -xvf backup.tar
+```
+
+4. パース（解析）された通話データベースをスキャンし、Pegasusのインフラストラクチャと一致する不審なリンクがないか特定します：
+
+```shell
+mvt-android check-backup -o sms .
+```
+*（任意で、`-i` フラグを使用して特定のIOC定義ファイルを指定することもできます）。*
+
+---
+
+## フォレンジック台帳：分析された主要なiOSアーティファクト
+
+MVTはパース（解析）完了後、重要なシステムデータベースの状態を詳細に記録した、粒度の細かいJSONファイルを出力します。悪用（エクスプロイト）のタイムラインをマッピングするためには、これらのファイルを理解することが不可欠です。
+
+| 生成されるアーティファクト | ソースシステムのパス | フォレンジックにおける技術的意義 |
+| :--- | :--- | :--- |
+| **`cache_files.json`** | `*Library/Caches/` SQLiteデータベース | HTTP/HTTPSのリクエストヘッダーとレスポンスを抽出。初期のゼロクリック・ダウンロードのトリガーを特定する上で極めて重要。 |
+| **`calls.json`** | `/private/var/mobile/Library/CallHistoryDB/CallHistory.store` | サードパーティ製の安全なアプリケーション（例：WhatsApp、Signal）からのVoIP記録を含む、すべての通話イベントの過去のログ。 |
+| **`chrome_favicon.json`** | `*Library/Application Support/Google/Chrome/Default/Favicons` | ウェブサイトのファビコンをパース。密かに実行された隠れたウェブ転送の追跡に有用（ファビコン乗っ取りの脆弱性に関する詳細は <a href="https://www.youtube.com/watch?v=X7OW5hTt5hY" target="_blank" rel="noopener noreferrer">YouTube</a> を参照）。 |
+| **`chrome_history.json`** | `*Library/Application Support/Google/Chrome/Default/History` | Chromeウェブブラウザ内で行われたすべてのウェブサイト操作のデータベース。 |
+| **`contacts.json`** | `/private/var/mobile/Library/AddressBook/AddressBook.sqlitedb` | システムの連絡先を含む生のSQLiteテーブル。データベース収集の標的（ターゲットベクター）となりやすい。 |
+| **`id_status_cache.json`** | `/private/var/mobile/Library/Preferences/com.apple.identityservices.idstatuscache.plist` | Apple ID、生体認証トークン、およびキーのシステム検証に関する過去の履歴を追跡。 |
+| **`interaction_c.json`** | `/private/var/mobile/Library/CoreDuet/People/interactionC.db` | 低レベルのバックグラウンドシステムイベントや、ユーザー操作のテレメトリを監視する価値の高いデータベース。 |
+| **`locationd_clients.json`** | `/private/var/mobile/Library/Caches/locationd/clients.plist` | アクティブなGPSデバイスの位置情報を要求した、すべてのプロセスおよびアプリケーションのキャッシュ。 |
+| **`manifest.json`** | `Manifest.db` (iTunesバックアップデータベース) | iTunesバックアップのファイル割り当てレジストリとして機能し、対象デバイスのファイルをローカルのバックアップハッシュにマッピング。 |
+| **`safari_history.json`** | `/private/var/mobile/Library/Safari/History.db` | 標準のSafariブラウザを使用して実行された、ウェブ検索、リダイレクト、およびアクセスの網羅的な履歴。 |
+| **`sms.json`** | `/private/var/mobile/Library/SMS/sms.db` | パースされたすべてのテキストメッセージを含み、フィッシングのペイロードを特定するために埋め込まれたURLを特異的にフィルタリング。 |
+| **`version_history.json`** | `/private/var/db/analyticsd/Analytics-Journal-*.ips` | 過去のOSシステムアップデート、パッチレベル、およびカーネル構成を追跡する分析ジャーナル。 |
+| **`whatsapp.json`** | `*ChatStorage.sqlite` | メッセージ記録と埋め込まれたHTTPハイパーリンクを示す、復号されたWhatsAppのチャットログ。 |
+
+---
+
+## 結論とセキュリティ推奨事項
+
+Pegasusのようなスパイウェアプラットフォームによる脅威は、モバイルセキュリティへのアプローチを根本的に変える緊急の必要性を示しています。標準的なサンドボックス構造やアプリケーションの権限設定だけでは、ゼロクリックのカーネルエクスプロイトを利用する国家主導の攻撃者を阻止するにはもはや不十分です。
+
+### モバイル端末の要塞化（ハードニング）における主要なベストプラクティス
+
+1. **攻撃対象領域（アタックサーフェス）の削減：** 未承諾の受信ファイルを処理するサービスを無効にします。最新のiOSデバイスで**難攻不落モード（Lockdown Mode）**を有効にすると、高度なウェブ技術、生のグラフィックパース、およびサンドボックスをバイパスする添付ファイルがデフォルトでブロックされます。
+2. **定期的なデバイスの再起動：** 多くのゼロクリック攻撃は、隠密性を維持するために揮発性メモリ（RAM）上での実行に依存しているため、定期的にデバイスを再起動することでエクスプロイトチェーンを断ち切り、持続的な実行を妨害できます。
+3. **定期的なフォレンジック監査の実施：** 高リスクの個人においては、定期的にシステムバックアップを抽出し、MVTのようなツールで分析することが、プロアクティブ（先回り型）な脅威検出のための極めて重要なステップとなります。
+4. **安全なハードウェアとOSの導入：** プライバシーが強化されたオペレーティングシステム（Androidベースの <a href="https://grapheneos.org/" target="_blank" rel="noopener noreferrer">GrapheneOS</a> や、GerdaOS を実行するNokia 8110 4Gのような標準ハードウェアなど）へ移行することで、ゼロクリック攻撃に対するデバイスの耐性が大幅に向上します。Pegasusに関する政治的・人権的な観点からの詳細な洞察については、エドワード・スノーデン氏の <a href="https://www.theguardian.com/news/2021/jul/19/edward-snowden-calls-spyware-trade-ban-pegasus-revelations" target="_blank" rel="noopener noreferrer">The Guardianによるインタビュー</a> をご覧ください。
+
+*このデジタルフォレンジックの解説は、教育および診断の目的のみを意図したものであり、侵入の兆候が疑われるモバイルデバイスを監査し、プロアクティブな脅威インテリジェンスを促進する方法をデモンストレーションするものです。*

@@ -14,6 +14,7 @@ import CTA from '@/components/ui/marketing/CTA/CTA.astro';
 import Icon from '@/components/ui/primitives/Icon/Icon.astro';
 import { resolveSocialLinks } from '@/lib/utils';
 import { createBlogPostSchema } from '@/lib/schema';
+import { t, localizedPath } from '@/i18n';
 
 const socialLinks = resolveSocialLinks(siteConfig.socialLinks);
 
@@ -34,6 +35,10 @@ interface Props {
   toc?: boolean;
   /** Per-post override: hide comments on this post */
   comments?: boolean;
+  /** Active locale for i18n */
+  locale?: string;
+  /** Pre-computed reading time in minutes */
+  readingTime?: number;
 }
 
 const {
@@ -50,6 +55,8 @@ const {
   headings = [],
   toc: tocOverride,
   comments: commentsOverride,
+  locale = 'en',
+  readingTime = 1,
 } = Astro.props;
 
 // Resolve opt-in features (site config + per-post overrides).
@@ -71,8 +78,8 @@ const sidebarOnLeft = (tocConfig?.sidebarPosition ?? 'right') === 'left';
 const ogImage = image?.src || siteConfig.ogImage;
 
 const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Blog', href: '/blog' },
+  { label: t('nav.home', locale), href: localizedPath('/', locale) },
+  { label: t('nav.blog', locale), href: localizedPath('/blog', locale) },
   { label: title },
 ];
 
@@ -102,6 +109,7 @@ const blogPostingSchema = createBlogPostSchema({
     tags,
   }}
   extraSchemas={[blogPostingSchema]}
+  locale={locale}
 >
   <Header
     slot="header"
@@ -112,6 +120,7 @@ const blogPostingSchema = createBlogPostSchema({
     showCta={false}
     showScrollProgress
     maxWidth={sidebarActive ? '7xl' : '6xl'}
+    locale={locale}
   />
 
   <div class="min-h-screen pt-16">
@@ -126,6 +135,8 @@ const blogPostingSchema = createBlogPostSchema({
     image={image}
     imageAlt={imageAlt}
     svgSlug={svgSlug}
+    locale={locale}
+    readingTime={readingTime}
   />
 
   <article class="pt-8 pb-[var(--space-section-md)]">
@@ -137,9 +148,10 @@ const blogPostingSchema = createBlogPostSchema({
       !sidebarActive && 'max-w-4xl',
     ]}>
       {sidebarActive && sidebarOnLeft && (
-        <aside class="hidden xl:block" aria-label="Table of contents">
+        <aside class="hidden xl:block" aria-label={t('blog.tableOfContents', locale)}>
           <TableOfContents
             headings={headings}
+            title={t('blog.onThisPage', locale)}
             maxDepth={tocConfig?.maxDepth ?? 3}
             minHeadings={tocConfig?.minHeadings ?? 3}
             sticky
@@ -158,6 +170,7 @@ const blogPostingSchema = createBlogPostSchema({
         ]}>
           <TableOfContents
             headings={headings}
+            title={t('blog.onThisPage', locale)}
             maxDepth={tocConfig?.maxDepth ?? 3}
             minHeadings={tocConfig?.minHeadings ?? 3}
           />
@@ -177,7 +190,7 @@ const blogPostingSchema = createBlogPostSchema({
         <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <!-- Back link -->
           <a
-            href="/blog"
+            href={localizedPath('/blog', locale)}
             class="text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 inline-flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <svg
@@ -191,19 +204,20 @@ const blogPostingSchema = createBlogPostSchema({
               <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"
               ></path>
             </svg>
-            Back to Blog
+            {t('blog.backToBlog', locale)}
           </a>
 
           <!-- Share buttons -->
-          <ShareButtons title={title} url={fullUrl} />
+          <ShareButtons title={title} url={fullUrl} locale={locale} />
         </div>
       </footer>
       </div>
 
       {sidebarActive && !sidebarOnLeft && (
-        <aside class="hidden xl:block" aria-label="Table of contents">
+        <aside class="hidden xl:block" aria-label={t('blog.tableOfContents', locale)}>
           <TableOfContents
             headings={headings}
+            title={t('blog.onThisPage', locale)}
             maxDepth={tocConfig?.maxDepth ?? 3}
             minHeadings={tocConfig?.minHeadings ?? 3}
             sticky
@@ -220,14 +234,14 @@ const blogPostingSchema = createBlogPostSchema({
   <!-- Related Posts -->
   {tags.length > 0 && (
     <div class="mx-auto max-w-screen-xl px-6" data-reveal>
-      <RelatedPosts currentSlug={slug} tags={tags} locale="en" maxPosts={3} />
+      <RelatedPosts currentSlug={slug} tags={tags} locale={locale} maxPosts={3} />
     </div>
   )}
 
   <!-- Follow Along -->
   <CTA variant="default" size="md" maxWidth="lg" glow={false} data-reveal class="bg-background-secondary">
-    <h2 slot="heading" class="!text-4xl">Follow along</h2>
-    <p slot="description" class="!text-lg text-balance">Stay in the loop — new articles, thoughts, and updates.</p>
+    <h2 slot="heading" class="!text-4xl">{t('blog.followAlong', locale)}</h2>
+    <p slot="description" class="!text-lg text-balance">{t('blog.followDescription', locale)}</p>
 
     <div class="flex flex-wrap items-center justify-center gap-3">
       <a
@@ -235,7 +249,7 @@ const blogPostingSchema = createBlogPostSchema({
         class="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-brand-500 hover:text-brand-500"
       >
         <Icon name="rss" size="sm" />
-        RSS Feed
+        {t('blog.rssFeed', locale)}
       </a>
       {socialLinks.map((link) => (
         <a
@@ -253,11 +267,31 @@ const blogPostingSchema = createBlogPostSchema({
         class="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-brand-500 hover:text-brand-500"
       >
         <Icon name="mail" size="sm" />
-        Email
+        {t('blog.emailLabel', locale)}
       </a>
     </div>
   </CTA>
   </div>
 
-  <Footer slot="footer" layout="simple" background="secondary" maxWidth={sidebarActive ? '7xl' : '6xl'} />
+  <Footer slot="footer" layout="simple" background="secondary" maxWidth={sidebarActive ? '7xl' : '6xl'} locale={locale} />
+
+  <!-- Localized link rewriter for blog content -->
+  <script is:inline define:vars={{ pageLocale: locale }}>
+    (function () {
+      try {
+        if (pageLocale && pageLocale !== 'en') {
+          const contentEl = document.querySelector('[data-reveal-content]');
+          if (contentEl) {
+            const links = contentEl.querySelectorAll('a[href^="/projects/"]');
+            links.forEach(link => {
+              const href = link.getAttribute('href');
+              if (href && !href.startsWith('/' + pageLocale + '/')) {
+                link.setAttribute('href', '/' + pageLocale + href);
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
 </BaseLayout>

@@ -1,0 +1,86 @@
+---
+title: "Archivo Sejo Bajraktarević"
+description: "Un archivo digital bilingüe de alto rendimiento construido con Astro.js y Cloudflare Pages, diseñado para preservar y transmitir décadas de activos multimedia para un destacado compositor bosnio."
+url: "https://sejobaron.xyz"
+tags: ["Astro", "Cloudflare Pages", "Tigris S3", "i18n", "Web Performance"]
+featured: true
+order: 1
+year: 2026
+client: "Sejo Bajraktarević"
+role: "Ingeniero Full-Stack y de Sistemas"
+services: ["Archivado Digital", "Infraestructura de Almacenamiento en la Nube", "Optimización de Medios", "Internacionalización"]
+image: "../../../assets/projects/sejo-bajraktarevic/featured.webp"
+locale: "es"
+---
+
+import ProjectGallery from '../../../components/projects/ProjectGallery.astro';
+import pic1 from '../../../assets/projects/sejo-bajraktarevic/1.webp';
+import pic2 from '../../../assets/projects/sejo-bajraktarevic/2.webp';
+import pic3 from '../../../assets/projects/sejo-bajraktarevic/3.webp';
+import pic4 from '../../../assets/projects/sejo-bajraktarevic/4.webp';
+import pic5 from '../../../assets/projects/sejo-bajraktarevic/5.webp';
+
+## El Brief
+
+El objetivo principal de este proyecto fue digitalizar, estructurar y preservar décadas de diversidad en la obra artística de Sejo Bajraktarević, un destacado compositor y artista multimedia bosnio. El contenido heredado abarcaba múltiples tipos de formatos, incluyendo pistas de audio de alta fidelidad, partituras sinfónicas y largometrajes documentales.
+
+El desafío central radicó en transformar este catálogo masivo y desorganizado en una experiencia web fluida y moderna. El éxito significaba ofrecer velocidades de carga casi instantáneas a nivel mundial, garantizar una transmisión de medios infalible sin sobrecarga en el servidor y hacer que todo el archivo fuera completamente accesible para una audiencia internacional en múltiples idiomas.
+
+
+## Qué He Construido
+
+Diseñé e implementé un archivo digital *headless* altamente optimizado utilizando un enfoque moderno Jamstack para eliminar la gestión tradicional de servidores y los problemas de escalabilidad.
+
+- **Framework:** Construido con **Astro.js** para aprovechar su estricta arquitectura de islas *"Cero JS por Defecto"*. Esto garantiza que las páginas centradas en el contenido pesado envíen el mínimo JavaScript posible al navegador del cliente, manteniendo velocidades de carga base casi instantáneas.
+- **Infraestructura en la Nube:** Desplegué la aplicación a través de **Cloudflare Pages**, trasladando todo el pipeline de entrega hacia una red perimetral global (*edge network*) para garantizar una latencia ultra baja y el máximo tiempo de actividad.
+- **Gestión de Activos Desacoplada:** Para manejar archivos de alta resolución sin inflar el paquete de despliegue, integré **Tigris Object Storage** (un almacenamiento de datos compatible con S3). Todos los activos multimedia a gran escala están aislados aquí y se sirven de manera eficiente a través de un subdominio de medios dedicado y optimizado para caché.
+- **Arquitectura Multilingüe (i18n):** Implementé una red completa de enrutamiento y traducción con soporte nativo para cuatro idiomas: **bosnio, inglés, español y alemán**, asegurando que el archivo cultural sea completamente accesible a nivel global.
+
+
+## El Proceso
+
+El proyecto siguió un pipeline de ingeniería estricto, desde la agregación de activos hasta el despliegue final en la periferia (*edge*):
+
+1. **Descubrimiento de Datos y Diseño de Esquemas:** Analicé una colección masiva de archivos de datos crudos para encontrar patrones comunes. Estructuré un esquema de metadatos limpio y repetible que pudiera manejar audio, video y texto sin problemas.
+2. **Aprovisionamiento de Infraestructura:** Configuré los buckets de Tigris S3 y definí las políticas de seguridad, reglas CORS y un subdominio dedicado que actúa como proxy a través de la red de Cloudflare para enmascarar los endpoints de almacenamiento subyacentes.
+3. **Optimización del Pipeline:** Diseñé bloques de renderizado personalizados dentro de Astro para manejar elementos de video embebidos pesados con fluidez, utilizando técnicas de carga diferida (*lazy-loading*) para garantizar que el navegador no bloquee el renderizado inicial de la página mientras obtiene los reproductores de medios de terceros.
+4. **Mapeo de Localización:** Configuré los diccionarios de localización y las tablas de enrutamiento con prefijo de idioma, verificando que cada entrada de la colección estructurada se mapee correctamente en las cuatro variantes de idioma.
+
+
+## Resultados
+
+La aplicación pasó con éxito del desarrollo local a producción con métricas de rendimiento estelares:
+
+* **Entrega Edge-First:** Los activos de la página se almacenan en caché y se entregan directamente desde el nodo perimetral de Cloudflare más cercano, lo que resulta en un TTFB (Time to First Byte) insignificante a nivel mundial.
+* **Mantenimiento de Infraestructura Cero:** Al desacoplar la capa de presentación (Astro) de la capa de almacenamiento de objetos (Tigris/S3), el archivo es fundamentalmente serverless, lo que significa que escala automáticamente a miles de visitantes concurrentes con un coste de alojamiento prácticamente nulo.
+* **Preservación de la Cultura:** Logré unificar un portafolio físico disperso de décadas de antigüedad en una única biblioteca digital de alto rendimiento que sirve como un tributo vivo a un maestro de las artes.
+
+## Galería del Proyecto
+
+<ProjectGallery images={[
+  { 
+    src: pic1, 
+    alt: 'Sección hero de la página de inicio del sitio web del Archivo Sejo Bajraktarević con un diseño limpio y un menú desplegable de selección de idioma', 
+    caption: 'La sección hero de la página de inicio, limpia y adaptable (responsive), del proyecto de preservación multimedia digital, que muestra un diseño minimalista, jerarquía tipográfica y un menú desplegable activo de selección de idioma para internacionalización (i18n).' 
+  },
+  { 
+    src: pic2, 
+    alt: 'Página de biografía que detalla la vida, la trayectoria multiinstrumental y los hitos profesionales del compositor Sejo Bajraktarević', 
+    caption: 'La página dedicada a la biografía (Sobre el compositor) que detalla la trayectoria del compositor como multiinstrumentalista, sus hitos artísticos y su carrera profesional.' 
+  },
+  { 
+    src: pic3, 
+    alt: 'Vista de cuadrícula multimedia del archivo musical en modo oscuro que muestra tarjetas de contenido interactivas con etiquetas de taxonomía', 
+    caption: 'La interfaz nativa en modo oscuro de la plataforma que muestra la cuadrícula de la colección de contenido del "Archivo Musical", con tarjetas de elementos dinámicos, taxonomías dedicadas para audio/video y metadatos de publicación.'
+  },
+  { 
+    src: pic4, 
+    alt: 'Página de pista de audio individual que muestra datos históricos, traducción de letras y un widget de reproductor de música flotante', 
+    caption: 'Una vista de diseño detallada de una pista individual, completa con datos históricos de la grabación, traducciones estructuradas de las letras y un widget de reproductor de audio flotante, interactivo y optimizado.'
+  },
+  { 
+    src: pic5, 
+    alt: 'Superposición (overlay) del modal de búsqueda de la paleta de comandos abierta en el lado del cliente que muestra enlaces de navegación instantánea', 
+    caption: 'El modal de búsqueda de la paleta de comandos completamente integrado en el lado del cliente (client-side), que proporciona enlaces de navegación rápida y análisis instantáneo de palabras clave en todas las colecciones.'
+  }
+]} />

@@ -1,0 +1,356 @@
+---
+import PageLayout from '@/layouts/PageLayout.astro';
+import Icon from '@/components/ui/primitives/Icon/Icon.astro';
+import Badge from '@/components/ui/data-display/Badge/Badge.astro';
+import Card from '@/components/ui/data-display/Card/Card.astro';
+import Button from '@/components/ui/form/Button/Button.astro';
+import { Hero } from '@/components/hero';
+import TypingEffect from '@/components/ui/TypingEffect.astro';
+import TechStack from '@/components/landing/TechStack.astro';
+import LetterGlitchBand from '@/components/patterns/LetterGlitchBand.astro';
+import { t, localizedPath } from '@/i18n';
+
+interface Props {
+  locale: string;
+}
+
+const { locale } = Astro.props;
+
+// Parse typing words from comma-separated translation string
+const typingWords = t('aboutPage.typingWords', locale).split(',');
+
+// Parse tag strings into arrays
+const card1Tags = t('aboutPage.background.card1Tags', locale).split(',');
+const card2Tags = t('aboutPage.background.card2Tags', locale).split(',');
+
+// FAQ summary class for reuse
+const summaryClass = "flex w-full items-center justify-between text-sm py-4 text-left font-medium text-foreground transition-colors hover:text-foreground-secondary cursor-pointer list-none [&::-webkit-details-marker]:hidden";
+---
+
+<PageLayout
+  title={t('aboutPage.title', locale)}
+  description={t('aboutPage.description', locale)}
+  locale={locale}
+>
+  <Hero layout="centered" size="sm">
+    <Badge slot="badge" variant="brand" pill>
+      <Icon name="user" size="sm" />
+      {t('aboutPage.hero.badge', locale)}
+    </Badge>
+    <h1 slot="title">
+      <span class="text-foreground [-webkit-text-fill-color:currentColor]">{t('aboutPage.hero.titleLine1', locale)}</span><br />
+      <span class="text-brand-500 [-webkit-text-fill-color:var(--color-brand-500)]">
+        <TypingEffect words={typingWords} />
+      </span>
+    </h1>
+
+    <p slot="description">
+      {t('aboutPage.hero.description', locale)}
+    </p>
+  </Hero>
+
+  <!-- Background -->
+  <section class="py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <div class="mx-auto max-w-6xl px-6">
+      <div class="grid gap-12 lg:grid-cols-2">
+        <!-- Left: text -->
+        <div class="flex flex-col gap-4" data-reveal="right">
+          <div class="flex flex-col gap-6">
+            <Badge variant="brand" pill class="self-start">{t('aboutPage.background.badge', locale)}</Badge>
+            <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+              {t('aboutPage.background.title', locale)}
+            </h2>
+          </div>
+          <p class="text-lg text-foreground-muted leading-relaxed">
+            {t('aboutPage.background.desc1', locale)}
+          </p>
+          <p class="text-lg text-foreground-muted leading-relaxed">
+            {t('aboutPage.background.desc2', locale)}
+          </p>
+        </div>
+        <!-- Right: two stacked cards -->
+        <div class="flex flex-col gap-4 h-full" data-reveal="left" data-reveal-delay="1">
+          <Card variant="elevated" hover class="flex-1 flex flex-col justify-center">
+            <div class="flex items-start gap-4">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+                <Icon name="server" size="md" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold tracking-wide casesensitive text-foreground-muted mb-1">{t('aboutPage.background.card1Label', locale)}</p>
+                <h3 class="text-base font-semibold text-foreground">{t('aboutPage.background.card1Name', locale)}</h3>
+                <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                  {t('aboutPage.background.card1Desc', locale)}
+                </p>
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                  {card1Tags.map((tag) => (
+                    <Badge size="sm" variant="brand">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card variant="elevated" hover href="https://claude.ai/code" target="_blank" rel="noopener noreferrer" class="group flex-1 flex flex-col justify-center">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-start gap-4 flex-1 min-w-0">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+                  <Icon name="sparkles" size="md" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold tracking-wide casesensitive text-foreground-muted mb-1">{t('aboutPage.background.card2Label', locale)}</p>
+                <h3 class="text-base font-semibold text-foreground">{t('aboutPage.background.card2Name', locale)}</h3>
+                <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                  {t('aboutPage.background.card2Desc', locale)}
+                </p>
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                  {card2Tags.map((tag) => (
+                    <Badge size="sm" variant="brand">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+              </div>
+              <Icon name="arrow-up-right" size="sm" class="text-foreground-muted group-hover:text-brand-500 transition-colors shrink-0" />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process / Values -->
+  <section class="py-[var(--space-section-md)] bg-background border-t border-border">
+    <div class="mx-auto max-w-6xl px-6">
+      <div class="mb-8 text-center flex flex-col items-center gap-4" data-reveal>
+        <div class="flex flex-col items-center gap-6">
+          <Badge variant="brand" pill>{t('aboutPage.process.badge', locale)}</Badge>
+          <h2 class="font-display text-4xl font-bold text-foreground">
+            {t('aboutPage.process.title', locale)}
+          </h2>
+        </div>
+        <p class="text-lg text-foreground-muted max-w-2xl mx-auto text-balance">
+          {t('aboutPage.process.description', locale)}
+        </p>
+      </div>
+      <div class="grid gap-8 md:grid-cols-3">
+        <Card hover data-reveal>
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="shield" size="md" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('aboutPage.process.v1Title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('aboutPage.process.v1Desc', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card hover data-reveal data-reveal-delay="1">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="award" size="md" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('aboutPage.process.v2Title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('aboutPage.process.v2Desc', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card hover data-reveal data-reveal-delay="2">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="layers" size="md" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-semibold text-foreground">{t('aboutPage.process.v3Title', locale)}</h3>
+              <p class="text-sm text-foreground-muted leading-relaxed mt-1.5">
+                {t('aboutPage.process.v3Desc', locale)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <TechStack
+    badge={t('aboutPage.stack.badge', locale)}
+    title={t('aboutPage.stack.title', locale)}
+    description={t('aboutPage.stack.description', locale)}
+    background="secondary"
+  />
+
+  <!-- FAQ -->
+  <section class="py-[var(--space-section-md)] bg-background border-t border-border">
+    <div class="mx-auto max-w-6xl px-6 flex flex-col gap-8">
+      <div class="flex flex-col items-center gap-4 text-center" data-reveal>
+        <div class="flex flex-col items-center gap-6">
+          <Badge variant="brand" pill>{t('aboutPage.faq.badge', locale)}</Badge>
+          <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+            {t('aboutPage.faq.title', locale)}
+          </h2>
+        </div>
+        <p class="text-lg text-foreground-muted max-w-2xl mx-auto text-balance">
+          {t('aboutPage.faq.description', locale)}
+        </p>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- Card 1: Technical expertise -->
+        <Card variant="elevated" padding="lg" data-reveal data-reveal-delay="1">
+          <div class="flex items-center gap-3 pb-4 border-b border-border">
+            <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="server" size="md" />
+            </div>
+            <h3 class="font-display text-base font-semibold text-foreground">{t('aboutPage.faq.card1Title', locale)}</h3>
+          </div>
+          <div class="w-full">
+            <details class="border-b border-border" name="faq-tech">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q1', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a1', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border" name="faq-tech">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q2', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a2', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border" name="faq-tech">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q3', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a3', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border last:border-0" name="faq-tech">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q4', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a4', locale)}
+              </div>
+            </details>
+          </div>
+        </Card>
+
+        <!-- Card 2: About the work -->
+        <Card variant="elevated" padding="lg" data-reveal data-reveal-delay="2">
+          <div class="flex items-center gap-3 pb-4 border-b border-border">
+            <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-brand-500/20 to-brand-500/5 flex items-center justify-center text-brand-500 shrink-0">
+              <Icon name="user" size="md" />
+            </div>
+            <h3 class="font-display text-base font-semibold text-foreground">{t('aboutPage.faq.card2Title', locale)}</h3>
+          </div>
+          <div class="w-full">
+            <details class="border-b border-border" name="faq-work">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q5', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a5', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border" name="faq-work">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q6', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a6', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border" name="faq-work">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q7', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a7', locale)}
+              </div>
+            </details>
+            <details class="border-b border-border last:border-0" name="faq-work">
+              <summary class={summaryClass}>
+                {t('aboutPage.faq.q8', locale)}
+                <Icon name="chevron-down" size="sm" class="faq-icon shrink-0 text-foreground-muted transition-transform duration-200" />
+              </summary>
+              <div class="pb-4 text-sm text-foreground-muted leading-relaxed">
+                {t('aboutPage.faq.a8', locale)}
+              </div>
+            </details>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <!-- CV / Backstory -->
+  <section class="py-[var(--space-section-md)] bg-background-secondary border-t border-border">
+    <div class="mx-auto max-w-6xl px-6">
+      <div class="flex flex-col items-center text-center gap-6" data-reveal>
+        <Badge variant="brand" pill>{t('aboutPage.cv.badge', locale)}</Badge>
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground">
+          {t('aboutPage.cv.title', locale)}
+        </h2>
+        <p class="text-lg text-foreground-muted max-w-2xl mx-auto">
+          {t('aboutPage.cv.description', locale)}
+        </p>
+        <Button variant="outline" size="lg" href={localizedPath('/blog/luka-piplica-cv', locale)} class="mt-2">
+          {t('aboutPage.cv.cta', locale)}
+          <Icon name="arrow-right" size="sm" />
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="relative z-10 py-[var(--space-section-md)] bg-background border-t border-border">
+    <!-- Mobile: flat section -->
+    <div class="lg:hidden mx-auto max-w-2xl px-6 text-center" data-reveal>
+      <Badge variant="brand" pill class="mb-6">{t('aboutPage.cta.badge', locale)}</Badge>
+      <h2 class="font-display text-4xl font-bold text-foreground mb-4 text-balance">
+        {t('aboutPage.cta.title', locale)}
+      </h2>
+      <p class="text-lg text-foreground-muted mb-8 text-balance">
+        {t('aboutPage.cta.desc', locale)}
+      </p>
+      <Button size="lg" href={localizedPath('/contact', locale)} class="cta-btn-brand">
+        {t('aboutPage.cta.start', locale)}
+        <Icon name="arrow-right" size="sm" />
+      </Button>
+    </div>
+
+    <!-- Desktop: LetterGlitch band -->
+    <LetterGlitchBand>
+      <h2 class="font-display text-4xl font-bold text-foreground mb-4 text-balance">
+        {t('aboutPage.cta.title', locale)}
+      </h2>
+      <p class="text-lg text-foreground-muted mb-8 text-balance">
+        {t('aboutPage.cta.desc', locale)}
+      </p>
+      <Button size="lg" href={localizedPath('/contact', locale)} class="hero-btn-brand">
+        {t('aboutPage.cta.start', locale)}
+        <Icon name="arrow-right" size="sm" />
+      </Button>
+    </LetterGlitchBand>
+  </section>
+</PageLayout>
+
+<style>
+  details[open] > summary .faq-icon {
+    transform: rotate(180deg);
+  }
+</style>

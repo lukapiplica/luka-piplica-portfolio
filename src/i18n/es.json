@@ -1,0 +1,330 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "blog": "Blog",
+    "projects": "Proyectos",
+    "about": "Sobre mí",
+    "contact": "Contacto",
+    "skipToContent": "Saltar al contenido",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú",
+    "selectLanguage": "Seleccionar idioma",
+    "currentLanguage": "Idioma actual",
+    "language": "Idioma"
+  },
+  "common": {
+    "readMore": "Leer más",
+    "loading": "Cargando…",
+    "backToTop": "Volver arriba",
+    "search": "Buscar",
+    "submit": "Enviar",
+    "cancel": "Cancelar",
+    "next": "Siguiente",
+    "previous": "Anterior"
+  },
+  "blog": {
+    "title": "Blog Técnico",
+    "description": "Análisis, tutoriales y documentación de mi trayectoria en la tecnología y los sistemas.",
+    "readingTime": "{minutes} min de lectura",
+    "publishedOn": "Publicado el {date}",
+    "updatedOn": "Actualizado el {date}",
+    "writtenBy": "Escrito por {author}",
+    "tagsLabel": "Etiquetas",
+    "featured": "Destacado",
+    "draft": "Borrador",
+    "noPostsFound": "No se encontraron publicaciones.",
+    "tableOfContents": "Tabla de contenidos",
+    "shareThisPost": "Compartir esta publicación",
+    "allPosts": "Todas las publicaciones",
+    "filterLabel": "Filtro",
+    "noPostsForTag": "No se encontraron publicaciones para esta etiqueta",
+    "followAlong": "Sigue de cerca",
+    "followDescription": "Mantente al tanto: nuevos artículos, reflexiones y actualizaciones.",
+    "rssFeed": "Canal RSS",
+    "emailLabel": "Correo electrónico",
+    "backToBlog": "Volver al Blog",
+    "relatedPosts": "Publicaciones relacionadas",
+    "badge": "Todas las publicaciones",
+    "share": "Compartir:",
+    "minRead": "min de lectura",
+    "onThisPage": "En esta página",
+    "updated": "Actualizado"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "description": "Una muestra de mi trabajo, desde experimentos técnicos hasta soluciones a gran escala.",
+    "viewProject": "Ver proyecto",
+    "viewSource": "Código fuente",
+    "noProjectsFound": "No se encontraron proyectos.",
+    "backToProjects": "Volver a proyectos",
+    "moreProjects": "Más proyectos"
+  },
+  "search": {
+    "placeholder": "Buscar en blogs y proyectos...",
+    "noResults": "No se encontraron resultados para \"{query}\"",
+    "blogs": "Blogs",
+    "projects": "Proyectos",
+    "clear": "Limpiar búsqueda",
+    "shortcutNavigate": "Navegar",
+    "shortcutSelect": "Seleccionar",
+    "shortcutHint": "Esc para cerrar"
+  },
+  "pagination": {
+    "page": "Página {current} de {total}",
+    "previousPage": "Anterior",
+    "nextPage": "Siguiente"
+  },
+  "errors": {
+    "pageNotFound": "Página no encontrada",
+    "pageNotFoundMessage": "La página que buscas no existe o ha sido movida.",
+    "goHome": "Volver al inicio",
+    "404": {
+      "badge": "404 — Página no encontrada",
+      "title": "Página no {found}",
+      "found": "encontrada",
+      "description": "Esta página ha sido movida, eliminada o nunca existió. Vamos a llevarte de vuelta al camino correcto.",
+      "backToHome": "Volver al inicio",
+      "browseBlog": "Explorar el blog",
+      "tryInstead": "Prueba con una de estas opciones",
+      "links": {
+        "projects": {
+          "title": "Proyectos",
+          "description": "Trabajos seleccionados y casos de estudio."
+        },
+        "blog": {
+          "title": "Blog",
+          "description": "Notas sobre diseño, código y el oficio."
+        },
+        "contact": {
+          "title": "Contacto",
+          "description": "Inicia una conversación sobre tu proyecto."
+        }
+      }
+    }
+  },
+  "newsletter": {
+    "heading": "Mantente al tanto",
+    "description": "Recibe mis últimos artículos y actualizaciones tecnológicas directamente en tu bandeja de entrada.",
+    "emailPlaceholder": "tu@correo.com",
+    "subscribe": "Unirse",
+    "subscribing": "Enviando...",
+    "success": "¡Revisa tu bandeja de entrada para confirmar!",
+    "error": "Algo salió mal. Por favor, inténtalo de nuevo."
+  },
+  "contact": {
+    "heading": "Conectemos",
+    "badge": "Ponte en contacto",
+    "title": "Envíame un {message}",
+    "messageWord": "mensaje.",
+    "description": "Usa el formulario de abajo o contáctame a través de cualquiera de estos canales. Responderé en un plazo de 1 día laborable.",
+    "formHeading": "Enviar un mensaje",
+    "otherChannels": "Otros canales",
+    "otherChannelsDesc": "¿Prefieres un canal directo? Elige el que mejor te funcione.",
+    "channelNotes": {
+      "email": "Escríbeme",
+      "social": "Sigue de cerca"
+    },
+    "location": {
+      "basedIn": "Ubicado en Bosnia y Herzegovina"
+    },
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "subject": "Asunto",
+    "message": "Mensaje",
+    "send": "Enviar mensaje",
+    "sending": "Enviando…",
+    "success": "¡Mensaje enviado! Me pondré en contacto contigo pronto.",
+    "error": "Algo salió mal. Por favor, inténtalo de nuevo."
+  },
+  "theme": {
+    "selectTheme": "Seleccionar tema",
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro",
+    "systemMode": "Sistema",
+    "toggleTheme": "Alternar tema",
+    "themeMode": "Modo de tema",
+    "colourTheme": "Tema de color",
+    "currentlyLight": "Actualmente claro",
+    "currentlyDark": "Actualmente oscuro",
+    "ariaLabelTrigger": "Menú de tema. Haz clic para cambiar.",
+    "colorSwatchLabel": "Tema {name}",
+    "colors": {
+      "orange": "Naranja",
+      "amber": "Ámbar",
+      "lime": "Lima",
+      "emerald": "Esmeralda",
+      "teal": "Turquesa",
+      "cyan": "Cian",
+      "sky": "Celeste",
+      "blue": "Azul",
+      "indigo": "Índigo",
+      "violet": "Violeta",
+      "purple": "Púrpura",
+      "magenta": "Magenta"
+    }
+  },
+  "code": {
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "ariaLabel": "Copiar código al portapapeles"
+  },
+  "footer": {
+    "copyright": "© {year} {name}. Todos los derechos reservados.",
+    "builtWith": "Creado con Astro Rocket"
+  },
+  "home": {
+    "hero": {
+      "badge": "Disponible para nuevas oportunidades",
+      "titlePart1": "Luka Piplica —",
+      "titlePart2": "Especialista en Soporte TI y Sistemas",
+      "description": "Profesional de TI orientado a resultados, especializado en soporte TI corporativo, administración de servidores Windows y Linux, infraestructura de red y bastionado progresivo de sistemas.",
+      "viewCv": "Ver CV",
+      "contactMe": "Contáctame"
+    },
+    "services": {
+      "badge": "Servicios",
+      "title": "Qué hago",
+      "description": "Proporciono soluciones técnicas fiables en las distintas capas de la infraestructura empresarial, desde el soporte técnico corporativo hasta la gestión de sistemas y la automatización de flujos de trabajo.",
+      "sysadmin": {
+        "title": "Admin. de Sistemas y Redes",
+        "description": "Administración de servidores Windows y Linux, configuraciones de red Cisco y MikroTik, y mantenimiento de infraestructura de alta disponibilidad 24/7."
+      },
+      "webdev": {
+        "title": "Soluciones Web y Herramientas Internas",
+        "description": "Uso de Astro, React y Next.js para desarrollar interfaces web rápidas y ligeras destinadas a alojar archivos técnicos, portafolios personales y herramientas personalizadas que simplifican las operaciones diarias de TI."
+      },
+      "security": {
+        "title": "Bastionado y Seguridad de Sistemas",
+        "description": "Bastionado práctico de servidores, configuraciones de cortafuegos, controles de acceso seguro y una hoja de ruta profesional enfocada hacia marcos de ciberseguridad empresarial."
+      },
+      "electronics": {
+        "title": "Electrónica y Sistemas Embebidos",
+        "description": "Ingeniería de hardware galardonada a nivel estatal, diagnóstico de circuitos, diseño de PCB multicapa personalizadas y optimización de firmware de bajo nivel."
+      },
+      "ai": {
+        "title": "Automatización de Infraestructura e IA",
+        "description": "Orquestación de flujos de trabajo empresariales mediante scripts en Python, Bash y PowerShell para automatizar la administración de sistemas, tareas de mantenimiento y operaciones agénticas inteligentes."
+      },
+      "operations": {
+        "title": "Operaciones TI y Soporte de Sistemas",
+        "description": "Gestión de entornos de escritorio empresariales, aprovisionamiento del ciclo de vida del software, gobernanza de accesos y resolución rigurosa de problemas dentro de infraestructuras corporativas complejas y de alta disponibilidad."
+      }
+    },
+    "testimonials": {
+      "badge": "Testimonios",
+      "title": "Qué dicen mis colegas y clientes",
+      "description": "Comentarios de proyectos de ingeniería y colaboraciones profesionales.",
+      "t1": {
+        "quote": "Luka transformó décadas de mi trabajo artístico disperso en un archivo digital profesional y de alto rendimiento. Su precisión técnica al manejar mi biblioteca de medios y su compromiso con la preservación a largo plazo fueron realmente impresionantes.",
+        "author": "Sejo Bajraktarević",
+        "role": "Compositor y Artista Multimedia",
+        "letter": "S"
+      },
+      "t2": {
+        "quote": "Espacio reservado para futuros comentarios. Actualmente enfocado en ofrecer la excelencia en proyectos vigentes de administración de sistemas y ciberseguridad.",
+        "author": "Pendiente",
+        "role": "Referencia Futura",
+        "letter": "N"
+      }
+    },
+    "about": {
+      "badge": "Sobre mí",
+      "titlePart1": "Especialista en Soporte TI y",
+      "titlePart2": "Administrador de Sistemas.",
+      "desc1": "Soy un profesional de TI con amplia experiencia en el mantenimiento de sistemas corporativos, optimización de configuraciones de red y ejecución de configuraciones seguras en una hoja de ruta a largo plazo hacia la ciberseguridad.",
+      "cta": "Leer mi historia",
+      "experience": "Operaciones de TI Empresariales",
+      "awards": "3x Campeón Estatal de Hardware",
+      "worldwide": "Certificado en Inglés C2",
+      "location": "Sarajevo, Bosnia y Herzegovina"
+    },
+    "projects": {
+      "badge": "Portafolio",
+      "title": "Proyectos y Experimentos",
+      "description": "Una colección diversa de mis restauraciones de hardware, herramientas de software personalizadas, archivos digitales y varios desafíos de ingeniería DIY.",
+      "viewAll": "Ver todos los proyectos"
+    },
+    "cta": {
+      "badge": "Conectemos",
+      "title": "¿Interesado en que trabajemos juntos?",
+      "description": "Tanto si tu empresa requiere un soporte de TI escalable, una administración de sistemas fiable o un bastionado seguro de la infraestructura, estoy listo para aportar mi experiencia a tu equipo.",
+      "start": "Ponte en contacto",
+      "more": "Más sobre mí"
+    }
+  },
+  "aboutPage": {
+    "title": "Sobre Luka Piplica — Especialista en Soporte TI y Sistemas",
+    "description": "Especialista en Soporte TI y Administrador de Sistemas construyendo infraestructuras fiables, gestionando redes corporativas y ejecutando una ruta técnica dedicada hacia la ciberseguridad empresarial.",
+    "hero": {
+      "badge": "Sobre mí",
+      "titleLine1": "Luka Piplica —",
+      "description": "Un profesional de TI práctico que prospera en la intersección del soporte técnico corporativo, la administración de sistemas empresariales, la fiabilidad de las redes y las prácticas de seguridad progresivas."
+    },
+    "typingWords": "Especialista en Soporte TI,Administrador de Sistemas,Administrador de Redes,Entusiasta de la Ciberseguridad,Colaborador de Código Abierto",
+    "background": {
+      "badge": "Trayectoria",
+      "title": "Especialista en sistemas con una sólida base en electrónica de precisión",
+      "desc1": "Comencé en la electrónica: diseñando circuitos, soldando PCBs multicapa y programando microcontroladores Arduino. Tres victorias consecutivas en campeonatos nacionales de sistemas embebidos me dieron un profundo aprecio por el diagnóstico de hardware, la ingeniería de bajo nivel y la precisión en la ejecución.",
+      "desc2": "Esa base hizo una transición natural hacia la administración de redes a través de una formación intensiva en CCNA en ITAcademy, soporte TI corporativo en BHRT y bastionado práctico de sistemas. Navegar por la infraestructura de la vieja escuela y puramente manual de BHRT proporcionó una prueba de fuego excepcional y práctica en el diagnóstico puro de sistemas. Hoy en día, mi hoja de ruta profesional se enfoca en escalar desde el soporte corporativo sólido y la gestión de servidores directamente hacia roles especializados en ciberseguridad empresarial.",
+      "card1Label": "Especialista en Soporte TI y Sistemas",
+      "card1Name": "Luka Piplica",
+      "card1Desc": "Administrador de Redes con formación CCNA, administrador de sistemas Linux/Windows y profesional de soporte TI corporativo enfocado en la fiabilidad de la infraestructura y el bastionado progresivo de sistemas.",
+      "card1Tags": "Cisco,Windows Server,Linux,Soporte TI,Ciberseguridad",
+      "card2Label": "Socio de Flujo de Trabajo de IA",
+      "card2Name": "Claude Code",
+      "card2Desc": "Un colaborador de IA que me ayuda a revisar scripts de automatización, optimizar flujos de trabajo de sistemas y crear integraciones personalizadas de Model Context Protocol (MCP).",
+      "card2Tags": "MCP,Flujos de Trabajo Agénticos,Revisión de Código,Automatización"
+    },
+    "process": {
+      "badge": "Mi Metodología",
+      "title": "Filosofía de Ingeniería",
+      "description": "Aplicar una rigurosa disciplina de ingeniería y flujos de trabajo automatizados para construir sistemas empresariales resilientes, seguros y observables.",
+      "v1Title": "Arquitectura con Enfoque de Seguridad Primero",
+      "v1Desc": "Diseño sistemas con una mentalidad de 'Zero Trust' (Confianza Cero), asegurando que la seguridad esté integrada en la infraestructura desde el primer día. Al aprovechar el modelado de amenazas, la auditoría de cumplimiento automatizada y los principios de infraestructura como código, elimino las vulnerabilidades manuales y hago cumplir una integridad de sistema proactiva e inmutable.",
+      "v2Title": "Experiencia de Ingeniería Demostrada",
+      "v2Desc": "Respaldado por el éxito a nivel nacional en electrónica, una rigurosa formación en redes en ITAcademy y experiencia práctica en TI corporativa en BHRT. Combino esta base operativa con una formación profesional continua para abordar retos técnicos complejos.",
+      "v3Title": "Infraestructura y automatización",
+      "v3Desc": "Conecto la administración de sistemas tradicional con la automatización moderna, aprovechando el scripting en Python, Bash y PowerShell para agilizar los flujos de trabajo multiplataforma, optimizar el rendimiento del sistema y minimizar la carga operativa manual."
+    },
+    "stack": {
+      "badge": "Herramientas y Tecnologías",
+      "title": "Pila técnica",
+      "description": "Las tecnologías que aprovecho para construir, desplegar y asegurar soluciones web modernas, elegidas por su rendimiento, seguridad y eficiencia operativa."
+    },
+    "faq": {
+      "badge": "Bueno saberlo",
+      "title": "Preguntas frecuentes",
+      "description": "Información sobre mi trayectoria en ingeniería y enfoque profesional.",
+      "card1Title": "Experiencia Técnica",
+      "card2Title": "Visión Profesional",
+      "q1": "¿Cuál es tu formación técnica?",
+      "a1": "Soy Administrador de Redes Informáticas certificado (ITAcademy) con formación técnica en Electrónica (Centro Escolar Ferroviario de Sarajevo). Mi experiencia profesional incluye una etapa en BHRT, donde fui responsable del soporte técnico corporativo de extremo a extremo. Esto implicaba la gestión de entornos de clientes de Windows, mantenimiento de hardware, resolución de problemas de red y administración del lado del servidor, abarcando desde la gestión de usuarios hasta el despliegue y bastionado de infraestructura basada en Linux. Transformé activamente los obstáculos operativos manuales en flujos de trabajo eficientes y automatizados, incluyendo la creación de paneles operativos centralizados que agilizaron las intervenciones en el terreno.",
+      "q2": "¿En qué tecnologías te enfocas?",
+      "a2": "Mi experiencia principal radica en el soporte de TI empresarial, el bastionado de sistemas y la administración de redes. Escalo estas operaciones utilizando Python, Bash y PowerShell para la automatización, al tiempo que utilizo marcos modernos como Astro, React y Next.js para desarrollar plataformas de documentación técnica eficientes y bases de conocimiento que albergan mis guías de ingeniería de sistemas, investigación de seguridad y proyectos de desarrollo.",
+      "q3": "¿Tienes algún logro competitivo?",
+      "a3": "Sí, soy tres veces campeón nacional en la exhibición técnica Festival Rada, reconocido por la ingeniería innovadora de IoT y sistemas embebidos, incluyendo un marcador Wi-Fi IoT, una estación de energía Solar Tree y un escritorio LED programable.",
+      "q4": "¿Qué certificaciones posees?",
+      "a4": "Poseo credenciales profesionales en Administración de Redes, Python avanzado e inglés de nivel C2 (EF SET). Además, he completado un conjunto especializado de certificaciones de Anthropic enfocadas en Model Context Protocol (MCP) e integración de flujos de trabajo agénticos.",
+      "q5": "¿Utilizas la IA en tu trabajo?",
+      "a5": "La IA es un pilar central de mi flujo de trabajo de ingeniería. La utilizo como un socio colaborativo para revisiones de arquitectura, validación de scripts complejos y automatización de infraestructura. Mi trabajo con Model Context Protocol (MCP) me permite conectar la inteligencia de la IA con los datos del sistema del mundo real, incrementando significativamente la velocidad y precisión operativa.",
+      "q6": "¿Eres una empresa o un profesional autónomo?",
+      "a6": "Soy un profesional de TI independiente que busca integrarse directamente en equipos corporativos personalizados y de alto impacto. Mi objetivo es aportar mis habilidades a líderes tecnológicos globales como Google, Rockstar Games, Naughty Dog, Adobe o Microsoft; organizaciones en las que pueda centrarme en infraestructuras a gran escala, sistemas complejos y proyectos que definen la industria, sin barreras intermedias.",
+      "q7": "¿Qué tipo de posiciones buscas?",
+      "a7": "Me dirijo a roles en operaciones de TI corporativas, administración de sistemas y bastionado de ciberseguridad. Prospero en entornos que requieren estrategias de soporte sólidas y una gestión proactiva de la infraestructura, con una ruta clara hacia la seguridad especializada y la ingeniería de sistemas.",
+      "q8": "¿Trabajas con empresas internacionales?",
+      "a8": "Sí, estoy buscando activamente la transición a roles internacionales. Aunque actualmente resido en Sarajevo, estoy totalmente preparado para la reubicación para apoyar las operaciones presenciales o para integrarme en equipos globales y distribuidos a través del trabajo remoto. Con un dominio del inglés de nivel C2 y experiencia en entornos de alta demanda, estoy listo para llevar mi experiencia a un escenario global."
+    },
+    "cv": {
+      "badge": "Curriculum Vitae",
+      "title": "La perspectiva completa",
+      "description": "Mi perfil profesional completo: experiencia, formación, premios y competencias técnicas, todo en un solo lugar.",
+      "cta": "Leer mi CV completo"
+    },
+    "cta": {
+      "badge": "Conectemos",
+      "title": "¿Listo para que trabajemos juntos?",
+      "desc": "Tanto si tu infraestructura requiere configuraciones de soporte sólidas, administración de sistemas o flujos de trabajo de scripting automatizados, estoy listo para el despliegue.",
+      "start": "Ponte en contacto"
+    }
+  }
+}

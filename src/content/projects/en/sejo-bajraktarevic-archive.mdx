@@ -1,0 +1,82 @@
+---
+title: "Sejo Bajraktarević Archive"
+description: "A high-performance, multilingual digital archive built with Astro.js and Cloudflare Pages, engineered to preserve and stream decades of multimedia assets for a prominent Bosnian composer."
+url: "https://sejobaron.xyz"
+tags: ["Astro", "Cloudflare Pages", "Tigris S3", "i18n", "Web Performance"]
+featured: true
+order: 1
+year: 2026
+client: "Sejo Bajraktarević"
+role: "Full-Stack & Systems Engineer"
+services: ["Digital Archiving", "Cloud Storage Infrastructure", "Media Optimization", "Internationalization"]
+image: "../../../assets/projects/sejo-bajraktarevic/featured.webp"
+---
+
+import ProjectGallery from '../../../components/projects/ProjectGallery.astro';
+import pic1 from '../../../assets/projects/sejo-bajraktarevic/1.webp';
+import pic2 from '../../../assets/projects/sejo-bajraktarevic/2.webp';
+import pic3 from '../../../assets/projects/sejo-bajraktarevic/3.webp';
+import pic4 from '../../../assets/projects/sejo-bajraktarevic/4.webp';
+import pic5 from '../../../assets/projects/sejo-bajraktarevic/5.webp';
+
+## The Brief
+
+The primary objective of this project was to digitize, structure, and preserve decades of diverse artistic work by Sejo Bajraktarević, a prominent Bosnian composer and multimedia artist. The legacy content spanned multiple medium types, including high-fidelity audio tracks, symphonic scores, and full-length documentary films. 
+
+The core challenge lay in transforming this massive, unorganized catalog into a seamless, modern web experience. Success meant delivering near-instant load speeds globally, ensuring bulletproof media streaming without server overhead, and making the entire archive fully accessible to an international audience across multiple languages.
+
+## What I Built
+
+I architected and deployed a highly optimized, headless digital archive utilizing a modern Jamstack approach to eliminate traditional server management and scaling issues.
+
+- **Framework:** Built with **Astro.js** to leverage its strict "Zero JS by Default" island architecture. This ensures that the heavy content-focused pages ship minimal JavaScript to the client browser, maintaining near-instant baseline load speeds.
+- **Cloud Infrastructure:** Deployed the application via **Cloudflare Pages**, shifting the entire delivery pipeline onto a global edge network to guarantee ultra-low latency and maximum uptime.
+- **Decoupled Asset Management:** To handle high-resolution files without bloating the deployment bundle, I integrated **Tigris Object Storage** (an S3-compatible data store). All large-scale multimedia assets are isolated here and served efficiently through a dedicated, cache-optimized media subdomain.
+- **Multilingual Architecture (i18n):** Implemented a comprehensive routing and translation network with native support for four languages: **Bosnian, English, Spanish, and German**, ensuring the cultural archive is fully discoverable globally.
+
+## The Process
+
+The project followed a strict engineering pipeline from asset aggregation to final edge deployment:
+
+1. **Data Discovery & Schema Design:** Analyzed a massive collection of raw data files to find common patterns. I structured a clean, repeatable metadata schema that could handle audio, video, and text seamlessly.
+2. **Infrastructure Provisioning:** Set up the Tigris S3 buckets and configured security policies, cors rules, and a dedicated subdomain proxying through Cloudflare's network to mask the underlying storage endpoints.
+3. **Pipeline Optimization:** Engineered custom rendering blocks within Astro to handle heavy embedded video elements gracefully, using lazy-loading techniques to ensure the browser doesn't block the initial page paint while fetching third-party media players.
+4. **Localization Mapping:** Configured localization dictionaries and locale-prefixed routing tables, verifying that every structured collection entry maps correctly across all four language variants.
+
+## Results
+
+The application successfully moved from local development to production with stellar performance metrics:
+
+* **Edge-First Delivery:** Page assets are cached and delivered directly from the nearest Cloudflare edge node, resulting in negligible TTFB (Time to First Byte) globally.
+* **Zero Infrastructure Maintenance:** By decoupling the presentation layer (Astro) from the object storage layer (Tigris/S3), the archive is fundamentally serverless, meaning it scales automatically to thousands of concurrent visitors at virtually zero hosting cost.
+* **Preservation of Culture:** Successfully unified a scattered, decades-old physical portfolio into a single, high-performance digital library that serves as a living tribute to a master artist.
+
+## Project Gallery 
+
+<ProjectGallery images={[
+  { 
+    src: pic1, 
+    alt: 'Homepage hero section of the Sejo Bajraktarević Archive website with a clean layout and language selector dropdown', 
+    caption: "The clean, responsive homepage hero section of the digital multimedia preservation project, showcasing a minimal layout, typography hierarchy, and an active internationalization (i18n) language selection dropdown." 
+  },
+  { 
+    src: pic2, 
+    alt: 'Biography page detailing the life, multi-instrumental history, and career milestones of composer Sejo Bajraktarević', 
+    caption: "The dedicated biography (About the Author) page detailing the composer's multi-instrumental history, artistic milestones, and professional career path." 
+  },
+  { 
+    src: pic3, 
+    alt: 'Music archive media grid view in dark mode displaying interactive content cards with taxonomy tags', 
+    caption: "The platform's native dark-mode interface displaying the 'Music Archive' content collection grid, featuring dynamic item cards with dedicated audio/video taxonomies and publication metadata."
+  },
+  { 
+    src: pic4, 
+    alt: 'Individual audio track page showing historical trivia, lyrics translation, and a floating music player widget', 
+    caption: "A granular individual track layout view complete with historical recording trivia, structural lyric translations, and an optimized, interactive floating audio player widget."
+  },
+  { 
+    src: pic5, 
+    alt: 'Open client-side command palette search modal overlay showing instant navigation links', 
+    caption: "The fully integrated client-side command palette search modal overlay, providing rapid navigation links and instant keyword parsing across collections."
+  }
+]} />

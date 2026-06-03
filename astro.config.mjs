@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import netlify from '@astrojs/netlify';
 import i18nConfig from './src/config/i18n.config.ts';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 const isNetlify = process.env.DEPLOY_TARGET === 'netlify';
 
@@ -19,13 +21,13 @@ const isNetlify = process.env.DEPLOY_TARGET === 'netlify';
 const i18nEnabled = i18nConfig.enabled === true && i18nConfig.locales.length > 1;
 const astroI18nOptions = i18nEnabled
   ? {
-      defaultLocale: i18nConfig.defaultLocale,
-      locales: i18nConfig.locales,
-      routing: {
-        prefixDefaultLocale: false,
-        redirectToDefaultLocale: false,
-      },
-    }
+    defaultLocale: i18nConfig.defaultLocale,
+    locales: i18nConfig.locales,
+    routing: {
+      prefixDefaultLocale: false,
+      redirectToDefaultLocale: false,
+    },
+  }
   : undefined;
 
 export default defineConfig({
@@ -74,6 +76,8 @@ export default defineConfig({
   },
 
   markdown: {
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [rehypeKatex],
     shikiConfig: {
       theme: 'github-dark',
       wrap: true,

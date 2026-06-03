@@ -1,0 +1,453 @@
+---
+title: "Izrada elegantnog nordijskog desktopa: Prilagodba BSPWM-a na Pop!_OS-u"
+description: "Sveobuhvatan vodič za izradu minimalnog tiling window managera visokih performansi koristeći BSPWM, Polybar, Picom i ZSH na Pop!_OS-u uz elegantnu nordijsku paletu."
+publishedAt: 2021-07-19
+author: "Luka Piplica"
+tags: ["linux", "bspwm", "dotfiles", "customization", "nord"]
+featured: false
+locale: hr
+image: "../../../assets/blog/pop-os-nordic-bspwm/featured.webp"
+imageAlt: "Izometrijski GIF koji prikazuje kućište starinskog računalnog ekrana koje se otvara kako bi otkrilo i postavilo ugrađenu mehaničku tipkovnicu."
+---
+
+Tiling window manageri (WM) iznimno su hvaljeni u Unix zajednici zbog svoje lagane strukture, ekstremnog potencijala za prilagodbu i visoke učinkovitosti. Zamjenom tradicionalnih radnih okruženja upravljanjem prozorima putem tipkovnice, programeri mogu postići visoko optimiziran radni proces. 
+
+Ovaj vodič detaljno opisuje konfiguraciju prilagođenog radnog okruženja korak-po-korak temeljenog na **Pop!_OS-u** i **BSPWM-u** (Binary Space Partitioning Window Manager). Oslanjajući se na popularnu **Nordic** paletu boja, ova postavka kombinira minimalističku estetiku s moćnom funkcionalnošću.
+
+---
+
+## Prikaz radnog prostora
+
+Evo vizualnog pregleda dovršenog okruženja u kojem se izvode različiti prilagođeni sustavni i terminalski alati:
+
+![Kombinirani prikaz prilagođenog nordijskog radnog okruženja](../../../assets/blog/pop-os-nordic-bspwm/1.webp)
+
+---
+
+## Arhitektura jezgre sustava
+
+Kako bismo replicirali ovo okruženje, standardno GNOME radno okruženje Pop!_OS-a zamijenit ćemo modularnim sklopom pojedinačnih alata. Tablica u nastavku prikazuje tehničke specifikacije okruženja:
+
+| Komponenta | Softver / Projekt | Opis |
+| :--- | :--- | :--- |
+| **Operativni sustav** | <a href="https://pop.system76.com/" target="_blank" rel="noopener noreferrer">Pop!_OS</a> | Stabilna Linux distribucija temeljena na Debianu/Ubuntuu |
+| **Window Manager** | <a href="https://github.com/baskerville/bspwm" target="_blank" rel="noopener noreferrer">BSPWM</a> | Tiling window manager s binarnim dijeljenjem prostora |
+| **Hotkey Daemon** | <a href="https://github.com/baskerville/sxhkd" target="_blank" rel="noopener noreferrer">Sxhkd</a> | Jednostavan X hotkey daemon za prečace na tipkovnici |
+| **Statusna traka** | <a href="https://github.com/polybar/polybar" target="_blank" rel="noopener noreferrer">Polybar</a> | Brz i jednostavan generator statusne trake |
+| **X Kompozitor** | <a href="https://github.com/ibhagwan/picom" target="_blank" rel="noopener noreferrer">Picom (ibhagwan fork)</a> | Kompozitor sa zaobljenim kutovima i dual-kawase zamućenjem |
+| **Pokretač aplikacija** | <a href="https://github.com/davatorium/rofi" target="_blank" rel="noopener noreferrer">Rofi</a> | Prebacivač prozora, pokretač aplikacija i zamjena za dmenu |
+| **Emulator terminala** | <a href="https://github.com/alacritty/alacritty" target="_blank" rel="noopener noreferrer">Alacritty</a> | GPU-ubrzani emulator terminala |
+| **Shell i tema** | <a href="https://ohmyz.sh/" target="_blank" rel="noopener noreferrer">Zsh</a> + <a href="https://github.com/romkatv/powerlevel10k" target="_blank" rel="noopener noreferrer">Powerlevel10k</a> | Interaktivno shell okruženje visokih performansi |
+| **Vizualna tema** | <a href="https://www.gnome-look.org/p/1267246/" target="_blank" rel="noopener noreferrer">Nordic Dark GTK</a> | Čista tamna GTK tema inspirirana arktičkim bojama |
+| **Ikone i kursor** | <a href="https://www.gnome-look.org/s/Gnome/p/1332404" target="_blank" rel="noopener noreferrer">Flattery Dark</a> & <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue</a> | Ravne ikone i elegantni moderni pokazivači miša |
+| **Primarni font** | <a href="https://fonts.google.com/specimen/Source+Code+Pro" target="_blank" rel="noopener noreferrer">Source Code Pro</a> | Monospace font optimiziran za čitljivost koda |
+
+---
+
+## Instalacija i kompilacija korak-po-korak
+
+Ovaj vodič pretpostavlja da krećete od čiste instalacije Pop!_OS-a. Kako bismo osigurali potpunu kontrolu nad ovisnostima (dependencies) i optimalne performanse, nekoliko jezgrih komponenti kompajlirat ćemo izravno iz izvornog koda.
+
+### 1. Sinkronizacija repozitorija i paketa sustava
+
+Prije preuzimanja ovisnosti, provjerite je li vaša lokalna baza podataka paketa ažurna i jesu li svi osnovni programi sustava potpuno nadograđeni:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Instalacija i konfiguracija BSPWM-a
+
+BSPWM je lagani tiling window manager koji prozore prikazuje kao listove potpunog binarnog stabla.
+
+#### Preuzimanje ključnih ovisnosti
+
+Kompajlirajte i pokrenite BSPWM sigurno instaliranjem potrebnih XCB i sistemskih biblioteka:
+
+```shell
+sudo apt install -y build-essential git vim xcb libxcb-util0-dev libxcb-ewmh-dev libxcb-randr0-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-xinerama0-dev libasound2-dev libxcb-xtest0-dev libxcb-shape0-dev
+```
+
+#### Kompilacija iz izvornog koda
+
+Klonirajte službeni repozitorij, kompajlirajte binarnu datoteku i izvršite instalaciju na razini cijelog sustava:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/baskerville/bspwm.git
+cd bspwm
+make
+sudo make install
+```
+
+#### Pokretanje konfiguracijskih datoteka
+
+Uspostavite strukturu konfiguracijskih direktorija i kopirajte zadane skripte za pokretanje:
+
+```shell
+mkdir -p ~/.config/bspwm
+cp examples/bspwmrc ~/.config/bspwm/
+chmod +x ~/.config/bspwm/bspwmrc
+cd ..
+```
+
+---
+
+### 3. Postavljanje alata Simple X Hotkey Daemon (sxhkd)
+
+Za razliku od drugih tiling window managera, BSPWM ne upravlja izravno unosom putem tipkovnice. Umjesto toga, oslanja se na zaseban daemon, **sxhkd**, koji povezuje pritiske tipki s naredbama.
+
+#### Kompilacija alata sxhkd
+
+```shell
+git clone https://github.com/baskerville/sxhkd.git
+cd sxhkd
+make
+sudo make install
+```
+
+#### Konfiguriranje prečaca na tipkovnici
+
+Kreirajte konfiguracijski direktorij i pripremite primjere definicija prečaca:
+
+```shell
+mkdir -p ~/.config/sxhkd
+cp ../bspwm/examples/sxhkdrc ~/.config/sxhkd/
+cd ..
+```
+
+> **Napomena o konfiguraciji:** Ako mijenjate `~/.config/sxhkd/sxhkdrc`, provjerite je li definirani emulator terminala ispravan. Ako testirate unutar standardnog GNOME shell okruženja prije same tranzicije, prilagodite zadani blok naredbi za terminal kako bi pozivao `gnome-terminal`.
+
+---
+
+### 4. Kompajliranje Polybara za prikaz statusnih traka
+
+Polybar je visoko modularan alat koji generira elegantne, prilagodljive statusne trake.
+
+#### Preuzimanje ovisnosti za izgradnju
+
+```shell
+sudo apt install -y cmake cmake-data pkg-config python3-sphinx libcairo2-dev libxcb1-dev libxcb-util0-dev libxcb-randr0-dev libxcb-composite0-dev python3-xcbgen xcb-proto libxcb-image0-dev libxcb-ewmh-dev libxcb-icccm4-dev libxcb-xkb-dev libxcb-xrm-dev libxcb-cursor-dev libasound2-dev libpulse-dev libjsoncpp-dev libmpdclient-dev libcurl4-openssl-dev libnl-genl-3-dev
+```
+
+#### Kompajliranje i instalacija
+
+```shell
+git clone --recursive https://github.com/polybar/polybar
+cd polybar
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+cd ../..
+```
+
+---
+
+### 5. Kompajliranje Picoma s eksperimentalnim pozadinskim sustavima
+
+Standardna radna okruženja koriste kompozitne sustave za upravljanje prozorima. Za BSPWM koristimo prilagođeni fork **Picoma** (koji održava `ibhagwan`), a koji podržava glatko dual-kawase zamućenje, prozirnost aktivnog prozora i elegantne zaobljene kutove prozora.
+
+#### Preuzimanje ovisnosti
+
+```shell
+sudo apt install -y meson libxext-dev libxcb1-dev libxcb-damage0-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-render-util0-dev libxcb-render0-dev libxcb-randr0-dev libxcb-composite0-dev libxcb-image0-dev libxcb-present-dev libxcb-xinerama0-dev libpixman-1-dev libdbus-1-dev libconfig-dev libgl1-mesa-dev libpcre2-dev libevdev-dev uthash-dev libev-dev libx11-xcb-dev
+```
+
+#### Generiranje binarne datoteke pomoću Ninje
+
+```shell
+git clone https://github.com/ibhagwan/picom.git
+cd picom
+git submodule update --init --recursive
+meson --buildtype=release . build
+ninja -C build
+sudo ninja -C build install
+cd ..
+```
+
+---
+
+### 6. Ključne komponente radne površine: Rofi i Alacritty
+
+Nakon što smo instalirali osnovnu arhitekturu za upravljanje prozorima, preuzimamo izbornik aplikacija i glavno terminalsko okruženje:
+
+```shell
+sudo apt install -y rofi alacritty
+```
+
+#### Postavljanje prilagođenih konfiguracija
+
+Preuzimamo repozitorij s unaprijed konfiguriranim datotekama (dotfiles) kako bismo izdvojili naše prilagođene postavke:
+
+```shell
+git clone https://github.com/lukapiplica/dots.git
+mkdir -p ~/.config/alacritty
+cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+```
+
+> **Savjet za hardversko ubrzanje:** Ako naiđete na pogrešku `GLSL 3.30 is not supported` na starijim grafičkim karticama ili u virtualnim okruženjima, prisilno pokrenite softversku rasterizaciju izmjenom konfiguracijske datoteke za Alacritty:
+>
+> ```shell
+> sudo nano /usr/share/applications/com.alacritty.Alacritty.desktop
+> ```
+> Zamijenite liniju `Exec=alacritty` s `Exec=bash -c "LIBGL_ALWAYS_SOFTWARE=1 alacritty"`.
+
+---
+
+## Poliranje sučelja i podešavanje okruženja
+
+Sada konfiguriramo ZSH, teme, fontove, pozadine i zaključane zaslone kako bismo povezali i zaokružili estetiku nordijskog radnog prostora.
+
+### 1. Tipografija i predmemoriranje fontova
+
+Ubacite primarni monospace font za programiranje kako biste osigurali ispravan prikaz simbola i terminalskih znakova (glyphs):
+
+```shell
+sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+fc-cache -fv
+```
+
+### 2. Postavljanje pozadinskih slika putem Feh-a
+
+Za programsko upravljanje i postavljanje pozadinske slike pri prijavi u sustav, instalirajte **feh** alat za naredbeni redak:
+
+```shell
+sudo apt install feh -y
+mkdir -p ~/Wall
+cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+```
+
+Ubacite naredbu za pokretanje pozadine u vašu `bspwmrc` datoteku kako bi se izvršila prilikom inicijalizacije window managera:
+
+```shell
+echo 'feh --bg-fill $HOME/Wall/Wallpapers/wallpaper2.jpeg &' >> ~/.config/bspwm/bspwmrc
+```
+
+### 3. Aktivacija prilagođenih Polybar tema
+
+Izvezite naše prilagođene Polybar postavke i kopirajte potrebne TrueType fontove kako biste omogućili prikaz ikona na statusnoj traci:
+
+```shell
+mkdir -p ~/.config/polybar
+cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
+sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
+fc-cache -fv
+```
+
+### 4. Optimizacija interaktivnog shella (ZSH i Powerlevel10k)
+
+Promijenite zadano shell okruženje iz standardnog Basha u ZSH, a zatim preuzmite **Oh-My-ZSH** okvir (framework):
+
+```shell
+sudo apt install zsh -y
+sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+#### Primjena Powerlevel10k prompta
+
+```shell
+git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+```
+
+Izmijenite konfiguraciju okruženja:
+1. Otvorite profil vašeg shella (`nano ~/.zshrc`).
+2. Postavite liniju aktivne teme na: `ZSH_THEME="powerlevel10k/powerlevel10k"`.
+3. Spremite i zatvorite. Pokrenite `source ~/.zshrc` ili upišite `p10k configure` kako biste prošli kroz vizualni asistent za postavljanje.
+
+### 5. Razvoj u Vimu: Integracija nordijskih tema
+
+Prenesite nordijsku paletu boja u Vim i instalirajte estetski dodatak za statusnu traku **Vim-Airline**:
+
+```shell
+mkdir -p ~/.vim/colors
+cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+```
+
+Klonirajte Airline proširenje:
+
+```shell
+git clone https://github.com/vim-airline/vim-airline.git ~/Downloads/vim-airline
+cp -r ~/Downloads/vim-airline/* ~/.vim/
+```
+
+Aktivirajte konfiguracijska pravila u vašem profilu uređivača teksta:
+
+```shell
+echo 'colorscheme nord' >> ~/.vimrc
+echo "let g:airline_theme='base16'" >> ~/.vimrc
+```
+
+### 6. Prilagodba Rofi izbornika aplikacija
+
+Kopirajte datoteku Nord teme i konfigurirajte je kao primarno sučelje:
+
+```shell
+mkdir -p ~/.config/rofi/themes
+cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+rofi-theme-selector
+```
+
+> **Aktivacija teme:** Dođite do `Nord theme` unutar izbornika, pritisnite **Enter** za pregled, te je primijenite na razini cijelog sustava pritiskom na **Alt + a**.
+>
+> Kako biste postavili Rofi kao vaš zadani pokretač aplikacija, ažurirajte svoje prečace na tipkovnici:
+> ```shell
+> nano ~/.config/sxhkd/sxhkdrc
+> ```
+> Izmijenite kombinaciju tipki za pokretanje aplikacija s `dmenu_run` na `rofi -show drun`.
+
+---
+
+## Produktivnost radnog prostora i CLI alati
+
+Kako bismo izgradili potpuno funkcionalnu razvojnu radnu stanicu, instalirat ćemo nekoliko programa za naredbeni redak i vizualnih alata koji će popuniti naše prilagođene radne prostore.
+
+![Prilagođena radna površina u nordijskom stilu koja prikazuje napredne nadzorne sustave i vizualizatore](../../../assets/blog/pop-os-nordic-bspwm/2.webp)
+
+### Instalacija prilagođenog CLI paketa alata
+
+Instalirajte moderne vizualizatore, monitore hardvera sustava i upravitelje datoteka koristeći standardne repozitorije paketa:
+
+```shell
+# Monitor sustava (Htop)
+sudo apt install htop -y
+
+# Efekt matrične kiše na zaslonu (Cmatrix)
+sudo apt install cmatrix -y
+
+# Minimalistički preglednik slika (Sxiv)
+sudo apt install sxiv -y
+
+# Terminalski upravitelj datoteka (Ranger)
+sudo apt install ranger -y
+
+# Digitalni terminalski sat (Tty-clock)
+sudo apt install tty-clock -y
+```
+
+### Napredni vizualizatori i alati za informacije o sustavu
+
+#### CAVA (Console-based Audio Visualizer)
+
+Kompajlirajte CAVA-u za generiranje stupčastih vizualizatora na temelju ALSA/PulseAudio ulaznih signala u stvarnom vremenu:
+
+```shell
+sudo add-apt-repository ppa:hsheth2/ppa -y
+sudo apt update
+sudo apt install cava -y
+```
+
+#### pfetch (Minimalistički alat za prikaz informacija o sustavu)
+
+```shell
+git clone https://github.com/dylanaraps/pfetch.git ~/Downloads/pfetch
+sudo install ~/Downloads/pfetch/pfetch /usr/local/bin/
+```
+
+#### Chafa (Alat za pretvaranje slika u znakove u terminalu)
+
+Chafa analizira standardne slike i pretvara ih u vrlo detaljan prikaz u obliku znakova (character art) renderiran unutar samog terminala:
+
+```shell
+git clone https://github.com/hpjansson/chafa.git ~/Downloads/chafa
+cd ~/Downloads/chafa
+./autogen.sh
+make
+sudo make install
+cd ~
+```
+
+#### Snake (Terminalska rekreacija klasika)
+
+Rekreirajte klasičnu Nokia zmijicu koristeći python-pygame biblioteke:
+
+```shell
+sudo apt install python3-pip -y
+python3 -m pip install -U pygame --user
+git clone https://github.com/Unixado/Snake.git ~/Downloads/Snake
+```
+
+Pokrenite igru izravno iz terminalskih sesija:
+
+```shell
+python3 ~/Downloads/Snake/src/game.py
+```
+
+![Terminalska igra Zmijica koja se izvodi unutar prilagođenog okruženja](../../../assets/blog/pop-os-nordic-bspwm/3.webp)
+
+#### Lollypop (Moderni audio player za radnu površinu)
+
+```shell
+sudo add-apt-repository ppa:gnumdk/lollypop -y
+sudo apt update
+sudo apt install lollypop -y
+```
+
+---
+
+## Prilagodba GTK i Firefox estetike
+
+Kako bi sučelje operativnog sustava izgledalo jedinstveno, aplikacije i internetski preglednici moraju dijeliti istu paletu boja.
+
+### 1. Integracija sučelja radne površine putem LXAppearance-a
+
+Za učitavanje i dodjeljivanje prilagođenih stilova widgeta, paketa ikona i pokazivača miša na laganim upraviteljima prozora, instalirajte LXAppearance:
+
+```shell
+sudo apt install lxappearance -y
+```
+
+Otvorite `lxappearance` kako biste odabrali i primijenili preuzete elemente nordijskog dizajna:
+* **GTK izgled sučelja:** <a href="https://www.gnome-look.org/p/1267246/" target="_blank" rel="noopener noreferrer">Nordic Dark theme</a>
+* **Biblioteka ikona:** <a href="https://www.gnome-look.org/s/Gnome/p/1332404" target="_blank" rel="noopener noreferrer">Flattery Dark icons</a>
+* **Paket pokazivača miša:** <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue cursor</a>
+
+### 2. Minimalističko uređenje preglednika (Firefox i Minimal Functional Fox)
+
+Preuzmite prilagođenu minimalističku userChrome konfiguraciju kako biste uklonili standardne naslovne trake, centrirali web elemente te uskladili rubove preglednika s nordijskom paletom boja:
+
+```shell
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
+cp -r ~/Downloads/dots/.firefoxthemes ~/
+```
+
+1. Pokrenite **Firefox**.
+2. Idite na **Preferences > Home** (Postavke > Početna stranica).
+3. Pronađite opciju **Homepage and new windows**, odaberite **Custom URLs**, te unesite odredišnu stazu koja pokazuje na vašu lokalnu početnu stranicu:
+   `file:///home/<VAŠE_KORISNIČKO_IME>/.firefoxthemes/startpage/Startpage/index.html`
+4. Ponovno pokrenite aplikaciju kako bi se primijenile promjene izgleda.
+
+---
+
+## Prečaci na tipkovnici i navigacija radnom površinom
+
+Popločani (tiling) upravitelji prozora optimiziraju produktivnost držeći vaše ruke na osnovnom redu tipkovnice. Tipka Windows/Super (`super`) konfigurirana je kao primarna modifikacijska tipka.
+
+U nastavku se nalazi standardni referentni popis zadanih i prilagođenih prečaca na tipkovnici:
+
+| Kombinacija tipki | Ciljani događaj / Radnja |
+| :--- | :--- |
+| <kbd>super + Enter</kbd> | Pokreće instancu Alacritty terminala s GPU ubrzanjem |
+| <kbd>super + Space</kbd> | Otvara Rofi izbornik aplikacija za pokretanje grafičkih alata |
+| <kbd>super + Escape</kbd> | Trenutačno ponovno učitava sxhkd konfiguracijska pravila |
+| <kbd>super + Alt + r</kbd> | Ponovno pokreće BSPWM upravitelj prozora |
+| <kbd>super + w</kbd> | Uništava/zatvara aktivni prozor u fokusu |
+| <kbd>super + [1-0]</kbd> | Navigira između radnih prostora od 1 do 10 |
+| <kbd>super + g</kbd> | Zamjenjuje prozor u fokusu s glavnim (master) okvirom |
+| <kbd>super + m</kbd> | Uključuje/isključuje uvećanje izgleda na cijeli zaslon |
+| <kbd>super + [h,j,k,l]</kbd> | Pomiče fokus prozora u određenom smjeru (Lijevo, Dolje, Gore, Desno) |
+| <kbd>super + Alt + [h,j,k,l]</kbd> | Širi granice fokusiranog prozora prema van |
+| <kbd>super + Alt + Shift + [h,j,k,l]</kbd> | Skuplja granice fokusiranog prozora prema unutra |
+| <kbd>super + s</kbd> | Uključuje/isključuje plutajući način rada (floating mode) na odabranom prozoru |
+| <kbd>super + Ctrl + [Tipke sa strelicama]</kbd> | Pomiče plutajući prozor po koordinatama |
+
+---
+
+## Zaključak i profesionalni osvrt
+
+Izgradnja okruženja radne površine iz modularnih CLI alata demonstrira fleksibilnost i dubinu sustava temeljenih na Linuxu. Osim čistog, minimalističkog nordijskog dizajna, ovaj BSPWM i Pop!_OS radni prostor nudi značajne prednosti u performansama: smanjeno opterećenje procesora i memorije, apsolutnu kontrolu nad mapiranjem prečaca te iznimno responzivan radni prostor skrojen za napredne tijekove razvoja softvera.
+
+*Bilo da ste programer, sistem administrator ili Linux entuzijast, izrada vlastitog radnog prostora vođenog tipkovnicom vrlo je isplativa investicija u vaše svakodnevno programersko iskustvo i operativnu učinkovitost.*

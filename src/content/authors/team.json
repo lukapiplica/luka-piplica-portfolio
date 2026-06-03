@@ -1,9 +1,8 @@
 {
-  "name": "Astro Rocket",
-  "bio": "Astro Rocket is a free, open-source Astro 6 starter theme. Built for speed, accessibility, and developer experience — clone it and start shipping.",
+  "name": "Luka Piplica",
+  "bio": "Personal portfolio and technical blog of Luka Piplica — IT Professional specializing in systems management, network administration, cybersecurity, and web development.",
   "social": {
-    "github": "https://github.com",
-    "linkedin": "https://linkedin.com",
-    "twitter": "https://x.com"
+    "github": "https://github.com/lukapiplica",
+    "linkedin": "https://linkedin.com/in/lukapiplica"
   }
 }

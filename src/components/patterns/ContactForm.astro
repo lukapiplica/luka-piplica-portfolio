@@ -4,18 +4,23 @@ import Textarea from '@/components/ui/form/Textarea/Textarea.astro';
 import Button from '@/components/ui/form/Button/Button.astro';
 import Icon from '@/components/ui/primitives/Icon/Icon.astro';
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 interface Props {
   action?: string;
   successMessage?: string;
   class?: string;
+  locale?: string;
 }
 
 const {
-  action = '/api/contact',
-  successMessage = 'Message sent successfully!',
+  action = 'https://formspree.io/f/YOUR_FORMSPREE_ID',
+  successMessage,
   class: className,
+  locale,
 } = Astro.props;
+
+const effectiveSuccessMessage = successMessage || t('contact.success', locale);
 ---
 
 <form
@@ -23,19 +28,21 @@ const {
   action={action}
   method="POST"
   class={cn('space-y-6', className)}
-  data-success-message={successMessage}
+  data-success-message={effectiveSuccessMessage}
+  data-sending-text={t('contact.sending', locale)}
+  data-error-message={t('contact.error', locale)}
 >
   <!-- Name + Email side by side on sm+ -->
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <Input
-      label="Name"
+      label={t('contact.name', locale)}
       name="name"
       type="text"
       required
       autocomplete="name"
     />
     <Input
-      label="Email"
+      label={t('contact.email', locale)}
       name="email"
       type="email"
       required
@@ -44,13 +51,13 @@ const {
   </div>
 
   <Input
-    label="Subject"
+    label={t('contact.subject', locale)}
     name="subject"
     type="text"
   />
 
   <Textarea
-    label="Message"
+    label={t('contact.message', locale)}
     name="message"
     required
     rows={5}
@@ -65,7 +72,7 @@ const {
 
   <div class="flex justify-center">
     <Button type="submit" id="submit-button" class="gap-2">
-      Send message
+      {t('contact.send', locale)}
       <Icon name="arrow-right" size="sm" />
     </Button>
   </div>
@@ -79,13 +86,16 @@ const {
 
     if (!form || !button || !message) return;
 
+    const originalButtonText = button.textContent || 'Send message';
     const successMessage = form.dataset.successMessage || 'Message sent successfully!';
+    const sendingText = form.dataset.sendingText || 'Sending…';
+    const errorMessage = form.dataset.errorMessage || 'Something went wrong. Please try again.';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       button.disabled = true;
-      button.textContent = 'Sending…';
+      button.textContent = sendingText;
       message.classList.add('hidden');
 
       try {
@@ -93,27 +103,37 @@ const {
         const response = await fetch(form.action, {
           method: 'POST',
           body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
         });
 
         const data = await response.json();
 
-        if (data.success) {
+        if (response.ok || data.success || data.ok) {
           message.textContent = successMessage;
           message.className = 'text-sm text-success';
           form.reset();
         } else {
-          const errors = data.errors
-            ? Object.values(data.errors).flat().join(', ')
-            : 'Something went wrong';
-          message.textContent = errors as string;
+          let errorText = errorMessage;
+          if (data && data.errors) {
+            if (Array.isArray(data.errors)) {
+              errorText = data.errors.map((e: any) => e.message || e).join(', ');
+            } else if (typeof data.errors === 'object') {
+              errorText = Object.values(data.errors).flat().join(', ');
+            } else if (typeof data.errors === 'string') {
+              errorText = data.errors;
+            }
+          }
+          message.textContent = errorText;
           message.className = 'text-sm text-destructive';
         }
       } catch {
-        message.textContent = 'Failed to send message. Please try again.';
+        message.textContent = errorMessage;
         message.className = 'text-sm text-destructive';
       } finally {
         button.disabled = false;
-        button.textContent = 'Send message';
+        button.textContent = originalButtonText;
         message.classList.remove('hidden');
       }
     });
@@ -122,3 +142,4 @@ const {
   initContactForm();
   document.addEventListener('astro:after-swap', initContactForm);
 </script>
+

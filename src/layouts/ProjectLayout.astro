@@ -23,6 +23,7 @@ interface Props {
   image?: ImageMetadata;
   imageAlt?: string;
   related?: CollectionEntry<'projects'>[];
+  locale?: string;
 }
 
 const {
@@ -38,15 +39,24 @@ const {
   image,
   imageAlt,
   related = [],
+  locale,
 } = Astro.props;
+
+import { t, localizedPath } from '@/i18n';
 
 const ogImage = image?.src || siteConfig.ogImage;
 
 const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Projects', href: '/projects' },
+  { label: t('nav.home', locale) || 'Home', href: localizedPath('/', locale) },
+  { label: t('nav.projects', locale) || 'Projects', href: localizedPath('/projects', locale) },
   { label: title },
 ];
+
+const getProjectUrl = (projectId: string) => {
+  // Remove locale prefix from id if exists (e.g., "en/project-name" -> "project-name")
+  const slug = projectId.replace(new RegExp(`^${locale}/`), '').replace(/\.mdx?$/, '');
+  return localizedPath(`/projects/${slug}`, locale);
+};
 ---
 
 <BaseLayout
@@ -54,6 +64,7 @@ const breadcrumbs = [
   description={description}
   image={ogImage}
   imageAlt={imageAlt || title}
+  locale={locale}
 >
   <Header
     slot="header"
@@ -63,6 +74,7 @@ const breadcrumbs = [
     size="lg"
     showCta={false}
     showScrollProgress
+    locale={locale}
   />
 
   <div class="min-h-screen pt-16">
@@ -78,6 +90,7 @@ const breadcrumbs = [
       repo={repo}
       image={image}
       imageAlt={imageAlt}
+      locale={locale}
     />
 
     <article class="pt-8 pb-[var(--space-section-md)]">
@@ -90,13 +103,13 @@ const breadcrumbs = [
 
         <footer class="border-border mt-12 border-t pt-8" data-reveal>
           <a
-            href="/projects"
+            href={localizedPath('/projects', locale)}
             class="text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 inline-flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Back to Projects
+            {locale === 'hr' ? 'Natrag na projekte' : t('projects.backToProjects', locale) || 'Back to Projects'}
           </a>
         </footer>
       </div>
@@ -105,14 +118,14 @@ const breadcrumbs = [
     {related.length > 0 && (
       <section class="py-[var(--space-section-md)] bg-background-secondary border-t border-border" data-reveal>
         <div class="mx-auto max-w-4xl px-6">
-          <h2 class="font-display text-2xl font-bold text-foreground mb-6">More projects</h2>
+          <h2 class="font-display text-2xl font-bold text-foreground mb-6">{locale === 'hr' ? 'Više projekata' : t('projects.moreProjects', locale) || 'More projects'}</h2>
           <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {related.map((project) => (
               <Card
                 variant="elevated"
                 hover
                 padding="lg"
-                href={`/projects/${project.id.replace(/\.mdx?$/, '')}`}
+                href={getProjectUrl(project.id)}
                 class="group flex flex-col"
               >
                 <div class="flex flex-1 flex-col">
@@ -138,5 +151,25 @@ const breadcrumbs = [
     )}
   </div>
 
-  <Footer slot="footer" layout="simple" background="secondary" />
+  <!-- Localized link rewriter for project content -->
+  <script is:inline define:vars={{ pageLocale: locale || 'en' }}>
+    (function () {
+      try {
+        if (pageLocale && pageLocale !== 'en') {
+          const contentEl = document.querySelector('[data-reveal-content]');
+          if (contentEl) {
+            const links = contentEl.querySelectorAll('a[href^="/projects/"]');
+            links.forEach(link => {
+              const href = link.getAttribute('href');
+              if (href && !href.startsWith('/' + pageLocale + '/')) {
+                link.setAttribute('href', '/' + pageLocale + href);
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <Footer slot="footer" layout="simple" background="secondary" locale={locale} />
 </BaseLayout>

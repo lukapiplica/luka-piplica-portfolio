@@ -1,39 +1,34 @@
 ---
-/**
- * ThemeSelector
- * A row of twelve colour swatches that switches the active colour theme at
- * runtime by writing `data-theme` on <html> and persisting to sessionStorage.
- *
- * Usage in Header:  <ThemeSelector />
- * Pass `class` to tint the label colour for floating / inverted headers.
- */
+import { t } from '@/i18n';
+
 interface Props {
   class?: string;
+  locale?: string;
 }
 
-const { class: className } = Astro.props;
+const { class: className, locale } = Astro.props;
 
-// All 12 themes in Tailwind color order
+// All 12 themes in Tailwind color order with localized names
 const themes = [
-  { id: 'orange',  name: 'Orange',  color: 'oklch(62.5% 0.22  38)'  },
-  { id: 'amber',   name: 'Amber',   color: 'oklch(68%   0.19  75)'  },
-  { id: 'lime',    name: 'Lime',    color: 'oklch(64%   0.27 130)'  },
-  { id: 'emerald', name: 'Emerald', color: 'oklch(62.5% 0.22 160)'  },
-  { id: 'teal',    name: 'Teal',    color: 'oklch(62.5% 0.22 190)'  },
-  { id: 'cyan',    name: 'Cyan',    color: 'oklch(65%   0.22 200)'  },
-  { id: 'sky',     name: 'Sky',     color: 'oklch(67%   0.21 222)'  },
-  { id: 'blue',    name: 'Blue',    color: 'oklch(62.5% 0.22 255)'  },
-  { id: 'indigo',  name: 'Indigo',  color: 'oklch(60%   0.24 264)'  },
-  { id: 'violet',  name: 'Violet',  color: 'oklch(62.5% 0.26 277)'  },
-  { id: 'purple',  name: 'Purple',  color: 'oklch(62.5% 0.25 303)'  },
-  { id: 'magenta', name: 'Magenta', color: 'oklch(58%   0.28 330)'  },
+  { id: 'orange',  name: t('theme.colors.orange', locale),  color: 'oklch(62.5% 0.22  38)'  },
+  { id: 'amber',   name: t('theme.colors.amber', locale),   color: 'oklch(68%   0.19  75)'  },
+  { id: 'lime',    name: t('theme.colors.lime', locale),    color: 'oklch(64%   0.27 130)'  },
+  { id: 'emerald', name: t('theme.colors.emerald', locale), color: 'oklch(62.5% 0.22 160)'  },
+  { id: 'teal',    name: t('theme.colors.teal', locale),    color: 'oklch(62.5% 0.22 190)'  },
+  { id: 'cyan',    name: t('theme.colors.cyan', locale),    color: 'oklch(65%   0.22 200)'  },
+  { id: 'sky',     name: t('theme.colors.sky', locale),     color: 'oklch(67%   0.21 222)'  },
+  { id: 'blue',    name: t('theme.colors.blue', locale),    color: 'oklch(62.5% 0.22 255)'  },
+  { id: 'indigo',  name: t('theme.colors.indigo', locale),  color: 'oklch(60%   0.24 264)'  },
+  { id: 'violet',  name: t('theme.colors.violet', locale),  color: 'oklch(62.5% 0.26 277)'  },
+  { id: 'purple',  name: t('theme.colors.purple', locale),  color: 'oklch(62.5% 0.25 303)'  },
+  { id: 'magenta', name: t('theme.colors.magenta', locale), color: 'oklch(58%   0.28 330)'  },
 ];
 ---
 
 <div
   class:list={['theme-selector flex flex-wrap items-center gap-1', className]}
   role="group"
-  aria-label="Select colour theme"
+  aria-label={t('theme.selectTheme', locale)}
 >
   {themes.map((theme) => (
     <button
@@ -42,7 +37,7 @@ const themes = [
       data-theme-id={theme.id}
       style={`background-color:${theme.color};--swatch:${theme.color}`}
       title={theme.name}
-      aria-label={`${theme.name} theme`}
+      aria-label={t('theme.colorSwatchLabel', locale, { name: theme.name })}
     />
   ))}
 </div>

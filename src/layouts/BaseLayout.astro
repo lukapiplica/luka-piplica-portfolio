@@ -10,6 +10,7 @@ import CursorTrail from '@/components/effects/CursorTrail.astro';
 import { createWebsiteSchema, createOrganizationSchema, createPersonSchema, createProfessionalServiceSchema } from '@/lib/schema';
 import type { Thing, WithContext } from 'schema-dts';
 import siteConfig from '@/config/site.config';
+import SearchModal from '@/components/search/SearchModal.astro';
 
 interface Props {
   title?: string;
@@ -29,6 +30,7 @@ interface Props {
   includeProfessionalServiceSchema?: boolean;
   extraSchemas?: WithContext<Thing>[];
   eagerReveal?: boolean;
+  locale?: string;
 }
 
 const {
@@ -44,6 +46,7 @@ const {
   includeProfessionalServiceSchema = false,
   extraSchemas = [],
   eagerReveal = false,
+  locale = 'en',
 } = Astro.props;
 
 // Build JSON-LD schemas
@@ -61,7 +64,7 @@ schemas.push(...extraSchemas);
 ---
 
 <!doctype html>
-<html lang="en" class="scroll-smooth dark" data-theme="blue" data-theme-mode="system">
+<html lang={locale} class="scroll-smooth dark" data-theme="blue" data-theme-mode="system">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -218,6 +221,28 @@ schemas.push(...extraSchemas);
         }
       })();
     </script>
+
+    <!-- Preferred locale tracking -->
+    <script is:inline>
+      (function () {
+        try {
+          const path = window.location.pathname;
+          const firstSegment = path.split('/').filter(Boolean)[0];
+          const locales = ['de', 'ja', 'es', 'zh', 'hr'];
+          if (locales.includes(firstSegment)) {
+            localStorage.setItem('preferred-locale', firstSegment);
+          } else if (
+            path === '/' ||
+            path.startsWith('/blog') ||
+            path.startsWith('/projects') ||
+            path.startsWith('/about') ||
+            path.startsWith('/contact')
+          ) {
+            localStorage.setItem('preferred-locale', 'en');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body class="min-h-screen bg-background text-foreground antialiased" data-eager-reveal={eagerReveal ? '' : undefined}>
@@ -241,6 +266,8 @@ schemas.push(...extraSchemas);
 
     <CursorTrail />
 
+    <SearchModal locale={locale} />
+
     <!-- Back to top button -->
     <button
       id="back-to-top"
@@ -256,7 +283,7 @@ schemas.push(...extraSchemas);
         <circle id="back-to-top-ring" cx="24" cy="24" r="21" fill="none" stroke="currentColor" class="text-brand-500" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="131.95" stroke-dashoffset="131.95" />
       </svg>
       <!-- Inner face -->
-      <span class="absolute inset-[5px] flex items-center justify-center rounded-full bg-background border border-border-strong text-foreground-muted shadow-md" aria-hidden="true">
+      <span class="absolute inset-1.25 flex items-center justify-center rounded-full bg-background border border-border-strong text-foreground-muted shadow-md" aria-hidden="true">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
       </span>
     </button>

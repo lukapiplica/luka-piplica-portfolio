@@ -1,0 +1,224 @@
+---
+title: "VPS Hardening: Praktični vodič za osiguravanje Linux poslužitelja"
+description: "Industrijski standard za osiguravanje čistih Linux instalacija, konfiguraciju kriptografije i vatrozida te proaktivno ublažavanje prijetnji."
+publishedAt: 2022-10-09
+author: "Luka Piplica"
+tags: ["linux", "security", "sysadmin", "devops", "hardening"]
+featured: false
+locale: hr
+image: "../../../assets/blog/securing-a-linux-server.mdx/featured.webp"
+imageAlt: "Retro zeleni ekran s porukom upozorenja o odbijenom pristupu"
+---
+
+Onog trenutka kada se novi virtualni privatni poslužitelj (VPS) ili instanca u oblaku pokrene s javnom IP adresom, on postaje meta. Automatizirani botneti neprestano skeniraju globalne IPv4 raspone, pokušavajući iskoristiti zadane priključke, probiti slabe lozinke grubom silom (brute-force) i identificirati nekrpane sustavne usluge. Ostavljanje poslužitelja na zadanim konfiguracijama otvoren je poziv na upad.
+
+Uspostavljanje čvrste, utvrđene sigurnosne osnove ključni je preduvjet za bilo koje produkcijsko okruženje, bilo da se radi o hostingu jednostavnih web aplikacija, poslužitelja baza podataka ili složenih API mreža. 
+
+Ovaj praktični vodič donosi korak-po-korak sigurnosni plan za utvrđivanje čiste Linux instalacije (s posebnim naglaskom na Debian i Ubuntu distribucije), konfiguriranje sigurnog kriptografskog pristupa, postavljanje vatrozida (firewalla) i implementaciju radnih procesa za proaktivno ublažavanje prijetnji.
+
+---
+
+## Specifikacija arhitekture utvrđivanja (Hardening)
+
+Umjesto instaliranja složenih alata trećih strana, učinkovito utvrđivanje poslužitelja koristi stabilne, ugrađene uslužne programe Linux podsustava. Ključne obrambene specifikacije koje se implementiraju u ovom vodiču navedene su u nastavku:
+
+| Sigurnosni vektor | Softver / Protokol | Tehnički cilj |
+| :--- | :--- | :--- |
+| **Operativni sustav** | Debian / Ubuntu | Čisto okruženje Linux poslužitelja na osnovnoj razini |
+| **Životni ciklus paketa** | `unattended-upgrades` | Automatizirano zakazivanje i izvršavanje kritičkih sigurnosnih zakrpa |
+| **Autorizacija pristupa** | Ed25519 Kriptografski ključevi | Brza autorizacija asimetričnim parom ključeva otporna na popratne kanale |
+| **Mrežna obrana** | UFW (Uncomplicated Firewall) | Strogo filtriranje paketa s praćenjem stanja (politika zadane zabrane) |
+| **Prikrivanje domaćina** | ICMP filter (`before.rules`) | Odbacuje dolazne echo zahtjeve kako bi sakrio prisutnost aktivnog poslužitelja od skenera |
+
+---
+
+## Faza 1: Sinkronizacija paketa i automatizacija zakrpa
+
+Održavanje softverskih paketa ažurnima najučinkovitija je obrana od poznatih CVE-ova (Common Vulnerabilities and Exposures).
+
+### 1. Ručna sinkronizacija sustava
+
+Započnite s ručnim ažuriranjem i nadogradnjom paketa kako biste osigurali čistu početnu točku:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Automatizacija kritičnih sigurnosnih zakrpa
+
+U produkcijskim okruženjima ručno svakodnevno ažuriranje sustava nije izvedivo. Sustav ćemo konfigurirati tako da automatski primjenjuje sigurnosna ažuriranja pomoću alata `unattended-upgrades`.
+
+Instalirajte potreban paket:
+
+```shell
+sudo apt install -y unattended-upgrades
+```
+
+Kako biste omogućili ažuriranja u pozadini i konfigurirali učestalost isporuke paketa, rekonfigurirajte pravila prioriteta paketa:
+
+```shell
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
+*(Odaberite **Yes** kada se od vas zatraži da omogućite automatsko preuzimanje i instalaciju sigurnosno kritičnih paketa u pozadini).*
+
+> **Napomena o sustavu:** Ovisno o jamstvima neprekidnog rada vaših usluga (uptime), trebali biste pažljivo pratiti automatske nadogradnje. Iako su sigurnosne zakrpe iznimno kritične, manji konflikti među paketima povremeno mogu poremetiti rad specijaliziranih aktivnih pozadinskih procesa (daemona).
+
+---
+
+## Faza 2: Utvrđivanje udaljenog pristupa ljusci (SSH)
+
+Osiguravanje SSH (Secure Shell) pozadinskog procesa ključni je korak u utvrđivanju poslužitelja. Prema zadanim postavkama, SSH radi na portu 22 i često dopušta autentifikaciju lozinkom, što ga čini ranjivim na automatizirane brute-force napade.
+
+### 1. Priprema direktorija i sigurnosna ograničenja
+
+Stvorite siguran `.ssh` direktorij unutar vašeg korisničkog direktorija i postavite stroga prava pristupa datotekama:
+
+```shell
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+```
+*(Prava pristupa postavljena na `700` osiguravaju da samo vlasnik direktorija ima dozvole za čitanje, pisanje i izvršavanje, što sprječava ostale lokalne korisnike da pregledavaju ili mijenjaju vaše vjerodajnice).*
+
+### 2. Generiranje Ed25519 kriptografskih parova ključeva
+
+Autentifikaciju lozinkom u potpunosti zamjenjujemo autentifikacijom pomoću asimetričnog para ključeva. Biramo moderni algoritam krivulje **Ed25519** jer je znatno brži od starijeg RSA algoritma, ima manje veličine ključeva i strukturno je otporan na napade putem popratnih kanala (side-channel attacks).
+
+Pokrenite naredbu za generiranje na svom lokalnom računalu (Windows PowerShell, macOS ili Linux terminal):
+
+```shell
+ssh-keygen -t ed25519
+```
+*Savjet: Uvijek osigurajte svoj par ključeva snažnom pristupnom lozinkom (passphrase). To osigurava da čak i ako vaša privatna datoteka ključa bude kompromitirana, ona se ne može dešifrirati bez te lozinke.*
+
+### 3. Slanje javnog ključa na udaljeni poslužitelj
+
+Zatim kopirajte svoj novoizgenerirani javni ključ (`id_ed25519.pub`) u datoteku `authorized_keys` na ciljanom poslužitelju.
+
+* **Linux / macOS klijent:**
+    ```shell
+    ssh-copy-id -i ~/.ssh/id_ed25519.pub SERVER_USER@SERVER_IP
+    ```
+* **Windows PowerShell klijent:**
+    ```powershell
+    scp $env:USERPROFILE/.ssh/id_ed25519.pub SERVER_USER@SERVER_IP:~/.ssh/authorized_keys
+    ```
+
+Nakon što kopirate ključ, provjerite možete li se uspješno udaljeno autentificirati bez unosa lozinke vašeg računa.
+
+### 4. Ograničavanje konfiguracije SSH pozadinskog procesa
+
+Nakon što su ključevi postavljeni, prijavite se na svoj poslužitelj i uredite konfiguracijsku datoteku SSH pozadinskog procesa kako biste onemogućili prijavu lozinkom i prilagodili mrežna ponašanja:
+
+```shell
+sudo nano /etc/ssh/sshd_config
+```
+Uključite ili izmijenite sljedeće direktive:
+
+1. **Dodjela prilagođenog porta:** Promijenite zadani SSH port na prilagođeni visoki port (npr. `4723`) kako biste izbjegli automatizirane bot skenere koji ciljaju port 22:
+    ```text
+    Port 4723
+    ```
+2. **Ograničenja IP obitelji:** Ograničite pozadinski proces da sluša isključivo na IPv4 protokolu (zamjenjujući zadanu direktivu `any`):
+    ```text
+    AddressFamily inet
+    ```
+3. **Onemogućavanje izravne prijave kao root:** Spriječite izravnu administrativnu root autentifikaciju, prisiljavajući korisnike da se povezuju putem standardnih računa i eskaliraju privilegije pomoću naredbe `sudo`:
+    ```text
+    PermitRootLogin no
+    ```
+4. **Obveza prijave isključivo ključem:** U potpunosti onemogućite nesigurnu prijavu putem lozinke:
+    ```text
+    PasswordAuthentication no
+    ```
+
+Spremite datoteku i ponovno pokrenite SSH pozadinski proces kako biste primijenili konfiguraciju:
+
+```shell
+sudo systemctl restart sshd
+```
+
+
+> **Upozorenje:** Nemojte zatvarati svoju aktivnu sesiju terminala nakon ponovnog pokretanja SSH pozadinskog procesa. Otvorite novi prozor terminala i provjerite možete li se uspješno povezati pomoću svog prilagođenog porta i privatnog ključa. To sprječava da ostanete zaključani izvan sustava ako ste napravili tipfeler u konfiguracijskoj datoteci.
+
+---
+
+## Faza 3: Postavljanje vatrozida s praćenjem stanja (UFW)
+
+Vatrozid s praćenjem stanja (stateful firewall) nadzire aktivne veze i blokira neovlašteni mrežni promet prije nego što on uopće dosegne vaše aplikacije.
+
+### 1. Revizija aktivnih mrežnih utičnica (Sockets)
+
+Prije blokiranja prometa, provjerite koje mrežne utičnice aktivno slušaju na vašem domaćinu:
+
+```shell
+sudo ss -tupln
+```
+*(Analizirajte izlazni rezultat kako biste bili sigurni da nećete blokirati portove koje koriste kritične aktivne usluge poput baza podataka, web poslužitelja ili predmemorije ključ-vrijednost).*
+
+### 2. Primjena pravila vatrozida
+
+Instalirajte alat Uncomplicated Firewall (UFW):
+
+```shell
+sudo apt install -y ufw
+```
+
+Uspostavite svoja ciljana pravila za autorizaciju portova. Budući da smo promijenili naš SSH port na `4723`, autorizirat ćemo dolazni TCP promet na tom specifičnom prilagođenom portu:
+
+```shell
+sudo ufw allow 4723/tcp
+```
+
+Omogućite vatrozid i provjerite njegov status:
+
+```shell
+sudo ufw enable
+sudo ufw status verbose
+```
+*(Izlazni status trebao bi potvrditi politiku zadane zabrane dolaznog prometa, s autoriziranim portom `4723` za TCP promet).*
+
+---
+
+## Faza 4: Obrambeno prikrivanje mreže (Odbacivanje ICMP-a)
+
+Prema zadanim postavkama, Linux poslužitelji odgovaraju na ICMP (Internet Control Message Protocol) echo zahtjeve (poznatije kao **ping**). Iako je to korisno za dijagnosticiranje mrežne povezivosti, hakeri i botneti koriste ping skeniranja kako bi otkrili aktivne domaćine na mreži i mapirali ciljane mrežne raspone.
+
+Onemogućavanje ping odgovora čini da vaš poslužitelj automatiziranim skenerima izgleda kao neaktivna (mrtva) IP adresa, čime se smanjuje vidljivost vašeg profila kao mete.
+
+1. Otvorite glavnu datoteku UFW pravila prije usmjeravanja (pre-routing rules):
+    ```shell
+    sudo nano /etc/ufw/before.rules
+    ```
+2. Pronađite odjeljak označen kao `# ok icmp codes for INPUT`.
+3. Izravno na vrhu ovog bloka (prije bilo kojeg pravila prihvaćanja koje se podudara), umetnite direktivu za odbacivanje (drop):
+    ```text
+    -A ufw-before-input -p icmp --icmp-type echo-request -j DROP
+    ```
+4. Spremite promjene i ponovno pokrenite poslužitelj kako biste primijenili pravila usmjeravanja paketa:
+    ```shell
+    sudo reboot now
+    ```
+
+Nakon što sustav završi s ponovnim pokretanjem, pokušajte pingati poslužitelj s vanjskog računala. Zahtjev će isteći (time out), što znači da poslužitelj uspješno skriva svoju mrežnu prisutnost.
+
+---
+
+## Tehnički rječnik: Leksikon utvrđivanja sustava
+
+| Pojam / Alat | Tehnički pregled | Prednost za vizualnu i opću sigurnost |
+| :--- | :--- | :--- |
+| **`unattended-upgrades`** | Automatizirani upravitelj sigurnosnim zakrpama | Periodički preuzima i primjenjuje kritične CVE zakrpe u pozadini, održavajući zavisnosti sigurnima bez potrebe za ručnim administratorskim nadzorom. |
+| **Ed25519 ključevi** | Asimetrični algoritam eliptičke krivulje | Pruža visokosiguran pristup temeljen na kriptografiji eliptičkih krivulja, nudeći veće brzine i manji otisak ključa u usporedbi sa starijim RSA algoritmom. |
+| **`sshd_config`** | Konfiguracijska datoteka SSH pozadinskog procesa | Središnja datoteka koja se koristi za ograničavanje politika pristupa, prilagodbu portova, obvezu prijave isključivo ključem i onemogućavanje izravnog root pristupa. |
+| **`ss`** | Alat za statistiku utičnica (sockets) | Moderni alat naredbenog retka koji se koristi za reviziju aktivnih TCP/UDP portova, utičnica koje slušaju i ID-ova procesa. |
+| **UFW** | Omotač za Uncomplicated Firewall | Sučelje naredbenog retka za iptables koje pruža jednostavan način za upravljanje politikama filtriranja paketa s praćenjem stanja. |
+| **ICMP Echo Request** | Paket protokola za kontrolne poruke na internetu | Dijagnostički paket koji se šalje radi provjere mrežne prisutnosti domaćina. Odbacivanje ovih paketa skriva vaš poslužitelj od automatiziranih skenera. |
+
+---
+
+## Zaključak i arhitektonska retrospektiva
+
+Utvrđivanje (hardening) Linux poslužitelja je stalan proces modeliranja prijetnji i smanjivanja površine napada vašeg sustava. Iako nijedan poslužitelj nije u potpunosti nemoguće hakirati, primjena ovih osnovnih principa dubinske obrane — obveza SSH pristupa isključivo putem ključa, automatizacija zakrpa, konfiguriranje vatrozida s praćenjem stanja i odbacivanje mrežnih ping zahtjeva — znatno podiže ljestvicu za ulazak, štiteći vašeg domaćina i usluge od automatiziranih bot skeniranja i brute-force kampanja.
+
+*Implementacija robusne konfiguracije dubinske obrane na poslužiteljima javnog usmjerenja pokazuje kako sustavna primjena pravila i proaktivno modeliranje prijetnji čine temelj sigurnog inženjeringa u oblaku i pouzdanosti infrastrukture.*

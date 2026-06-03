@@ -1,0 +1,264 @@
+---
+title: "GNOME postaje Nord: Pretvaranje Ubuntua u radnu stanicu upravljanu tipkovnicom"
+description: "Vodič za programere o izgradnji prilagođenog i produktivnog tiling radnog okruženja na Ubuntu GNOME-u uz Nord estetiku."
+publishedAt: 2021-10-19
+author: "Luka Piplica"
+tags: ["linux", "gnome", "ubuntu", "dotfiles", "customization"]
+featured: false
+locale: hr
+image: "../../../assets/blog/ubuntu-nordic-gnome/featured.webp"
+imageAlt: "Retro 8-bitni piksel art starinskog stolnog računala s efektom beskonačne rekurzije na ekranu"
+---
+
+GNOME je iznimno cijenjen u Linux ekosustavu zbog svoje stabilnosti, modularnog okvira za proširenja i uglađenih stolnih usluga. Međutim, napredni korisnici i programeri često preferiraju učinkovitost popločavanja (tiling) prozora pomoću tipkovnice. Tradicionalno je to zahtijevalo prijelaz na prilagođeni upravitelj prozora kao što su BSPWM ili i3.
+
+Srećom, iskorištavanjem ekosustava GNOME Shell proširenja i System76-ovog Pop Shell kompajlera za automatsko popločavanje, moguće je pretvoriti Ubuntuov standardni GNOME desktop u ultra-produktivnu radnu stanicu upravljanu tipkovnicom — zadržavajući praktičnost sustavskih servisa radnog okruženja uz postizanje učinkovitosti upravitelja prozora.
+
+Ovaj vodič pruža detaljan pregled izgradnje elegantnog radnog prostora s automatskim popločavanjem na Ubuntuu, usredotočenog na profesionalnu **Nordic** paletu boja i prilagođene uslužne programe naredbenog retka.
+
+---
+
+## Osnovna arhitektura sustava i vizualna paleta
+
+Kako bismo izgradili objedinjenu radnu stanicu visokih performansi, zamjenjujemo standardne interakcije s prozorima skriptama za automatsko popločavanje i primjenjujemo dosljednu, visokokontrastnu tamnu GTK temu. Glavne specifikacije okruženja strukturirane su u nastavku:
+
+| Komponenta | Softver / Projekt | Tehnička svrha i uloga |
+| :--- | :--- | :--- |
+| **Operativni sustav** | <a href="https://ubuntu.com/" target="_blank" rel="noopener noreferrer">Ubuntu</a> | Stabilna Linux distribucija temeljena na Debianu |
+| **Radno okruženje** | <a href="https://www.gnome.org/" target="_blank" rel="noopener noreferrer">GNOME</a> | Glavni upravitelj radne površine i kompozitor zaslona |
+| **Sustav za popločavanje prozora** | <a href="https://github.com/pop-os/shell" target="_blank" rel="noopener noreferrer">Pop Shell</a> | Proširenje za automatsko popločavanje upravljano tipkovnicom |
+| **Estetika / GTK Tema** | <a href="https://www.gnome-look.org/p/1267246" target="_blank" rel="noopener noreferrer">Nordic</a> | Duboka arktičko-plava paleta za okvire aplikacija |
+| **Skup ikona** | <a href="https://www.gnome-look.org/p/1332404" target="_blank" rel="noopener noreferrer">Flatery Dark</a> | Visokokontrastne, minimalističke ravne vektorske ikone |
+| **Pokazivač miša** | <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue</a> | Prilagođeni kružni moderni pokazivač miša |
+| **Zadani preglednik** | <a href="https://www.mozilla.org/en-US/firefox/new/" target="_blank" rel="noopener noreferrer">Firefox</a> | Web preglednik visokih performansi, usmjeren na privatnost |
+
+---
+
+## Instalacija korak-po-korak i podešavanje radnog prostora
+
+Kako biste osigurali apsolutnu stabilnost sustava, preporučujemo da počnete od čiste instalacije Ubuntua (kao što je Minimalna instalacija kako bi se smanjio početni broj paketa).
+
+### 1. Sinkronizacija repozitorija i nadogradnje
+
+Najprije sinkronizirajte indekse paketa i nadogradite osnovne komponente sustava:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Postavljanje GNOME proširenja i alata za podešavanje (Tweaks)
+
+Za upravljanje temama i prilagođenim proširenjima panela, instaliramo upravitelj GNOME proširenja i uslužni program Tweaks:
+
+```shell
+sudo apt install -y gnome-tweaks gnome-shell-extensions
+```
+
+#### Instaliranje ključnih GNOME Shell proširenja
+
+Otvorite Firefox, idite na <a href="https://extensions.gnome.org/" target="_blank" rel="noopener noreferrer">Portal GNOME proširenja</a>, preuzmite dodatak za povezivanje s preglednikom i instalirajte sljedeća tri proširenja pomicanjem njihovih prekidača na **Uključeno** (On):
+
+1.  <a href="https://extensions.gnome.org/extension/1160/dash-to-panel/" target="_blank" rel="noopener noreferrer">Dash to Panel</a>: Kombinira gornju traku i sustavni dok u jednu, kohezivnu traku zadataka, štedeći dragocjeni prostor na zaslonu.
+2.  <a href="https://extensions.gnome.org/extension/19/user-themes/" target="_blank" rel="noopener noreferrer">User Themes</a>: Omogućuje učitavanje prilagođenih tema GTK ljuske izravno iz korisničkih mapa.
+3.  <a href="https://extensions.gnome.org/extension/1446/transparent-window-moving/" target="_blank" rel="noopener noreferrer">Transparent Window Moving</a>: Dodaje suptilne prilagodbe neprozirnosti pri pomicanju plutajućih slojeva prozora, poboljšavajući prostornu vidljivost.
+
+*Savjet: Otvorite aplikaciju **Gnome Tweaks**, idite na karticu „Ekstenzije” (Extensions), provjerite jesu li proširenja aktivna i isključite naslijeđene ikone radne površine (Desktop Icons). Postavite vrijednost neprozirnosti za Transparent Window Moving na `0.2` u njegovim postavkama za optimalan vizualni balans.*
+
+### 3. Integracija Pop Shell sustava za automatsko popločavanje
+
+System76-ovo proširenje **Pop Shell** pruža napredne značajke popločavanja (kao što su automatsko popločavanje u obliku binarnog stabla, konfiguracija razmaka i promjena fokusa prozora putem tipkovnice) izravno na GNOME-u.
+
+Instalirajte ovisnosti za kompajliranje:
+
+```shell
+sudo apt install -y git node-typescript make
+```
+
+Idite u svoju lokalnu mapu Preuzimanja (Downloads), klonirajte izvorni repozitorij Pop Shella i kompajlirajte ga:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/pop-os/shell.git
+cd shell
+make local-install
+```
+
+Nakon uspješnog kompajliranja, ponovno učitajte GNOME Shell (pritiskom na `Alt + F2`, upisivanjem `r` i pritiskom na `Enter`, ili se odjavite i ponovno prijavite). Omogućite značajku popločavanja klikom na novu ikonu za popločavanje u vašem gornjem statusnom panelu.
+
+---
+
+## Kompajliranje i instalacija CLI paketa za produktivnost
+
+Kako biste svoje popločane radne prostore ispunili učinkovitim aplikacijama utemeljenim na terminalu, kompajlirajte i instalirajte ove uslužne programe:
+
+### 1. Informacije o sustavu u terminalu i monitori sustava
+
+Instalirajte standardne programe za vizualizaciju i nadzor sustava:
+
+```shell
+# Vizualna nadzorna ploča hardvera (Htop)
+sudo apt install -y htop
+
+# Dohvatnik pojedinosti o sustavu u naredbenom retku (Neofetch)
+sudo apt install -y neofetch
+
+# Terminalni preglednik datoteka (Ranger)
+sudo apt install -y ranger
+
+# Terminalni digitalni sat (Tty-clock)
+sudo apt install -y tty-clock
+
+# Retro vizualizator koda (Cmatrix)
+sudo apt install -y cmatrix
+
+# Terminalni procesori teksta (Vim i Zathura čitač PDF-a)
+sudo apt install -y vim zathura
+```
+
+### 2. Glazbeni player za radnu površinu (Lollypop)
+
+Za upravljanje lokalnim medijskim datotekama uz prekrasno, lagano sučelje:
+
+```shell
+sudo apt install -y lollypop
+```
+
+### 3. Generiranje znakovne umjetnosti u terminalu (cbonsai)
+
+Kompajlirajte generator bonsai stabla u terminalu koji se temelji na ncursesu:
+
+```shell
+cd ~/Downloads
+sudo apt install -y libncursesw5-dev
+git clone https://gitlab.com/jallbrit/cbonsai.git
+cd cbonsai
+make install PREFIX=~/.local
+```
+
+### 4. Interaktivna Tetris igra u terminalu (tty-tetris)
+
+Kompajlirajte prilagođenu Tetris igru visokih performansi izravno za prozore terminala:
+
+```shell
+cd ~/Downloads
+sudo apt install -y cmake
+git clone https://github.com/Holixus/tty-tetris-v2.git
+cd tty-tetris-v2
+cmake .
+make 
+sudo make install
+```
+
+### 5. Kompajliranje CAVA-e (Konzolni akustični vizualizator za Alsa-u)
+
+Kompajlirajte CAVA audio vizualizator za praćenje izlaza zvuka s visokokontrastnim stupcima:
+
+```shell
+# Instalacija zaglavlja za kompajliranje
+sudo apt install -y libfftw3-dev libasound2-dev libncursesw5-dev libpulse-dev libtool automake libiniparser-dev
+
+# Izvoz zastavice zaglavlja
+export CPPFLAGS=-I/usr/include/iniparser
+
+# Kloniranje i kompajliranje CAVA izvornog koda
+cd ~/Downloads
+git clone https://github.com/karlstav/cava.git
+cd cava
+./autogen.sh
+./configure
+make
+sudo make install
+```
+
+### 6. Alat za provjeru brzine tipkanja u terminalu (Ttyper)
+
+Instalirajte monitor brzine tipkanja u terminalu temeljen na Rustu:
+
+```shell
+sudo apt install -y cargo
+cargo install ttyper
+```
+
+---
+
+## Remont Grub pokretača i tema
+
+Vrhunsko vizualno okruženje počinje prije nego što se operativni sustav uopće pokrene. Instalirat ćemo prilagođeni zaslon pokretača sustava i primijeniti Nordijsku paletu boja na sve aplikacijske ljuske.
+
+### 1. Vizualna nadogradnja pokretača sustava (Bootloader)
+
+Klonirajte repozitorij Sekiro GRUB teme pokretača i pokrenite skriptu za automatsku instalaciju:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/semimqmo/sekiro_grub_theme.git
+cd sekiro_grub_theme
+sudo ./install.sh
+```
+
+### 2. Primjena Nordijskih vizualnih elemenata
+
+Za prilagodbu rubova prozora i vektorskih ikona, stvorite dva skrivena direktorija u svojoj lokalnoj početnoj mapi:
+
+```shell
+cd ~/
+mkdir -p .themes
+mkdir -p .icons
+```
+
+* **GTK Teme:** Preuzmite <a href="https://www.gnome-look.org/p/1267246" target="_blank" rel="noopener noreferrer">Nordic GTK temu</a> i raspakirajte njezinu mapu izravno u svoj novi `~/.themes` direktorij.
+* **Skupovi ikona:** Raspakirajte <a href="https://www.gnome-look.org/p/1332404" target="_blank" rel="noopener noreferrer">Flatery Dark temu ikona</a> izravno u `~/.icons`.
+* **Pokazivač miša:** Raspakirajte <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue pokazivač</a> izravno u `~/.icons`.
+
+Otvorite **GNOME Tweaks**, idite na karticu **Izgled** (Appearance) i odaberite **Nordic** za aplikacije/teme ljuske, **Flatery Dark** za ikone i **Oreo Blue** za pokazivače.
+
+---
+
+## Prikaz izgleda radnog prostora i prilagodbe sustava
+
+Nakon što se omogući automatsko popločavanje i primijene teme, vaš radni prostor organizira prozore aplikacija s čistim, geometrijskim razmacima i visokim vizualnim kontrastom.
+
+### Izgled sustava i radni prostor s terminalom
+
+Radni prostor s terminalom koristi standardne mreže rasporeda kako bi ključne metrike sustava i tekstualne datoteke ostale vidljive u stvarnom vremenu, uklanjajući preklapanje prozora:
+
+![Ubuntu GNOME prilagođen s Nordic temom prikazuje aktivne rasporede terminala i specifikacije sustava](../../../assets/blog/ubuntu-nordic-gnome/1.webp)
+
+### Minimalistička početna stranica i glazbeni radni prostor
+
+Početni zaslon prikazuje prilagođene pozadine radne površine, dinamične vizualizatore zvuka (CAVA), minimalističku početnu stranicu Firefoxa i lokalne Python uslužne programe u terminalu:
+
+![Potpuno prilagođeni Nordijski desktop radni prostor uključujući početnu stranicu preglednika, popločavanje terminala uživo i widgete sustava](../../../assets/blog/ubuntu-nordic-gnome/2.webp)
+
+---
+
+## Tehnički rječnik: Leksikon prilagođene radne stanice
+
+| Alat | Tehnički pregled | Vizualna i operativna korist |
+| :--- | :--- | :--- |
+| **Pop Shell** | Omotač za upravljanje upraviteljem prozora | Pretvara pokretanje aplikacija u čiste particije binarnog stabla. Štedi prostor na monitoru i smanjuje ovisnost o mišu. |
+| **Neofetch** | Kriptografski dohvatnik vizualnih informacija o sustavu | Oblikuje ključne specifikacije (jezgra, ljuska, teme sustava) uz ASCII prikaz operativnog sustava visoke razlučivosti. |
+| **Zathura** | Lagani čitač PDF-a nalik Vimu | Prikazuje dokumente koristeći prilagođene prečace na tipkovnici i minimalno zauzeće memorije, uz inverziju boja stranice za tamni način rada. |
+| **Ranger** | ncurses python preglednik datoteka | Pretvara navigaciju mapama u brzu mrežu terminala s pregledima hijerarhijskih direktorija u više stupaca. |
+| **Vim** | Napredni uređivač teksta u terminalu | Brzi IDE temeljen na terminalu s modalnim prečacima za uređivanje i dubokim opcijama prilagodbe koda. |
+| **cbonsai** | CLI algoritam za vektorsku animaciju | Iterativno ispisuje stabla znakova unutar otvorenih ljuski, dodajući vizualni šarm pozadinskim terminalima. |
+| **tty-tetris** | C++ matrica igre Tetris u terminalu | Retro igra s visokom stopom osvježavanja koja se izvodi unutar terminala pomoću mapiranja tipkovnice. |
+| **ttyper** | Alat za testiranje tipkanja temeljen na Rustu | Mjeri brzinu (WPM) i točnost sricanja unesenih znakova tijekom sesija u terminalu. |
+| **Nordic GTK** | Usklađena tema arktičkih boja | Uklanja zasljepljujuće bijelo svjetlo sučelja, zamjenjujući ga elegantnim, ugodnim tamnoplavim tonovima i pastelnim naglascima. |
+| **Flatery** | Biblioteka ravnih ikona visokog kontrasta | Poravnava siluete ikona pokretača i trake zadataka za jedinstvenu, modernu vektorsku estetiku. |
+| **Oreo Blue** | Vektorski skaliran kružni pokazivač | Zamjenjuje tradicionalnu strelicu pokazivača modernom, dobro vidljivom kružnom metom. |
+| **Firefox** | Memorijski siguran prilagođeni web preglednik | Visoko prilagodljiv preglednik konfiguriran s prilagođenim CSS početnim stranicama (`userChrome.css`) za minimalizam. |
+| **tty-clock** | Modul vremenskog signala u terminalu | Prikazuje vrijeme sustava koristeći velike blokove znakova u terminalu. |
+| **CAVA** | Spekturalni audio vizualizator sa stupcima | Pretvara frekvencije zvuka radne površine u stvarnom vremenu u responzivne vizualne stupce. |
+| **HTop** | Nadzorna ploča aktivnog upravitelja sustava | Napredni upravitelj zadataka koji prikazuje stvarno korištenje procesora/memorije, prosjeke opterećenja i aktivne procese. |
+| **CMatrix** | Pokretač za klizanje nestalnog teksta | Prikazuje zelene animacije padajućih znakova koje odgovaraju estetici klasičnih znanstveno-fantastičnih računala. |
+| **Lollypop** | Moderni katalog za reprodukciju glazbe | Analizira glazbene metapodatke i omote, pružajući estetsko sučelje glazbenog playera na radnoj površini. |
+
+---
+
+## Zaključak i retrospektiva prilagodbe
+
+Prilagodba monolitnog radnog okruženja kao što je GNOME pokazuje da ne morate žrtvovati moderne usluge sustava ili stabilnost uređaja kako biste uživali u učinkovitosti upravitelja prozora upravljanog tipkovnicom. Integracija System76 skripti za automatsko popločavanje sa standardnim Ubuntu paketima rezultira brzim, fluidnim i lijepim razvojnim okruženjem.
+
+*Ovaj pregled radnog okruženja namijenjen je u obrazovne i referentne svrhe, prikazujući duboki potencijal prilagodbe sustava otvorenog koda i tijekova rada u terminalu.*

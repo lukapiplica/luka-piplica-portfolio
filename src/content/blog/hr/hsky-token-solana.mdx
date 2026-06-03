@@ -1,0 +1,238 @@
+---
+title: "Lansiranje prilagođenog SPL tokena na Solani: Praktični CLI vodič"
+description: "Sveobuhvatni korak-po-korak vodič za programere o kompajliranju blockchain ovisnosti temeljenih na Rustu, stvaranju SPL tokena na Solana mreži i razumijevanju decentraliziranih struktura metapodataka."
+publishedAt: 2022-01-22
+author: "Luka Piplica"
+tags: ["cryptocurrency", "solana", "blockchain", "rust", "linux"]
+featured: false
+locale: hr
+image: "../../../assets/blog/hsky-token-solana/featured.webp"
+imageAlt: "Ručno crtana stilizirana ilustracija novčića Bitcoina koji pada poput gorućeg meteora ili kometa na plavoj pozadini"
+---
+
+Uspon decentraliziranih financija (DeFi) i tokenizacije iz temelja je promijenio globalni financijski ekosustav. Kriptografski tokeni — za razliku od samostalnih kriptovaluta s nativnim blockchainima osnovnog sloja (kao što su Bitcoin ili Solana) — implementiraju se na već postojećim platformama za pametne ugovore.
+
+Za programere koji žele lansirati vlastite tokene, **Solana** se nametnula kao vodeći ekosustav. Koristeći jedinstveni konsenzusni mehanizam poznat kao **Proof of History (PoH)**, u kombinaciji s mogućnostima paralelnog procesiranja koje pruža izvršno okruženje **Sealevel**, Solana omogućuje transakcijske naknade manje od djelića centa i vrijeme potvrde unutar jedne sekunde.
+
+Ovaj tehnički vodič donosi korak-po-korak postupak za postavljanje sigurnog Debian Linux okruženja isključivo u CLI-ju, kompajliranje blockchain ovisnosti temeljenih na Rustu, kovanje (*minting*) prilagođenog **Solana Program Library (SPL)** tokena te razumijevanje starih (*legacy*) i modernih standarda za metapodatke tokena.
+
+> **Napomena o ažuriranju (19. svibnja 2026.):** Solana Labs je u međuvremenu proglasio zastarjelim i arhivirao GitHub repozitorij `token-list` spomenut u ovom vodiču. Metapodaci tokena sada se obrađuju izravno na lancu (*on-chain*) putem Metaplexa. Zbog ove migracije, stariji tokeni poput HSKY-ja koji nisu ažurirani na novi on-chain standard više se ne indeksiraju na Solscanu, ali temeljni blockchain koncepti ostaju potpuno isti!
+
+---
+
+## Arhitektura i preduvjeti sustava
+
+Zbog sigurnosti i reproducibilnosti, ovu arhitekturu tokena gradimo unutar minimalnog **Debian Linux virtualnog stroja (isključivo CLI)**. Uklanjanje grafičkih korisničkih sučelja (GUI) smanjuje napadačku površinu (*attack surface*) sustava i osigurava maksimalnu kriptografsku izolaciju.
+
+### Potreban softver i platforme
+
+* **Operativni sustav za forenziku / kovanje:** <a href="https://www.debian.org/" target="_blank" rel="noopener noreferrer">Debian Linux</a> (instalacija isključivo u CLI-ju)
+* **Upravljanje verzijama:** <a href="https://github.com/" target="_blank" rel="noopener noreferrer">GitHub</a> (za udomljavanje početnih datoteka repozitorija)
+* **Likvidnosni prolaz:** <a href="https://www.binance.com/en" target="_blank" rel="noopener noreferrer">Binance</a> (ili bilo koja regulirana mjenjačnica za kupnju plinskih tokena)
+* **Klijentski novčanici:** <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer">Phantom Wallet</a> (proširenje za preglednik) i <a href="https://solflare.com/" target="_blank" rel="noopener noreferrer">Solflare</a> (mobilno/hardversko sučelje)
+
+> **Važno:** Stvaranje računa i izvršavanje transakcija na Solana mreži zahtijeva plin (*gas*). Morate nabaviti mali dio **SOL** tokena kako biste pokrili transakcijske naknade.
+
+---
+
+## Izvršavanje u CLI-ju i kovanje korak po korak
+
+### 1. Priprema CLI radnog prostora
+
+Instalirajte čisti, minimalni operativni sustav Debian Linux u virtualno okruženje. Slike u nastavku prikazuju uspješno pokretanje minimalnog Debian sustava:
+
+![Proces podizanja Debian Linux CLI sustava u virtualnoj konzoli](../../../assets/blog/hsky-token-solana/1.webp)
+
+![Aktivna Debian CLI terminalska sesija spremna za ovisnosti](../../../assets/blog/hsky-token-solana/2.webp)
+
+Nakon što se prijavite u svoju CLI konzolu, sinkronizirajte lokalni indeks paketa i nadogradite sve osnovne pakete sustava:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Instalacija Solana Tool Suite-a
+
+Kako biste izravno komunicirali sa Solana ledgerom (glavnom knjigom), instalirajte službene Solana CLI binarne datoteke:
+
+```shell
+sh -c "$(curl -sSfL https://release.solana.com/v1.8.5/install)"
+```
+
+Nakon što se instalacijska skripta završi, osvježite varijable okruženja svoje aktivne ljuske (shell-a) tako da izađete iz sesije i ponovno se prijavite ili pokretanjem:
+
+```shell
+source ~/.profile
+```
+
+### 3. Generiranje kriptografskog para ključeva
+
+Svaki novčanik na Solana mreži predstavljen je asimetričnim kriptografskim parom ključeva koji se sastoji od javnog ključa (adresa novčanika) i privatnog ključa (koji daje dopuštenje za trošenje sredstava). Generirajte novi lokalni par ključeva:
+
+```shell
+solana-keygen new
+```
+
+Tijekom generiranja, od vas će se tražiti unos neobavezne BIP39 pristupne lozinke (*passphrase*). Nakon završetka, bit će prikazani vaš javni ključ i mnemonička pristupna fraza (*seed phrase*) od 12 riječi. 
+
+> **Upozorenje:** Vaša pristupna fraza od 12 riječi je glavni ključ (*master key*) za vaša sredstva. Zapišite je na papir izvan mreže (*offline*) i pohranite na sigurno. Nikada je nemojte dijeliti s drugima niti je spremati u obliku običnog teksta.
+
+![Generiranje para ključeva u naredbenom retku s prikazom javnog ključa i konfiguracije pristupne fraze](../../../assets/blog/hsky-token-solana/3.webp)
+
+### 4. Financiranje novčanika za kovanje
+
+Za kupnju SOL tokena potrebnih za plin (*gas*), upotrijebite mjenjačnicu poput Binancea:
+
+![Kupnja nativnih SOL tokena na sučelju mjenjačnice Binance](../../../assets/blog/hsky-token-solana/5.webp)
+
+Nakon što nabavite SOL, izvršite prijenos s mjenjačnice na svoj novogenerirani **javni ključ** (adresu novčanika):
+
+![Izvršavanje isplate na blockchainu na CLI adresu javnog ključa](../../../assets/blog/hsky-token-solana/6.webp)
+
+Kako biste potvrdili da je transakcija provedena i provjerili stanje svog aktivnog računa izravno iz Debian terminala, pokrenite:
+
+```shell
+solana balance
+```
+
+### 5. Kompajliranje Rusta i razvojnih biblioteka
+
+Sučelje naredbenog retka (CLI) za Solana Program Library (SPL) zahtijeva **Rust kompajler** kako bi se izgradile lokalne konfiguracije.
+
+Instalirajte Rustup i zadani Cargo alatni lanac (*toolchain*):
+
+```shell
+curl https://sh.rustup.rs -sSf | sh
+```
+*(Pritisnite `1` kada se pojavi upit za nastavak sa standardnom instalacijom).*
+
+![Instalacija Rust kompajlerskog alatnog lanca pomoću rustup instalacijskog programa](../../../assets/blog/hsky-token-solana/7.webp)
+
+Ponovno učitajte profile svoje ljuske ili pokrenite `source $HOME/.cargo/env`. Zatim instalirajte sistemske ovisnosti za kompajliranje:
+
+```shell
+sudo apt install -y libudev-dev libssl-dev pkg-config build-essential
+```
+
+Kompajlirajte i instalirajte uslužni program SPL Token CLI globalno pomoću Cargo-a:
+
+```shell
+cargo install spl-token-cli
+```
+
+### 6. Inicijalizacija i kovanje SPL tokena
+
+Nakon što su naši alati kompajlirani, a novčanik financiran, inicijaliziramo registar prilagođenog tokena na Solana ledgeru.
+
+#### Korak A: Stvaranje nacrta tokena
+Inicijalizirajte potpuno novi mint (izvorište) SPL tokena:
+
+```shell
+spl-token create-token
+```
+Terminal će ispisati vaš jedinstveni **Token ID** (adresu minta).
+
+#### Korak B: Otvaranje računa za token
+Prije nego što novčanik može primiti ili držati određeni SPL token, mora otvoriti povezani račun tokena (*Associated Token Account - ATA*) vezan za taj specifični ID minta:
+
+```shell
+spl-token create-account <YOUR_TOKEN_ID>
+```
+
+![Inicijalizacija minta SPL tokena i otvaranje povezanog računa tokena](../../../assets/blog/hsky-token-solana/8.webp)
+
+#### Korak C: Kovanje zalihe
+Iskujte (*mint*) željenu količinu tokena na svoj povezani račun tokena:
+
+```shell
+spl-token mint <YOUR_TOKEN_ID> <MINT_QUANTITY> <YOUR_ASSOCIATED_ACCOUNT_ID>
+```
+
+![Kovanje zalihe prilagođenog HSKY tokena na lokalni račun](../../../assets/blog/hsky-token-solana/9.webp)
+
+Čestitamo! Vaš prilagođeni token sada je aktivan na Solana blockchainu.
+
+### 7. Slanje tokena primateljima
+
+Za distribuciju vaših tokena, primatelj mora imati kompatibilan novčanik. Solflare se preporučuje za mobilne uređaje, dok je Phantom Wallet idealan za web preglednike.
+
+Izvršite prijenos koristeći CLI klijent. Zastavice `--fund-recipient` i `--allow-unfunded-recipient` automatski pokrivaju naknadu za otvaranje povezanog računa tokena u ime primatelja, ako on još uvijek nema otvoren račun za vaš token:
+
+```shell
+spl-token transfer --fund-recipient --allow-unfunded-recipient <YOUR_TOKEN_ID> <TRANSFER_AMOUNT> <RECIPIENT_WALLET_ADDRESS>
+```
+
+![Izvršavanje sigurnog prijenosa SPL tokena na vanjski novčanik](../../../assets/blog/hsky-token-solana/10.webp)
+
+---
+
+## Provjera transakcija na Solscanu
+
+Solana transakcije mogu se revidirati u stvarnom vremenu. Kopirajte i zalijepite svoj **Token ID** (adresu minta) u <a href="https://solscan.io/" target="_blank" rel="noopener noreferrer">Solscan</a> kako biste pregledali povijest transakcija, ukupnu zalihu i metriku distribucije tokena:
+
+![Revizija stanja HSKY tokena i povijesti transakcija na Solscanu](../../../assets/blog/hsky-token-solana/11.webp)
+
+---
+
+## Registar tokena: Stari vs. moderni standardi metapodataka
+
+Kako bi se logo, simbol i naziv vašeg tokena ispravno prikazivali u decentraliziranim novčanicima i preglednicima (*explorers*), morate registrirati njegove metapodatke. 
+
+> **Napomena o tehničkoj tranziciji:** Kao što je istaknuto u upozorenju o ažuriranju na početku ovog vodiča, `token-list` registar baziran na GitHubu je arhiviran u korist Metaplexa. Koraci u nastavku detaljno opisuju stari način rada, pružajući koristan povijesni kontekst o tome kako su funkcionirali rani decentralizirani registri.
+
+### Stari proces registracije putem GitHuba (povijesna referenca)
+
+Ranije je Solana koristila centralizirano skladište (repozitorij) na GitHubu za povezivanje adresa tokena s datotekama metapodataka.
+
+1.  Pripremite prozirni PNG logo vašeg tokena (manji od 200KB).
+2.  Kreirajte GitHub račun, postavite datoteku u javni repozitorij i nazovite je `logo.png`:
+
+![Hostanje vizualnih materijala tokena na javnom GitHub repozitoriju](../../../assets/blog/hsky-token-solana/12.webp)
+
+3.  Idite na službeni <a href="https://github.com/solana-labs/token-list" target="_blank" rel="noopener noreferrer">Solana Labs Token List Repozitorij</a> i kliknite **Fork**:
+
+![Forkanje službenog Solana Labs repozitorija liste tokena](../../../assets/blog/hsky-token-solana/13.webp)
+
+4.  Pritisnite `.` u svom web pregledniku unutar forkanog repozitorija kako biste pokrenuli Visual Studio Code Online:
+
+![Pristupanje web verziji VS Code okruženja na GitHubu](../../../assets/blog/hsky-token-solana/14.webp)
+
+5.  Pronađite `assets/mainnet`, kreirajte podmapu nazvanu po vašem **Token ID-u** i učitajte svoj `logo.png`.
+6.  Idite na `src/tokens/solana.tokenlist.json`, dodajte konfiguracijski blok metapodataka vašeg tokena u JSON formatu, pohranite promjene (*commit*) i pošaljite **Pull Request (PR)** prema izvornom Solana Labs repozitoriju.
+
+### Finalni izgled tokena
+
+Nakon indeksiranja, HSKY token neometano prikazuje svoj prilagođeni naziv, zalihu i logo unutar decentraliziranih web novčanika:
+
+![Prilagođeni HSKY token prepoznat i prikazan na sučelju web novčanika](../../../assets/blog/hsky-token-solana/15.webp)
+
+<div style={{ maxWidth: '280px', margin: '0 auto' }}>
+
+![Mobilni prikaz prilagođenog HSKY tokena u decentraliziranim novčanicima](../../../assets/blog/hsky-token-solana/16.webp)
+
+</div>
+
+---
+
+## Tehnički rječnik: Leksikon integracije blockchaina
+
+| Pojam / Komponenta | Tehnički pregled | Praktična operativna uloga |
+| :--- | :--- | :--- |
+| **SPL Token** | Token Solana programske biblioteke (*Solana Program Library*) | Standard tokena koji upravlja prilagođenom zamjenjivom (*fungible*) i nezamjenjivom (*non-fungible*) imovinom na Solana blockchainu. |
+| **Solana Tool Suite** | Klijent naredbenog retka za interakciju s ledgerom | Naredbe koje se koriste za izravnu komunikaciju sa Solana RPC čvorovima, provjeru stanja i pretraživanje zapisa transakcija. |
+| **Asimetrični par ključeva** | Skup javnih i privatnih kriptografskih ključeva | Temeljni sustav identiteta na javnim mrežama. Javni ključ je adresa, dok privatni ključ autorizira potpise. |
+| **Mnemonička pristupna fraza** | Sekvenca od 12 riječi iz BIP39 rječnika | Čitljiv prikaz privatnog seed-a koji se koristi za izvođenje vaših kriptografskih privatnih ključeva. |
+| **Rust & Cargo** | Memorijski siguran sistemski jezik i kompajler | Razvojno izvršno okruženje koje se koristi za izgradnju visokoperformansnih binarnih datoteka pametnih ugovora i razvojnih alata. |
+| **`spl-token-cli`** | Set naredbi za tokene kompajliran u Rustu | Specifičan klijent naredbenog retka koji se koristi za postavljanje (*deploy*), kovanje (*mint*), zamrzavanje i prijenos prilagođenih tokena. |
+| **Povezani račun tokena** | Adresa izvedena iz programa (*Program-Derived Address - PDA*) | Poseban račun programa kreiran na blockchainu (*on-chain*) koji povezuje adresu korisnikovog novčanika s određenim ID-jem minta tokena. |
+| **Metaplex protokol** | On-chain standard za metapodatke | Moderni, decentralizirani standard pametnih ugovora koji se koristi za kovanje, prikaz i upravljanje metapodacima NFT-ova i zamjenjivih tokena. |
+| **Solscan** | Preglednik blockchain transakcija (*explorer*) | Web alat za reviziju ledgera koji se koristi za vizualizaciju transakcija, praćenje potrošnje plina (*gas*) i provjeru imatelja tokena. |
+
+---
+
+## Zaključak i arhitektonska retrospektiva
+
+Izgradnja prilagođenog tokena izravno iz CLI-ja podučava ključnim principima decentraliziranih ledgera, kriptografije javnog ključa i izvršnih okruženja za pametne ugovore. Iako je stari način upravljanja metapodacima putem GitHuba zamijenjen Metaplexovim modernim on-chain standardom metapodataka izvedenih iz programa, temeljno kriptografsko stvaranje, životni ciklus kovanja i strukture novčanika unutar Solana programske biblioteke ostaju potpuno isti.
+
+*Postavljanje prilagođene imovine na decentralizirane ledgere pokazuje kako moderna javna kriptografija i automatizacija sustava omogućuju besprijekorne globalne financijske alate i inženjering bez potrebe za odobrenjem (permissionless).*

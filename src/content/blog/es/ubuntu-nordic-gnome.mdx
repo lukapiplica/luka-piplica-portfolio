@@ -1,0 +1,264 @@
+---
+title: "GNOME se viste de Nord: Convierte Ubuntu en una estación de trabajo avanzada"
+description: "Guía para crear un entorno modular y productivo en Ubuntu GNOME con Pop Shell y estética Nord."
+publishedAt: 2021-10-19
+author: "Luka Piplica"
+tags: ["linux", "gnome", "ubuntu", "dotfiles", "customization"]
+featured: false
+locale: es
+image: "../../../assets/blog/ubuntu-nordic-gnome/featured.webp"
+imageAlt: "Arte píxel de 8 bits de un ordenador clásico con efecto de recursión infinita en la pantalla"
+---
+
+GNOME es muy valorado en el ecosistema Linux por su estabilidad, su marco modular de extensiones y sus pulidos servicios de escritorio. Sin embargo, los usuarios avanzados y desarrolladores suelen preferir la eficiencia de tener las manos en el teclado que ofrecen los gestores de ventanas en mosaico (tiling window managers). Tradicionalmente, esto requería cambiar a un gestor de ventanas personalizado como BSPWM o i3.
+
+Afortunadamente, aprovechando el ecosistema de extensiones de GNOME Shell y el compilador de mosaico automático Pop Shell de System76, es posible transformar el escritorio GNOME estándar de Ubuntu en una estación de trabajo en mosaico ultraproductiva y dirigida por teclado, conservando la comodidad de los demonios del sistema del entorno de escritorio y logrando a la vez la eficiencia de un gestor de ventanas.
+
+Esta guía proporciona un recorrido detallado paso a paso para construir un espacio de trabajo elegante y con mosaico automático en Ubuntu, centrado en la paleta de colores profesional **Nordic** y utilidades de línea de comandos personalizadas.
+
+---
+
+## Arquitectura central del sistema y paleta visual
+
+Para construir una estación de trabajo unificada y de alto rendimiento, reemplazamos las interacciones estándar de las ventanas con scripts de mosaico automático y aplicamos un tema oscuro GTK consistente y de alto contraste. Las especificaciones principales del entorno se estructuran a continuación:
+
+| Componente | Software / Proyecto | Propósito Técnico y Rol |
+| :--- | :--- | :--- |
+| **Sistema Operativo** | <a href="https://ubuntu.com/" target="_blank" rel="noopener noreferrer">Ubuntu</a> | Distribución Linux estable basada en Debian |
+| **Entorno de Escritorio** | <a href="https://www.gnome.org/" target="_blank" rel="noopener noreferrer">GNOME</a> | Gestor de escritorio principal y compositor de pantalla |
+| **Motor de Mosaico de Ventanas** | <a href="https://github.com/pop-os/shell" target="_blank" rel="noopener noreferrer">Pop Shell</a> | Extensión de mosaico automático dirigida por teclado |
+| **Estética / Tema GTK** | <a href="https://www.gnome-look.org/p/1267246" target="_blank" rel="noopener noreferrer">Nordic</a> | Paleta azul ártico profundo para marcos de aplicaciones |
+| **Set de Iconos** | <a href="https://www.gnome-look.org/p/1332404" target="_blank" rel="noopener noreferrer">Flatery Dark</a> | Vectores de iconos planos, minimalistas y de alto contraste |
+| **Puntero del Cursor** | <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">Oreo Blue</a> | Puntero de cursor moderno y circular personalizado |
+| **Navegador Predeterminado** | <a href="https://www.mozilla.org/en-US/firefox/new/" target="_blank" rel="noopener noreferrer">Firefox</a> | Navegador web de alto rendimiento centrado en la privacidad |
+
+---
+
+## Instalación paso a paso y ajustes del espacio de trabajo
+
+Para garantizar la absoluta estabilidad del sistema, recomendamos comenzar con una instalación limpia de Ubuntu (como la versión de instalación mínima para reducir la acumulación inicial de paquetes).
+
+### 1. Sincronización de repositorios y actualizaciones
+
+Primero, sincronice los índices de sus paquetes y actualice los componentes principales del sistema:
+
+```shell
+sudo apt update
+sudo apt upgrade -y
+```
+
+### 2. Configuración de Extensiones de GNOME y Retoques
+
+Para gestionar los temas y las extensiones personalizadas del panel, instalamos el gestor de paquetes de extensiones de GNOME y la utilidad Tweaks:
+
+```shell
+sudo apt install -y gnome-tweaks gnome-shell-extensions
+```
+
+#### Instalación de Extensiones Esenciales de GNOME Shell
+
+Abre Firefox, navega al <a href="https://extensions.gnome.org/" target="_blank" rel="noopener noreferrer">Portal de Extensiones de GNOME</a>, descarga el complemento del conector para el navegador e instala las siguientes tres extensiones cambiando sus interruptores a **Activado** (On):
+
+1.  <a href="https://extensions.gnome.org/extension/1160/dash-to-panel/" target="_blank" rel="noopener noreferrer">Dash to Panel</a>: Combina la barra superior y la base del sistema (dock) en una sola barra de tareas cohesiva, ahorrando valioso espacio en pantalla.
+2.  <a href="https://extensions.gnome.org/extension/19/user-themes/" target="_blank" rel="noopener noreferrer">User Themes</a>: Permite cargar temas personalizados del shell de GTK directamente desde las carpetas del usuario.
+3.  <a href="https://extensions.gnome.org/extension/1446/transparent-window-moving/" target="_blank" rel="noopener noreferrer">Transparent Window Moving</a>: Añade sutiles ajustes de opacidad al mover capas de ventanas flotantes, mejorando la visibilidad espacial.
+
+*Consejo: Abre la aplicación **Retoques de GNOME** (Gnome Tweaks), ve a la pestaña "Extensiones", verifica que estén activas y desactiva los Iconos del Escritorio heredados. Establece el valor de opacidad de Transparent Window Moving en `0.2` dentro de sus configuraciones para lograr un equilibrio visual óptimo.*
+
+### 3. Integración del Mosaico Automático de Pop Shell
+
+La extensión **Pop Shell** de System76 proporciona funciones avanzadas de mosaico (como el mosaico automático en árbol binario, configuraciones de espacios libres o gaps, e intercambios de enfoque de ventanas mediante teclado) directamente sobre GNOME.
+
+Instala las dependencias de compilación:
+
+```shell
+sudo apt install -y git node-typescript make
+```
+
+Navega a tu carpeta local de Descargas, clona el repositorio de código fuente de Pop Shell y compílalo:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/pop-os/shell.git
+cd shell
+make local-install
+```
+
+Una vez compilado correctamente, recarga tu GNOME Shell (presionando `Alt + F2`, escribiendo `r` y pulsando `Enter`, o cerrando sesión e iniciando sesión de nuevo). Activa la función de mosaico desde el nuevo icono de mosaico que aparece en tu panel de estado superior.
+
+---
+
+## Compilación e Instalación de la Suite de Productividad para CLI
+
+Para equipar nuestros espacios de trabajo en mosaico con aplicaciones eficientes basadas en la terminal, compila e instala estas utilidades:
+
+### 1. Información del Sistema en Terminal y Monitores del Sistema
+
+Instala los programas estándar de monitorización y visualización del sistema:
+
+```shell
+# Panel visual de hardware (Htop)
+sudo apt install -y htop
+
+# Extractor de detalles del sistema en línea de comandos (Neofetch)
+sudo apt install -y neofetch
+
+# Explorador de archivos para la terminal (Ranger)
+sudo apt install -y ranger
+
+# Reloj digital para la terminal (Tty-clock)
+sudo apt install -y tty-clock
+
+# Visualizador de código retro (Cmatrix)
+sudo apt install -y cmatrix
+
+# Procesadores de texto para la terminal (Vim y lector de PDF Zathura)
+sudo apt install -y vim zathura
+```
+
+### 2. Reproductor de Música para el Escritorio (Lollypop)
+
+Para gestionar archivos multimedia locales con una interfaz hermosa y ligera:
+
+```shell
+sudo apt install -y lollypop
+```
+
+### 3. Generación de arte de caracteres en la terminal (cbonsai)
+
+Compila el generador de árboles bonsái para la terminal basado en ncurses:
+
+```shell
+cd ~/Downloads
+sudo apt install -y libncursesw5-dev
+git clone https://gitlab.com/jallbrit/cbonsai.git
+cd cbonsai
+make install PREFIX=~/.local
+```
+
+### 4. Juego de Tetris Interactivo para la Terminal (tty-tetris)
+
+Compila un juego de Tetris personalizado y de alto rendimiento directamente para ventanas de terminal:
+
+```shell
+cd ~/Downloads
+sudo apt install -y cmake
+git clone https://github.com/Holixus/tty-tetris-v2.git
+cd tty-tetris-v2
+cmake .
+make 
+sudo make install
+```
+
+### 5. Compilación de CAVA (Console Acoustic Visualizer for Alsa)
+
+Compila el visualizador de audio CAVA para monitorizar la salida de sonido con barras de alto contraste:
+
+```shell
+# Instalar cabeceras de compilación
+sudo apt install -y libfftw3-dev libasound2-dev libncursesw5-dev libpulse-dev libtool automake libiniparser-dev
+
+# Exportar bandera de cabecera
+export CPPFLAGS=-I/usr/include/iniparser
+
+# Clonar y compilar el código fuente de CAVA
+cd ~/Downloads
+git clone https://github.com/karlstav/cava.git
+cd cava
+./autogen.sh
+./configure
+make
+sudo make install
+```
+
+### 6. Auditor de Velocidad de Escritura en Terminal (Ttyper)
+
+Instala el monitor de velocidad de escritura para la terminal basado en Rust:
+
+```shell
+sudo apt install -y cargo
+cargo install ttyper
+```
+
+---
+
+## Renovación del Gestor de Arranque Grub y los Temas
+
+Una configuración visual premium comienza incluso antes de que se inicie el sistema operativo. Instalamos una pantalla personalizada para el gestor de arranque y desplegamos la paleta de colores Nordic en todas las interfaces de las aplicaciones del escritorio.
+
+### 1. Actualización Visual del Gestor de Arranque
+
+Clona el repositorio del tema de GRUB Sekiro y ejecuta el script de instalación automatizado:
+
+```shell
+cd ~/Downloads
+git clone https://github.com/semimqmo/sekiro_grub_theme.git
+cd sekiro_grub_theme
+sudo ./install.sh
+```
+
+### 2. Despliegue de los Recursos Visuales de Nordic
+
+Para personalizar los bordes de las ventanas y los vectores de los iconos, crea dos directorios ocultos en tu carpeta de usuario local:
+
+```shell
+cd ~/
+mkdir -p .themes
+mkdir -p .icons
+```
+
+* **Temas GTK:** Descarga el <a href="https://www.gnome-look.org/p/1267246" target="_blank" rel="noopener noreferrer">tema GTK Nordic</a> y extrae su carpeta directamente en tu nuevo directorio `~/.themes`.
+* **Sets de Iconos:** Extrae el <a href="https://www.gnome-look.org/p/1332404" target="_blank" rel="noopener noreferrer">tema de iconos Flatery Dark</a> directamente en `~/.icons`.
+* **Puntero del Cursor:** Extrae el <a href="https://www.gnome-look.org/s/Gnome/p/1360254/" target="_blank" rel="noopener noreferrer">cursor Oreo Blue</a> directamente en `~/.icons`.
+
+Abre **Retoques de GNOME** (GNOME Tweaks), ve a la pestaña **Apariencia** y selecciona **Nordic** para las aplicaciones/temas de shell, **Flatery Dark** para los iconos y **Oreo Blue** para los cursores.
+
+---
+
+## Muestra del Diseño del Espacio de Trabajo y Personalización del Sistema
+
+Una vez activado el mosaico automático y desplegados los temas, tu espacio de trabajo organiza las pantallas de las aplicaciones con espacios (gaps) limpios y geométricos, junto a un alto contraste visual.
+
+### Diseño del Sistema y Espacio de Trabajo en la Terminal
+
+El espacio de trabajo en la terminal utiliza cuadrículas de diseño estándar para mantener visibles en tiempo real las métricas clave del sistema y los archivos de texto, eliminando la superposición de ventanas:
+
+![Ubuntu GNOME personalizado con un tema Nordic que muestra diseños de terminal activos y especificaciones del sistema](../../../assets/blog/ubuntu-nordic-gnome/1.webp)
+
+### Página de Inicio Minimalista y Espacio de Trabajo de Música
+
+La pantalla de inicio muestra fondos de pantalla personalizados, visualizadores dinámicos de audio musical (CAVA), una página de inicio de Firefox minimalista y utilidades locales de Python basadas en la terminal:
+
+![Espacio de trabajo de escritorio Nordic totalmente personalizado que incluye la página de inicio del navegador, el mosaico de ventanas de la terminal en vivo y los widgets del sistema](../../../assets/blog/ubuntu-nordic-gnome/2.webp)
+
+---
+
+## Glosario Técnico: El Léxico de la Estación de Trabajo Personalizada
+
+| Herramienta | Resumen Técnico | Beneficio Visual y Operativo |
+| :--- | :--- | :--- |
+| **Pop Shell** | Capa de gestión para el gestor de ventanas | Traduce los lanzamientos de aplicaciones nativas en particiones limpias de árbol binario. Ahorra espacio en el monitor y reduce la dependencia del ratón. |
+| **Neofetch** | Extractor criptográfico de información visual | Formatea las especificaciones principales (núcleo, shell, temas del sistema) junto a una representación ASCII de alta resolución del sistema operativo. |
+| **Zathura** | Lector de PDF ligero estilo Vim | Renderiza documentos utilizando atajos de teclado personalizados y un consumo mínimo de memoria, con inversión de color en modo oscuro. |
+| **Ranger** | Navegador de archivos en Python y ncurses | Traduce la navegación por carpetas en una cuadrícula de terminal rápida con vistas previas de directorios jerárquicos de varias columnas. |
+| **Vim** | Editor de texto avanzado para terminal | IDE rápido basado en terminal que cuenta con atajos de edición modal y profundas opciones de personalización de código. |
+| **cbonsai** | Algoritmo de animación vectorial CLI | Muestra de forma iterativa árboles de caracteres dentro de las shells abiertas, añadiendo un toque visual a las terminales en segundo plano. |
+| **tty-tetris** | Matriz de juego de Tetris en C++ para terminal | Juego retro de alta tasa de refresco que se ejecuta dentro de sesiones de shell utilizando mapeo de teclado. |
+| **ttyper** | Utilidad de prueba de escritura basada en Rust | Mide la velocidad (WPM) y la precisión de escritura de las teclas pulsadas durante las sesiones de terminal. |
+| **Nordic GTK** | Tema armonizado de colores árticos | Elimina la luz cegadora de la interfaz de usuario blanca, reemplazándola por azules oscuros elegantes que reducen la fatiga visual y detalles en tonos pastel. |
+| **Flatery** | Biblioteca de iconos planos de alto contraste | Alinea las siluetas de los iconos del lanzador y de la barra de tareas para lograr una estética vectorial moderna y unificada. |
+| **Oreo Blue** | Puntero circular escalado por vectores | Reemplaza el puntero de flecha tradicional por un objetivo circular moderno y de alta visibilidad. |
+| **Firefox** | Navegador web personalizado seguro en memoria | Navegador altamente personalizable configurado con páginas de inicio CSS personalizadas (`userChrome.css`) para un mayor minimalismo. |
+| **tty-clock** | Módulo de señal horaria para terminal | Proyecta las horas del sistema utilizando diseños de caracteres de bloque grandes en la terminal. |
+| **CAVA** | Visualizador de audio de espectro de barras | Traduce las frecuencias de sonido del escritorio en tiempo real en barras visuales interactivas. |
+| **HTop** | Panel de gestión de sistemas activos | Administrador de tareas avanzado que muestra el uso en tiempo real de los núcleos de la CPU/memoria, los promedios de carga y los procesos activos. |
+| **CMatrix** | Motor de desplazamiento de texto volátil | Renderiza animaciones de caracteres verdes cayendo que coinciden con la estética de los ordenadores clásicos de ciencia ficción. |
+| **Lollypop** | Catálogo moderno de reproducción de música | Analiza los metadatos y las portadas de audio, presentando una interfaz estética de reproductor de música de escritorio. |
+
+---
+
+## Conclusión y Retrospectiva de la Personalización
+
+Personalizar un entorno de escritorio monolítico como GNOME demuestra que no es necesario sacrificar los servicios modernos del sistema ni la estabilidad del dispositivo para disfrutar de la eficiencia de un gestor de ventanas controlado por teclado. La integración de los scripts de mosaico automático de System76 sazonados con los paquetes estándar de Ubuntu da como resultado una plataforma de desarrollo fluida, de baja latencia y visualmente atractiva.
+
+*Este tutorial del entorno de escritorio está destinado a fines educativos y de referencia, mostrando el profundo potencial de personalización de los sistemas de escritorio de código abierto y los flujos de trabajo de terminal basados en teclado.*
