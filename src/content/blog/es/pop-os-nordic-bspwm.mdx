@@ -183,9 +183,9 @@ sudo apt install -y rofi alacritty
 Clonamos el repositorio de dotfiles preconfigurados para extraer nuestras configuraciones personalizadas:
 
 ```shell
-git clone https://github.com/lukapiplica/dots.git
+git clone https://github.com/lukapiplica/nordic-bspwm-dotfiles
 mkdir -p ~/.config/alacritty
-cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+cp nordic-bspwm-dotfiles/alacritty/alacritty.yml ~/.config/alacritty/
 ```
 
 > **Consejo de Aceleración por Hardware:** Si encuentras el error `GLSL 3.30 is not supported` en tarjetas gráficas antiguas o entornos virtuales, fuerza la rasterización por software modificando el archivo de configuración de escritorio de Alacritty:
@@ -206,7 +206,7 @@ Ahora configuramos ZSH, los temas, las fuentes, los fondos de pantalla y las pan
 Inyecta la tipografía monoespaciada principal para el código para garantizar la correcta renderización de los símbolos y los glifos de la terminal:
 
 ```shell
-sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+sudo cp -r ~/Downloads/nordic-bspwm-dotfiles/Source_Code_Pro /usr/share/fonts/
 fc-cache -fv
 ```
 
@@ -217,7 +217,7 @@ Para gestionar la colocación del fondo de pantalla de forma programada al inici
 ```shell
 sudo apt install feh -y
 mkdir -p ~/Wall
-cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/Wallpapers/ ~/Wall/
 ```
 
 Inyecta el comando de inicio para el fondo en tu `bspwmrc` para que se ejecute al inicializar el gestor de ventanas:
@@ -232,7 +232,7 @@ Exporta nuestras configuraciones personalizadas de Polybar y copia las fuentes T
 
 ```shell
 mkdir -p ~/.config/polybar
-cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/polybar/* ~/.config/polybar/
 echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
 sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
 fc-cache -fv
@@ -264,7 +264,7 @@ Porta la matriz de color Nórdica a Vim e instala la utilidad estética de estad
 
 ```shell
 mkdir -p ~/.vim/colors
-cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.vim ~/.vim/colors/
 ```
 
 Clona la extensión Airline:
@@ -287,7 +287,7 @@ Copia el archivo del tema Nord y configúralo como la interfaz principal:
 
 ```shell
 mkdir -p ~/.config/rofi/themes
-cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.rasi ~/.config/rofi/themes/
 rofi-theme-selector
 ```
 
@@ -411,7 +411,7 @@ Descarga la configuración personalizada y minimalista de userChrome para elimin
 
 ```shell
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
-cp -r ~/Downloads/dots/.firefoxthemes ~/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/.firefoxthemes ~/
 ```
 
 1. Lanza **Firefox**.

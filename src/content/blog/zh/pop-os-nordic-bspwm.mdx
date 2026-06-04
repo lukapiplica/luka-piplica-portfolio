@@ -183,9 +183,9 @@ sudo apt install -y rofi alacritty
 我们拉取预先配置好的 dotfiles 仓库，以提取我们定制的配置文件：
 
 ```shell
-git clone https://github.com/lukapiplica/dots.git
+git clone https://github.com/lukapiplica/nordic-bspwm-dotfiles
 mkdir -p ~/.config/alacritty
-cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+cp nordic-bspwm-dotfiles/alacritty/alacritty.yml ~/.config/alacritty/
 ```
 
 > **硬件加速提示：** 如果你在旧显卡或虚拟环境中遇到 `GLSL 3.30 is not supported` 错误，可以通过修改 Alacritty 的桌面配置文件来强制启用软件光栅化：
@@ -206,7 +206,7 @@ cp dots/alacritty/alacritty.yml ~/.config/alacritty/
 导入主要的等宽代码字体，以确保符号和终端字符能够正确渲染：
 
 ```shell
-sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+sudo cp -r ~/Downloads/nordic-bspwm-dotfiles/Source_Code_Pro /usr/share/fonts/
 fc-cache -fv
 ```
 
@@ -217,7 +217,7 @@ fc-cache -fv
 ```shell
 sudo apt install feh -y
 mkdir -p ~/Wall
-cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/Wallpapers/ ~/Wall/
 ```
 
 将背景启动命令注入到你的 `bspwmrc` 中，以便在窗口管理器初始化时运行：
@@ -232,7 +232,7 @@ echo 'feh --bg-fill $HOME/Wall/Wallpapers/wallpaper2.jpeg &' >> ~/.config/bspwm/
 
 ```shell
 mkdir -p ~/.config/polybar
-cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/polybar/* ~/.config/polybar/
 echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
 sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
 fc-cache -fv
@@ -264,7 +264,7 @@ git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$
 
 ```shell
 mkdir -p ~/.vim/colors
-cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.vim ~/.vim/colors/
 ```
 
 克隆 Airline 扩展：
@@ -287,7 +287,7 @@ echo "let g:airline_theme='base16'" >> ~/.vimrc
 
 ```shell
 mkdir -p ~/.config/rofi/themes
-cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.rasi ~/.config/rofi/themes/
 rofi-theme-selector
 ```
 
@@ -411,7 +411,7 @@ sudo apt install lxappearance -y
 
 ```shell
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
-cp -r ~/Downloads/dots/.firefoxthemes ~/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/.firefoxthemes ~/
 ```
 
 1. 启动 **Firefox**。

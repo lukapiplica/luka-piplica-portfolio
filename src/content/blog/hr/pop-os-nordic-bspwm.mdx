@@ -183,9 +183,9 @@ sudo apt install -y rofi alacritty
 Preuzimamo repozitorij s unaprijed konfiguriranim datotekama (dotfiles) kako bismo izdvojili naše prilagođene postavke:
 
 ```shell
-git clone https://github.com/lukapiplica/dots.git
+git clone https://github.com/lukapiplica/nordic-bspwm-dotfiles
 mkdir -p ~/.config/alacritty
-cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+cp nordic-bspwm-dotfiles/alacritty/alacritty.yml ~/.config/alacritty/
 ```
 
 > **Savjet za hardversko ubrzanje:** Ako naiđete na pogrešku `GLSL 3.30 is not supported` na starijim grafičkim karticama ili u virtualnim okruženjima, prisilno pokrenite softversku rasterizaciju izmjenom konfiguracijske datoteke za Alacritty:
@@ -206,7 +206,7 @@ Sada konfiguriramo ZSH, teme, fontove, pozadine i zaključane zaslone kako bismo
 Ubacite primarni monospace font za programiranje kako biste osigurali ispravan prikaz simbola i terminalskih znakova (glyphs):
 
 ```shell
-sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+sudo cp -r ~/Downloads/nordic-bspwm-dotfiles/Source_Code_Pro /usr/share/fonts/
 fc-cache -fv
 ```
 
@@ -217,7 +217,7 @@ Za programsko upravljanje i postavljanje pozadinske slike pri prijavi u sustav, 
 ```shell
 sudo apt install feh -y
 mkdir -p ~/Wall
-cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/Wallpapers/ ~/Wall/
 ```
 
 Ubacite naredbu za pokretanje pozadine u vašu `bspwmrc` datoteku kako bi se izvršila prilikom inicijalizacije window managera:
@@ -232,7 +232,7 @@ Izvezite naše prilagođene Polybar postavke i kopirajte potrebne TrueType fonto
 
 ```shell
 mkdir -p ~/.config/polybar
-cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/polybar/* ~/.config/polybar/
 echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
 sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
 fc-cache -fv
@@ -264,7 +264,7 @@ Prenesite nordijsku paletu boja u Vim i instalirajte estetski dodatak za statusn
 
 ```shell
 mkdir -p ~/.vim/colors
-cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.vim ~/.vim/colors/
 ```
 
 Klonirajte Airline proširenje:
@@ -287,7 +287,7 @@ Kopirajte datoteku Nord teme i konfigurirajte je kao primarno sučelje:
 
 ```shell
 mkdir -p ~/.config/rofi/themes
-cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.rasi ~/.config/rofi/themes/
 rofi-theme-selector
 ```
 
@@ -411,7 +411,7 @@ Preuzmite prilagođenu minimalističku userChrome konfiguraciju kako biste uklon
 
 ```shell
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
-cp -r ~/Downloads/dots/.firefoxthemes ~/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/.firefoxthemes ~/
 ```
 
 1. Pokrenite **Firefox**.

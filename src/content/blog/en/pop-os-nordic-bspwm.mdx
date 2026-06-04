@@ -183,9 +183,9 @@ sudo apt install -y rofi alacritty
 We pull the pre-configured dotfiles repository to extract our tailored configurations:
 
 ```shell
-git clone https://github.com/lukapiplica/dots.git
+git clone https://github.com/lukapiplica/nordic-bspwm-dotfiles
 mkdir -p ~/.config/alacritty
-cp dots/alacritty/alacritty.yml ~/.config/alacritty/
+cp nordic-bspwm-dotfiles/alacritty/alacritty.yml ~/.config/alacritty/
 ```
 
 > **Hardware Acceleration Tip:** If you encounter the error `GLSL 3.30 is not supported` on older graphics cards or virtual environments, force software rasterization by modifying Alacritty's desktop configuration file:
@@ -206,7 +206,7 @@ Now we configure ZSH, themes, fonts, wallpapers, and lock screens to tie the Nor
 Inject the primary monospaced codebase typeface to ensure proper rendering of symbols and terminal glyphs:
 
 ```shell
-sudo cp -r ~/Downloads/dots/Source_Code_Pro /usr/share/fonts/
+sudo cp -r ~/Downloads/nordic-bspwm-dotfiles/Source_Code_Pro /usr/share/fonts/
 fc-cache -fv
 ```
 
@@ -217,7 +217,7 @@ To handle wallpaper placement programmatically upon login, install the **feh** c
 ```shell
 sudo apt install feh -y
 mkdir -p ~/Wall
-cp -r ~/Downloads/dots/Wallpapers/ ~/Wall/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/Wallpapers/ ~/Wall/
 ```
 
 Inject the background startup command into your `bspwmrc` to run upon window manager initialization:
@@ -232,7 +232,7 @@ Export our customized Polybar setups and copy required TrueType fonts to support
 
 ```shell
 mkdir -p ~/.config/polybar
-cp -r ~/Downloads/dots/polybar/* ~/.config/polybar/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/polybar/* ~/.config/polybar/
 echo '~/.config/polybar/./launch.sh &' >> ~/.config/bspwm/bspwmrc
 sudo cp ~/.config/polybar/fonts/* /usr/share/fonts/truetype/
 fc-cache -fv
@@ -264,7 +264,7 @@ Port the Nordic color matrix into Vim, and install the aesthetic **Vim-Airline**
 
 ```shell
 mkdir -p ~/.vim/colors
-cp ~/Downloads/dots/nord.vim ~/.vim/colors/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.vim ~/.vim/colors/
 ```
 
 Clone the Airline extension:
@@ -287,7 +287,7 @@ Copy the Nord theme file and configure it as the primary interface:
 
 ```shell
 mkdir -p ~/.config/rofi/themes
-cp ~/Downloads/dots/nord.rasi ~/.config/rofi/themes/
+cp ~/Downloads/nordic-bspwm-dotfiles/nord.rasi ~/.config/rofi/themes/
 rofi-theme-selector
 ```
 
@@ -411,7 +411,7 @@ Download the custom Minimalist userChrome setup to remove standard title bars, c
 
 ```shell
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/mut-ex/minimal-functional-fox/master/install.sh)"
-cp -r ~/Downloads/dots/.firefoxthemes ~/
+cp -r ~/Downloads/nordic-bspwm-dotfiles/.firefoxthemes ~/
 ```
 
 1. Launch **Firefox**.
