@@ -35,7 +35,7 @@ const astroI18nOptions = i18nEnabled
 export default defineConfig({
   output: 'static',
   adapter: isNetlify ? netlify() : (isCloudflare ? cloudflare() : vercel()),
-  site: process.env.SITE_URL || 'https://lukapiplica.xyz',
+  site: process.env.SITE_URL || 'https://piplicaluka.xyz',
   ...(astroI18nOptions ? { i18n: astroI18nOptions } : {}),
 
   build: {

@@ -119,7 +119,7 @@ const siteConfig: SiteConfig = {
   name: 'Luka Piplica',
   description:
     'Personal portfolio and technical blog of Luka Piplica — IT Professional specializing in systems management, network administration, cybersecurity, and web development.',
-  url: SITE_URL || 'https://lukapiplica.xyz', 
+  url: SITE_URL || 'https://piplicaluka.xyz', 
   ogImage: '/og-image.png',
   author: 'Luka Piplica',
   email: 'piplicaluka@protonmail.com',
