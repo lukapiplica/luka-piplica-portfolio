@@ -62,3 +62,9 @@ claude-ai-web-design.png
 dark-mode-sessionstorage.png
 domain-email-vercel-setup.png
 why-i-build-with-astro.png
+
+# Build output
+dist/
+.vercel/
+.netlify/
+.wrangler/
