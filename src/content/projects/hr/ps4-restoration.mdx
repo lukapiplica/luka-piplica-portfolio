@@ -11,6 +11,15 @@ image: "../../../assets/projects/ps4-restoration/featured.webp"
 locale: "hr"
 ---
 
+import img1 from "../../../assets/projects/ps4-restoration/1.webp";
+import img2 from "../../../assets/projects/ps4-restoration/2.webp";
+import img3 from "../../../assets/projects/ps4-restoration/3.webp";
+import img4 from "../../../assets/projects/ps4-restoration/4.webp";
+import img5 from "../../../assets/projects/ps4-restoration/5.webp";
+import img6 from "../../../assets/projects/ps4-restoration/6.webp";
+import img7 from "../../../assets/projects/ps4-restoration/7.webp";
+import img8 from "../../../assets/projects/ps4-restoration/8.webp";
+
 ## Ukratko o projektu
 
 Komercijalne igraće konzole često se suočavaju s teškim toplinskim prigušenjem (*thermal throttling*) i padom performansi tijekom duljeg životnog vijeka zbog nakupljanja prašine i dotrajalih toplinskih sučelja. Ovaj projekt sistemskog inženjerstva bio je usmjeren na potpunu fizičku restauraciju, toplinsku optimizaciju i eksploataciju kernela (jezgre) PlayStation 4 Slim konzole.  
@@ -20,7 +29,7 @@ Komercijalne igraće konzole često se suočavaju s teškim toplinskim prigušen
 Cilj je bio dvostruk: prvo, ukloniti teško toplinsko prigušenje provođenjem potpunog rastavljanja hardvera (*hardware teardown*) i preciznim kemijskim čišćenjem; drugo, izvršiti kontroliranu nadogradnju firmware-a na točnu verziju 9.00, implementirati ručni kernel exploit putem web vektora (*exfathax*) i sigurno pokrenuti neovisno Linux radno okruženje za edukativno testiranje.
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+    <img width="75%" src={img1.src} alt="Izgled prljavog unutarnjeg ventilatora PS4 konzole" />
 </p>
 
 ## Moja uloga i izvedba
@@ -29,21 +38,21 @@ Izveo sam kompletan životni ciklus ovog projekta, podijelivši radni proces na 
 ## Restauracija hardvera i upravljanje toplinom
 * **Potpuno rastavljanje (Teardown):** Proveo sam sveobuhvatno strukturalno rastavljanje kućišta konzole kako bih pristupio matičnoj ploči, ventilatoru i unutarnjem sklopu hladnjaka (*heatsink*).
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+    <img width="75%" src={img2.src} alt="PS4 rastavljena u prljavom stanju" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+    <img width="75%" src={img3.src} alt="Prašina na matičnoj ploči PS4 konzole" />
 </p>
 * **Kemijska dekontaminacija:** Koristio sam izopropilni alkohol visoke čistoće (99% IPA) za potpuno uklanjanje stare, degradirane tvorničke termalne paste bez oštećenja okolnih osjetljivih površinski montiranih komponenti (SMD).
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+    <img width="75%" src={img4.src} alt="Stanje očišćene termalne paste" />
 </p>
 * **Nadogradnja termalnog sučelja:** Očistio sam unutarnja rebra hladnjaka i nanio visokoučinkovitu Arctic MX-4 termalnu pastu ravnomjernim nanošenjem tankog sloja po cijeloj površini, čime sam uspješno smanjio razinu buke ventilatora i uklonio toplinska uska grla pod teškim opterećenjima.
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+    <img width="75%" src={img5.src} alt="Nanesena termalna pasta Arctic MX-4" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+    <img width="75%" src={img6.src} alt="Očišćen unutarnji ventilator i komponente" />
 </p>
 
 ## Manipulacija firmware-om i eksploatacija
@@ -51,7 +60,7 @@ Izveo sam kompletan životni ciklus ovog projekta, podijelivši radni proces na 
 * **Ručna nadogradnja firmware-a:** Kreirao sam strogo definiranu statičnu strukturu mapa (`/PS4/UPDATE/PS4UPDATE.PUP`) na exFAT datotečnom sustavu USB memorije, pripremajući i instalirajući službenu sliku particije oporavka (*recovery system image*) za verziju 9.00 putem lokalnog medija.
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img7.src} alt="Stara verzija firmware-a 8.50" />
 </p>
 
 * **Eksploatacija memorije jezgre (Kernel Memory Exploitation):** Koristio sam specijalizirane alate za predmemoriranje web-hosta (GoldHEN ekosustav payload-a putem Karo domaćina) zajedno s vanjskim mehanizmom za ubrizgavanje binarnog koda (`exfathax.img`), koji je flashan na USB pogon pomoću alata Rufus. Time je izazvan zaobilazak granica memorije iskorištavanjem ranjivosti u parseru exFAT datotečnog sustava.
@@ -87,7 +96,7 @@ U nastavku se nalaze tehničke specifikacije stanja deploymenta i materijala koj
 
 ## Konačni rezultat
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="Izbornik postavki za PlayStation 4 prikazuje status GoldHEN-a" />
 </p>
 
 ### Zaključak i stanje projekta

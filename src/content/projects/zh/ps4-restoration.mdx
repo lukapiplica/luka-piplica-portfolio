@@ -11,6 +11,15 @@ image: "../../../assets/projects/ps4-restoration/featured.webp"
 locale: "zh"
 ---
 
+import img1 from "@/assets/projects/ps4-restoration/1.webp";
+import img2 from "@/assets/projects/ps4-restoration/2.webp";
+import img3 from "@/assets/projects/ps4-restoration/3.webp";
+import img4 from "@/assets/projects/ps4-restoration/4.webp";
+import img5 from "@/assets/projects/ps4-restoration/5.webp";
+import img6 from "@/assets/projects/ps4-restoration/6.webp";
+import img7 from "@/assets/projects/ps4-restoration/7.webp";
+import img8 from "@/assets/projects/ps4-restoration/8.webp";
+
 ## 项目概要
 
 家用游戏机在长期的生命周期中，由于灰尘堆积和热传导介质（硅脂）老化失效，经常面临严重的表面热节流（散热限速）和性能退化。本系统工程项目专注于一台 PlayStation 4 Slim 主机的完整物理翻新、散热优化以及内核漏洞利用。
@@ -20,7 +29,7 @@ locale: "zh"
 该项目包含双重目标：首先，通过执行完整的硬件拆解和精密化学清洗，逆转严重的散热限速问题；其次，将固件控制升级至精确的 9.00 版本，实施手动的 Web 矢量内核漏洞利用（exfathax），并安全地引导一个独立的 Linux 运行时环境以进行教育性测试。
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 内部风扇积灰状态" />
+    <img width="75%" src={img1.src} alt="PS4 内部风扇积灰状态" />
 </p>
 
 ## 担当业务与构建内容
@@ -32,21 +41,21 @@ locale: "zh"
 
 *   **完整拆解：** 对主机外壳及内部框架进行了彻底的结构性拆解，以触及核心主板、离心风扇和内部散热片总成。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 拆解未清洁状态" />
+    <img width="75%" src={img2.src} alt="PS4 拆解未清洁状态" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 主板表面积灰" />
+    <img width="75%" src={img3.src} alt="PS4 主板表面积灰" />
 </p>
 *   **化学去污：** 利用高纯度异丙醇（IPA）彻底清除已经老化、变质的工厂原装热传导介质，同时确保不对周围精密的表面贴装器件（SMD）造成任何物理损伤。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="旧硅脂清洁干净状态" />
+    <img width="75%" src={img4.src} alt="旧硅脂清洁干净状态" />
 </p>
 * **散热介质升级：** 清洗了内部散热鳍片，并采用优化后的均匀薄涂法重新涂抹了高性能 Arctic MX-4 导热硅脂，成功降低了高负载计算状态下的风扇噪音并消除了散热瓶颈。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="重新涂抹 Arctic MX-4 硅脂" />
+    <img width="75%" src={img5.src} alt="重新涂抹 Arctic MX-4 硅脂" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="清洁后的内部风扇与组件" />
+    <img width="75%" src={img6.src} alt="清洁后的内部风扇与组件" />
 </p>
 
 
@@ -56,7 +65,7 @@ locale: "zh"
 *   **手动固件升级：** 在 exFAT 文件系统的块存储设备上构建了严格的静态目录结构（`/PS4/UPDATE/PS4UPDATE.PUP`），通过本地媒体引导，暂存并部署了官方的 9.00 系统恢复分区镜像。
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="原固件基准版本 8.50" />
+    <img width="75%" src={img7.src} alt="原固件基准版本 8.50" />
 </p>
 
 *   **内核内存漏洞利用：** 利用专业的 Web 主机缓存工具（通过 Karo 运行的 GoldHEN 载荷生态系统），配合通过 Rufus 烧录到原生块存储设备上的外部原始二进制注入机制（`exfathax.img`），利用 exFAT 文件系统解析器漏洞成功触发了内存边界绕过。
@@ -98,7 +107,7 @@ graph TD
 ## 最终结果
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="显示 GoldHEN 状态的 PlayStation 4 设置菜单"/>
 </p>
 
 ### 结论与项目状态

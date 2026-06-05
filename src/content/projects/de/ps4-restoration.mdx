@@ -11,6 +11,15 @@ image: "../../../assets/projects/ps4-restoration/featured.webp"
 locale: "de"
 ---
 
+import img1 from "../../../assets/projects/ps4-restoration/1.webp";
+import img2 from "../../../assets/projects/ps4-restoration/2.webp";
+import img3 from "../../../assets/projects/ps4-restoration/3.webp";
+import img4 from "../../../assets/projects/ps4-restoration/4.webp";
+import img5 from "../../../assets/projects/ps4-restoration/5.webp";
+import img6 from "../../../assets/projects/ps4-restoration/6.webp";
+import img7 from "../../../assets/projects/ps4-restoration/7.webp";
+import img8 from "../../../assets/projects/ps4-restoration/8.webp";
+
 ## Das Briefing
 Gaming-Konsolen für Endverbraucher leiden über längere Lebenszyklen hinweg oft pod starkem thermischen Throttling und Leistungsabfällen, die durch Staubansammlungen und brüchig gewordene Wärmeleitpads oder -pasten verursacht werden. Dieses Systems-Engineering-Projekt konzentrierte sich auf die vollständige physische Restaurierung, thermische Optimierung und die Kernel-Einführung (Exploitation) einer PlayStation 4 Slim-Konsole.  
 
@@ -19,7 +28,7 @@ Gaming-Konsolen für Endverbraucher leiden über längere Lebenszyklen hinweg of
 Das Ziel war zweigeteilt: Erstens sollte das kritische thermische Throttling durch ein vollständiges Hardware-Teardown und eine präzise chemische Reinigung behoben werden; zweitens sollte ein kontrolliertes Firmware-Upgrade auf exakt die Version 9.00 durchgeführt werden, um über einen manuellen Web-Vektor-Kernel-Exploit (exfathax) eine unabhängige Linux-Laufzeitumgebung für Testzwecke sicher zu booten.
 
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+  <img width="75%" src={img1.src} alt="Layout des verschmutzten internen PS4-Lüfters" />
 </p>
 
 ## Aufgabenbereiche & Umsetzung
@@ -29,30 +38,30 @@ Ich habe den gesamten Lebenszyklus dieses Projekts eigenständig durchgeführt u
 ## Hardware-Restaurierung & thermisches Management
 * **Vollständiges Teardown:** Durchführung einer umfassenden strukturellen Demontage des Konsolengehäuses, um Zugang zum Mainboard, den Lüftern und der internen Kühlkörperbaugruppe zu erhalten.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+  <img width="75%" src={img2.src} alt="Zerlegte PS4 im verschmutzten Zustand" />
 </p>
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+  <img width="75%" src={img3.src} alt="Staubbelastung auf der freigelegten PS4-Platine"/>
 </p>
 * **Chemische Dekontamination:** Einsatz von hochreinem Isopropylalkohol (IPA), um alte, degradierte originale Wärmeleitpasten rückstandslos zu entfernen, ohne die umliegenden empfindlichen SMD-Bauteile (Surface-Mount Devices) zu beschädigen.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+  <img width="75%" src={img4.src} alt="Gereinigter Zustand der Wärmeleitpaste" />
 </p>
 * **Upgrade der thermischen Schnittstelle:** Reinigung der internen Kühlrippen und Applikation von Hochleistungs-Wärmeleitpaste (Arctic MX-4) durch ein optimiertes, gleichmäßiges Auftragen in einer dünnen Schicht. Dies senkte die Lautstärke der Konsole drastisch und beseitigte thermische Engpässe unter Rechenlast vollständig.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+  <img width="75%" src={img5.src} alt="Gereinigter Zustand der Wärmeleitpaste" />
 </p>
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+  <img width="75%" src={img6.src} alt="Gereinigter interner Lüfter und Komponenten" />
 </p>
 
 
 ## Firmware-Manipulation & Exploitation
 * **Air-Gapped OS-Optimierung:** Isolation der Konsole von automatisierten Sony-Netzwerk-Update-Pfaden durch vollständiges Umschreiben der System-Netzwerkschnittstellen. Automatische Telemetrie und Downloads wurden deaktiviert und ein spezielles primäres/sekundäres DNS-Routing (`192.241.221.79` / `165.227.83.145`) konfiguriert, um eingehende Vendor-Payloads sicher zu blockieren.
-* **Manuelles Firmware-Upgrade:** Konstruktion einer strikt vorgegebenen statischen Ordnerstruktur (`/PS4/UPDATE/PS4UPDATE.PUP`) na jednom exFAT-formatierten Blockspeichermedium, gefolgt vom Staging und Deployment eines offiziellen 9.00-Recovery-Systempartition-Images über einen lokalen Medien-Boot.
+* **Manuelles Firmware-Upgrade:** Konstruktion einer strikt vorgegebenen statischen Ordnerstruktur (`/PS4/UPDATE/PS4UPDATE.PUP`) na einem exFAT-formatierten Blockspeichermedium, gefolgt vom Staging und Deployment eines offiziellen 9.00-Recovery-Systempartition-Images über einen lokalen Medien-Boot.
 
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+  <img width="75%" src={img7.src} alt="Alte Firmware-Basisversion 8.50" />
 </p>
 
 * **Kernel-Speicher-Exploitation:** Nutzung spezialisierter Web-Host-Caching-Tools (GoldHEN-Payload-Ökosysteme via Karo) zusammen mit einem externen Mechanismus zur Injektion roher Binärdaten (`exfathax.img`), das via Rufus auf ein USB-Laufwerk geschrieben wurde. Dies löste einen Speicherbegrenzungs-Bypass (Memory Boundary Bypass) über eine Sicherheitslücke im exFAT-Dateisystem-Parser aus.
@@ -90,7 +99,7 @@ Nachfolgend finden Sie die technischen Spezifikationen der Bereitstellungszustä
 
 ## Endergebnis
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="PlayStation 4-Einstellungsmenü mit Anzeige des GoldHEN-Status" />
 </p>
 
 ### Fazit & Projektstatus

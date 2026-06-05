@@ -11,6 +11,15 @@ image: "../../../assets/projects/ps4-restoration/featured.webp"
 locale: "es"
 ---
 
+import img1 from "../../../assets/projects/ps4-restoration/1.webp";
+import img2 from "../../../assets/projects/ps4-restoration/2.webp";
+import img3 from "../../../assets/projects/ps4-restoration/3.webp";
+import img4 from "../../../assets/projects/ps4-restoration/4.webp";
+import img5 from "../../../assets/projects/ps4-restoration/5.webp";
+import img6 from "../../../assets/projects/ps4-restoration/6.webp";
+import img7 from "../../../assets/projects/ps4-restoration/7.webp";
+import img8 from "../../../assets/projects/ps4-restoration/8.webp";
+
 ## El Brief
 
 Las consolas de videojuegos comerciales a menudo se enfrentan a un grave estrangulamiento térmico (*thermal throttling*) y a la degradación del rendimiento a lo largo de su ciclo de vida debido a la acumulación de polvo y al deterioro de las interfaces térmicas. Este proyecto de ingeniería de sistemas se centró en la restauración física completa, la optimización térmica y la explotación a nivel de kernel de una consola PlayStation 4 Slim.
@@ -20,7 +29,7 @@ Las consolas de videojuegos comerciales a menudo se enfrentan a un grave estrang
 El objetivo era doble: primero, revertir el estrangulamiento térmico extremo mediante un desmontaje completo del hardware (*teardown*) y la aplicación de una limpieza química de precisión; segundo, realizar una actualización controlada del firmware exactamente a la versión 9.00, implementar un exploit manual del kernel mediante un vector web (*exfathax*) y arrancar de forma segura un entorno de ejecución de Linux independiente para pruebas educativas.
 
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+  <img width="75%" src={img1.src} alt="Distribución del ventilador interno sucio de PS4" />
 </p>
 
 ## Responsabilidades y Ejecución
@@ -31,21 +40,21 @@ Ejecuté el ciclo de vida completo de este proyecto, dividiendo el flujo de trab
 
 * **Desmontaje Completo:** Realicé un desmontaje estructural exhaustivo del chasis de la consola para acceder a la placa base, los ventiladores de soplado y el conjunto del disipador de calor interno.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+  <img width="75%" src={img2.src} alt="PS4 desmontada en estado sucio" />
 </p>
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+  <img width="75%" src={img3.src} alt="Polvo expuesto en la placa base de PS4" />
 </p>
 * **Decontaminación Química:** Utilicé alcohol isopropílico de alta pureza para eliminar por completo los materiales de la interfaz térmica original de fábrica envejecidos y degradados, sin dañar los delicados dispositivos de montaje superficial (SMD) circundantes.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+  <img width="75%" src={img4.src} alt="Estado de la pasta térmica limpia" />
 </p>
 * **Actualización de la Interfaz Térmica:** Limpié las aletas del radiador interno y apliqué pasta térmica de alto rendimiento Arctic MX-4 mediante una aplicación optimizada en capa fina y uniforme, logrando reducir drásticamente el ruido acústico y solucionando los cuellos de botella térmicos bajo cargas de trabajo pesadas.
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+  <img width="75%" src={img5.src} alt="Pasta térmica Arctic MX-4 aplicada" />
 </p>
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+  <img width="75%" src={img6.src} alt="Ventilador interno y componentes limpios" />
 </p>
 
 ## Manipulación y Explotación de Firmware
@@ -54,7 +63,7 @@ Ejecuté el ciclo de vida completo de este proyecto, dividiendo el flujo de trab
 * **Actualización Manual del Firmware:** Construí una estructura estática estricta (`/PS4/UPDATE/PS4UPDATE.PUP`) en un dispositivo de almacenamiento de bloques con sistema de archivos exFAT, desplegando e instalando una imagen oficial de la partición del sistema de recuperación de la versión 9.00 a través del arranque de medios locales.
 
 <p align="center">
-  <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+  <img width="75%" src={img7.src} alt="Versión base de firmware antiguo 8.50" />
 </p>
 
 * **Explotación de la Memoria del Kernel:** Utilicé herramientas especializadas de almacenamiento en caché web (ecosistemas de payloads GoldHEN a través de Karo) junto con un mecanismo de inyección de binarios crudos externos (`exfathax.img`) flasheados en un dispositivo de almacenamiento masivo a través de Rufus, provocando un desbordamiento de los límites de memoria mediante una vulnerabilidad en el analizador del sistema de archivos exFAT.
@@ -92,7 +101,7 @@ A continuación se presenta la especificación técnica de los estados de despli
 
 ## Resultado Final
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="Menú de configuración de PlayStation 4 mostrando el estado de GoldHEN" />
 </p>
 
 ### Conclusión y Estado del Proyecto

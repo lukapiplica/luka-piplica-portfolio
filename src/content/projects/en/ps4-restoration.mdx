@@ -10,6 +10,15 @@ services: ["Thermal Management", "Firmware Exploitation", "Low-Level Environment
 image: "../../../assets/projects/ps4-restoration/featured.webp"
 ---
 
+import img1 from "../../../assets/projects/ps4-restoration/1.webp";
+import img2 from "../../../assets/projects/ps4-restoration/2.webp";
+import img3 from "../../../assets/projects/ps4-restoration/3.webp";
+import img4 from "../../../assets/projects/ps4-restoration/4.webp";
+import img5 from "../../../assets/projects/ps4-restoration/5.webp";
+import img6 from "../../../assets/projects/ps4-restoration/6.webp";
+import img7 from "../../../assets/projects/ps4-restoration/7.webp";
+import img8 from "../../../assets/projects/ps4-restoration/8.webp";
+
 ## The Brief
 Consumer gaming consoles often face severe thermal throttling and performance degradation over extended lifecycles due to dust accumulation and broken thermal interfaces. This systems engineering project focused on the complete physical restoration, thermal optimization, and kernel exploitation of a PlayStation 4 Slim console.  
 
@@ -18,7 +27,7 @@ Consumer gaming consoles often face severe thermal throttling and performance de
 The goal was twofold: first, to reverse severe thermal throttling by executing a full hardware teardown and applying precision chemical cleaning; second, to perform a controlled firmware upgrade to exactly version 9.00, implement a manual web-vector kernel exploit (exfathax), and safely bootstrap an independent Linux runtime environment for educational testing.
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+    <img width="75%" src={img1.src} alt="PS4 Dirty Internal Fan Layout" />
 </p>
 
 ## What I Manage & Build
@@ -27,21 +36,21 @@ I executed the entire lifecycle of this project, dividing the workflow between p
 ## Hardware Restoration & Thermal Management
 * **Complete Teardown:** Conducted a comprehensive structural disassembly of the console chassis to access the core motherboard, blower fans, and internal heatsink assembly.
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+    <img width="75%" src={img2.src} alt="PS4 Disassembled Dirty State" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+    <img width="75%" src={img3.src} alt="PS4 Motherboard Exposure Dust" />
 </p>
 * **Chemical Decontamination:** Utilized high-purity isopropyl alcohol to completely remove aged, degraded original factory thermal interface materials without damaging the surrounding delicate surface-mount devices (SMDs).
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+    <img width="75%" src={img4.src} alt="Thermal Paste Cleaned State" />
 </p>
 * **Thermal Interface Upgrade:** Cleaned the internal radiator fins and applied high-performance Arctic MX-4 thermal paste via a manually spread uniform layer, successfully lowering acoustic output and fixing thermal bottlenecks under heavy computing loads.
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+    <img width="75%" src={img5.src} alt="Arctic MX-4 Applied" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+    <img width="75%" src={img6.src} alt="Cleaned Internal Fan and Components" />
 </p>
 
 ## Firmware Manipulation & Exploitation
@@ -49,7 +58,7 @@ I executed the entire lifecycle of this project, dividing the workflow between p
 * **Manual Firmware Upgrade:** Constructed a capital-enforced static structure (`/PS4/UPDATE/PS4UPDATE.PUP`) on an exFAT filesystem block device, staging and deploying an official 9.00 recovery system partition image via local media boot.
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img7.src} alt="Old Firmware Base Version 8.50" />
 </p>
 
 * **Kernel Memory Exploitation:** Utilized specialized web-host caching tools (GoldHEN payload ecosystems via Karo) alongside an external raw binary injection mechanism (`exfathax.img`) flashed onto a raw block storage device via Rufus, triggering a memory boundary bypass via an exFAT filesystem parser vulnerability.
@@ -75,7 +84,7 @@ graph TD
 Below is the technical specification of the deployment states and materials managed throughout the system life-cycle:
 
 | System Component | Technology / Framework | Implementation Strategy |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | **Thermal Interface** | Arctic MX-4 Carbon Compound | High-Thermal Conductivity Core Re-pasting |
 | **Firmware Base** | Sony System Image v9.00 | Targeted Recovery Upgrade Path |
 | **Exploit Vector** | Webkit / exFAT Filesystem Bug | Manual Web Browser Payload Cache Injection |
@@ -84,7 +93,7 @@ Below is the technical specification of the deployment states and materials mana
 
 ## Final Result
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="PlayStation 4 Settings menu showing GoldHEN status" />
 </p>
 
 ### Conclusion & Project State

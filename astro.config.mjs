@@ -10,6 +10,7 @@ import cloudflare from '@astrojs/cloudflare';
 import i18nConfig from './src/config/i18n.config.ts';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
 
 const isNetlify = process.env.DEPLOY_TARGET === 'netlify';
 const isCloudflare = process.env.DEPLOY_TARGET === 'cloudflare' || !!process.env.CF_PAGES;
@@ -78,7 +79,7 @@ export default defineConfig({
   },
 
   markdown: {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [remarkMath, remarkGfm],
     rehypePlugins: [rehypeKatex],
     shikiConfig: {
       theme: 'github-dark',

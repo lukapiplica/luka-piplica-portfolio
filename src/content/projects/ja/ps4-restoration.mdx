@@ -11,6 +11,15 @@ image: "../../../assets/projects/ps4-restoration/featured.webp"
 locale: "ja"
 ---
 
+import img1 from "@/assets/projects/ps4-restoration/1.webp";
+import img2 from "@/assets/projects/ps4-restoration/2.webp";
+import img3 from "@/assets/projects/ps4-restoration/3.webp";
+import img4 from "@/assets/projects/ps4-restoration/4.webp";
+import img5 from "@/assets/projects/ps4-restoration/5.webp";
+import img6 from "@/assets/projects/ps4-restoration/6.webp";
+import img7 from "@/assets/projects/ps4-restoration/7.webp";
+import img8 from "@/assets/projects/ps4-restoration/8.webp";
+
 ## プロジェクト概要
 
 家庭用ゲーム機は、長期間の使用に伴うホコリの蓄積や熱伝導媒体の劣化により、深刻なサーマルスロットリングや性能低下に直面することがよくあります。本システムエンジニアリングプロジェクトでは、PlayStation 4 Slimコンソールの完全な物理的レストア、熱最適化、およびカーネルエクスプロイトに焦点を当てました。
@@ -20,7 +29,7 @@ locale: "ja"
 目標は2つありました。1つ目は、ハードウェアの完全な分解と精密な化学洗浄を実行して深刻なサーマルスロットリングを解消すること。2つ目は、ファームウェアを手動で正確にバージョン9.00にアップグレードし、Webベースのカーネルエクスプロイト（exfathax）を実装して、教育的テスト用の独立したLinuxランタイム環境を安全にブートストラップすることです。
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/1.webp" alt="PS4 Dirty Internal Fan Layout" />
+    <img width="75%" src={img1.src} alt="PS4内部の汚れたファンの配置"/>
 </p>
 
 ## 担当業務と構築内容
@@ -32,21 +41,21 @@ locale: "ja"
 
 *   **完全な分解：** コンソールの筐体を構造的に完全に分解し、コアとなるマザーボード、ブロワーファン、および内部ヒートシンクアセンブリにアクセス。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/2.webp" alt="PS4 Disassembled Dirty State" />
+    <img width="75%" src={img2.src} alt="分解された汚れた状態のPS4" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/3.webp" alt="PS4 Motherboard Exposure Dust" />
+    <img width="75%" src={img3.src} alt="PS4マザーボードの埃が露出した状態" />
 </p>
 *   **化学的除染：** 周囲の繊細な表面実装部品（SMD）を損傷することなく、高純度イソプロピルアルコールを使用して、経年劣化した工場出荷時の古い熱伝導材料（グリス）を完全に除去。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/4.webp" alt="Thermal Paste Cleaned State" />
+    <img width="75%" src={img4.src} alt="清掃されたサーマルグリスの状態" />
 </p>
 * **熱伝導インターフェースのアップグレード：** 内部ラジエーターのフィンを清掃し、最適化された均一な薄塗り塗布法で高性能なArctic MX-4サーマルグリスを適用。高負荷の演算処理下でも静音化に成功し、熱によるボトルネックを解消。
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/5.webp" alt="Arctic MX-4 Applied" />
+    <img width="75%" src={img5.src} alt="塗布されたArctic MX-4" />
 </p>
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/6.webp" alt="Cleaned Internal Fan and Components" />
+    <img width="75%" src={img6.src} alt="清掃された内部ファンとコンポーネント" />
 </p>
 
 
@@ -56,7 +65,7 @@ locale: "ja"
 *   **手動ファームウェアアップグレード：** exFATファイルシステムブロックデバイス上に静的なディレクトリ構造（`/PS4/UPDATE/PS4UPDATE.PUP`）を構築し、ローカルメディアのブートを介して公式の9.00リカバリシステムパーティションイメージを展開。
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/7.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img7.src} alt="旧ファームウェアベースバージョン8.50" />
 </p>
 
 *   **カーネルメモリのエクスプロイト：** Rufusを介して外部の生のバイナリインジェクションメカニズム（`exfathax.img`）をストレージデバイスにフラッシュ。Karo経由のGoldHENペイロードエコシステムなどの専用Webホストキャッシュツールと組み合わせ、exFATファイルシステムパーサーの脆弱性を突いてメモリ境界のバイパス（境界外アクセス）をトリガー。
@@ -97,7 +106,7 @@ graph TD
 ## 最終結果
 
 <p align="center">
-    <img width="75%" src="/src/assets/projects/ps4-restoration/8.webp" alt="Old Firmware Base Version 8.50" />
+    <img width="75%" src={img8.src} alt="旧ファームウェアベースalt="GoldHENのステータスを表示するPlayStation 4の設定メニュー"バージョン8.50" />
 </p>
 
 ### 結論とプロジェクトの状態
