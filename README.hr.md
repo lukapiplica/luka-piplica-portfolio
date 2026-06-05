@@ -106,6 +106,22 @@ Budući da se sadržaj pohranjuje u MDX datotekama po jezicima (`blog/en/post.md
 
 ---
 
+### 6. Dinamički višejezični RSS sažeci (RSS feeds)
+Zadani RSS sažetak prikazivao je sadržaj samo na engleskom jeziku na `/rss.xml`.
+
+* **Što sam izradio:** Implementirao sam dinamičku rutu na `src/pages/[locale]/rss.xml.ts` koja dinamički generira RSS sažetke za sve konfigurirane lokalizacije (npr. `/hr/rss.xml`, `/es/rss.xml`).
+* **Filtriranje sadržaja:** Sažeci automatski filtriraju blog zapise prema odgovarajućoj lokalizaciji i formatiraju poveznice s ispravnim jezičnim prefiksom (npr. `/hr/blog/...`).
+* **XML prilagodba:** Sažeci ubacuju ispravan `<language>` kod (npr. `hr`, `zh-cn`, `es`) i dodaju naziv jezika naslovu sažetka (npr. *Luka Piplica (Hrvatski)*).
+* **Automatsko otkrivanje (Auto-Discovery):** Prilagodio sam RSS poveznice u `BlogContent.astro`, `BlogLayout.astro` i oznaku `<link rel="alternate">` u `BaseLayout.astro` kako bi se dinamički mijenjale ovisno o aktivnom jeziku korisnika.
+
+---
+
+### 7. Dinamički strukturirani podaci za FAQ (JSON-LD)
+Strukturirani podaci za Česta pitanja (FAQ) ključni su za optimizaciju za tražilice (SEO), ali fiksno kodirane (hardcoded) statične JSON datoteke shema ne podržavaju višejezični prijevod.
+
+* **Što sam izradio:** Dinamički generiram **FAQPage** JSON-LD shemu u stvarnom vremenu unutar `AboutContent.astro` koristeći unose iz rječnika prijevoda (`aboutPage.faq.q1` do `q8` i odgovore).
+* **Integracija:** Proširio sam `PageLayout.astro` kako bi prihvaćao `extraSchemas` svojstva (props) i prosljeđivao ih skripti za ubacivanje JSON-LD-a unutar `BaseLayout.astro`. To dinamički ugrađuje prevedene strukturirane podatke za FAQ na temelju aktivnog jezika (`/about`, `/hr/about`, itd.).
+
 ## 📁 Struktura projekta
 
 ```

@@ -106,6 +106,22 @@
 
 ---
 
+### 6. 动态多语言 RSS 提要
+默认的 RSS 提要仅在 `/rss.xml` 路径下提供英文内容。
+
+* **开发内容：** 在 `src/pages/[locale]/rss.xml.ts` 中实现了一条动态路由，从而能够为所有配置的语言环境（例如 `/hr/rss.xml`、`/es/rss.xml`）动态生成 RSS 提要。
+* **内容过滤：** 提要会自动根据匹配的语言环境过滤博客文章，并使用正确的语言前缀（例如 `/hr/blog/...`）来格式化链接。
+* **XML 定制：** 在提要中注入正确的 `<language>` 代码（例如 `hr`、`zh-cn`、`es`），并在提要标题后附加对应的语言名称（例如 *Luka Piplica (Hrvatski)*）。
+* **自动发现（Auto-Discovery）：** 对 `BlogContent.astro`、`BlogLayout.astro` 中的 RSS 链接以及 `BaseLayout.astro` 中的 `<link rel="alternate">` 标签进行了处理，使其能够根据用户当前的活跃语言进行动态切换。
+
+---
+
+### 7. 动态 FAQ 结构化数据（JSON-LD）
+FAQ 结构化数据对于搜索引擎优化（SEO）至关重要，但硬编码（hardcoded）的静态 JSON Schema 文件无法很好地支持多语言。
+
+* **开发内容：** 利用翻译字典中的条目（`aboutPage.faq.q1` 至 `q8` 及其答案），在 `AboutContent.astro` 内部实时动态生成 **FAQPage** JSON-LD 数据。
+* **集成对接：** 扩展了 `PageLayout.astro` 以接收 `extraSchemas` 属性（props），并将其传递给 `BaseLayout.astro` 的 JSON-LD 脚本注入器。由此可以根据当前的活跃语言（`/about`、`/hr/about` 等）动态嵌入翻译后的 FAQ 结构化数据。
+
 ## 📁 项目结构
 
 ```

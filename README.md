@@ -22,6 +22,7 @@ Built on the Astro Rocket theme — with the routing engine, i18n system, search
 | **Framework** | Astro | SSG with Content Collections |
 | **Styling** | Tailwind CSS | Semantic design tokens |
 | **Language** | TypeScript | Strict schemas across all collections |
+| **Automation & Scripting** | Python | System automation and agentic workflows |
 | **Structured data** | Schema.org / `schema-dts` | JSON-LD integration |
 
 ---
@@ -103,6 +104,24 @@ Each blog post shows a calculated reading time. The pipeline runs at compile tim
 With content stored in per-locale MDX files (`blog/en/post.mdx`, `blog/de/post.mdx`, etc.), the homepage "latest posts" section was showing the same article multiple times — once per locale variant, sorted by publish date.
 
 **The Fix:** Homepage content queries now filter to only include entries from the `en` collection before selecting the most recent 3 posts and 4 projects. This ensures each piece of content appears exactly once regardless of how many locale files exist for it.
+
+---
+
+### 6. Dynamic multilingual RSS feeds
+The default RSS feed only served English content at `/rss.xml`.
+
+* **What I built:** Created a dynamic route at `src/pages/[locale]/rss.xml.ts` that generates RSS feeds dynamically for all configured locales (e.g. `/hr/rss.xml`, `/es/rss.xml`).
+* **Content Filtering:** Feeds automatically filter blog posts by the matching locale and format links with the correct language prefix (e.g., `/hr/blog/...`).
+* **XML Customization:** Feeds inject the correct `<language>` code (e.g., `hr`, `zh-cn`, `es`) and append the language name to the feed title (e.g., *Luka Piplica (Hrvatski)*).
+* **Auto-Discovery:** Made the RSS links in `BlogContent.astro`, `BlogLayout.astro`, and the `<link rel="alternate">` tag in `BaseLayout.astro` dynamically switch based on the user's active language.
+
+---
+
+### 7. Dynamic FAQ structured data (JSON-LD)
+FAQ structured data is key for search engine optimization but hardcoded static JSON schema files don't support multi-language translation.
+
+* **What I built:** Dynamically generate the **FAQPage** JSON-LD schema on-the-fly inside `AboutContent.astro` using translation dictionary entries (`aboutPage.faq.q1` to `q8` & answers).
+* **Integration:** Extended `PageLayout.astro` to accept `extraSchemas` props and forward them to `BaseLayout.astro`'s JSON-LD script injector. This embeds translated FAQ structured data dynamically based on the active language (`/about`, `/hr/about`, etc.).
 
 ---
 

@@ -6,11 +6,13 @@ import icon from 'astro-icon';
 import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import netlify from '@astrojs/netlify';
+import cloudflare from '@astrojs/cloudflare';
 import i18nConfig from './src/config/i18n.config.ts';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 const isNetlify = process.env.DEPLOY_TARGET === 'netlify';
+const isCloudflare = process.env.DEPLOY_TARGET === 'cloudflare' || !!process.env.CF_PAGES;
 
 /**
  * Native Astro i18n is only wired up when the user opts in *and* has
@@ -32,8 +34,8 @@ const astroI18nOptions = i18nEnabled
 
 export default defineConfig({
   output: 'static',
-  adapter: isNetlify ? netlify() : vercel(),
-  site: process.env.SITE_URL || 'https://example.com',
+  adapter: isNetlify ? netlify() : (isCloudflare ? cloudflare() : vercel()),
+  site: process.env.SITE_URL || 'https://lukapiplica.xyz',
   ...(astroI18nOptions ? { i18n: astroI18nOptions } : {}),
 
   build: {

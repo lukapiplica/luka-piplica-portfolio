@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/hansmartens68/astro--rocket/component-registry.schema.json",
-  "title": "Astro Rocket Component Registry",
-  "description": "Schema for the Astro Rocket component registry",
+  "$id": "https://github.com/lukapiplica/luka-piplica-portfolio/component-registry.schema.json",
+  "title": "Luka Piplica Component Registry",
+  "description": "Schema for the Luka Piplica component registry",
   "type": "object",
   "required": ["version", "categories", "utilities", "components"],
   "properties": {

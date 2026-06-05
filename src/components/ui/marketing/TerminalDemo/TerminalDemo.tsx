@@ -25,14 +25,14 @@ interface ScriptLine {
 // Astro Rocket setup flow: clone → install → dev
 const script: ScriptLine[] = [
   // Step 1: clone
-  { text: '$ git clone https://github.com/hansmartens68/Astro-Rocket.git', delay: 1200, type: 'command' },
+  { text: '$ git clone https://github.com/lukapiplica/luka-piplica-portfolio.git', delay: 1200, type: 'command' },
   { text: '', delay: 200, type: 'command' },
-  { text: 'Cloning into \'Astro-Rocket\'...', delay: 300, type: 'prompt-hint' },
+  { text: 'Cloning into \'luka-piplica-portfolio\'...', delay: 300, type: 'prompt-hint' },
   { text: '✔  Repository cloned', delay: 600, type: 'success' },
   { text: '', delay: 200, type: 'prompt-label' },
 
   // Step 2: install
-  { text: '$ cd Astro-Rocket && pnpm install', delay: 600, type: 'command' },
+  { text: '$ cd luka-piplica-portfolio && pnpm install', delay: 600, type: 'command' },
   { text: '', delay: 200, type: 'command' },
   { text: '◐  Resolving dependencies...', delay: 400, type: 'spinner' },
   { text: '✔  Dependencies installed', delay: 700, type: 'success' },

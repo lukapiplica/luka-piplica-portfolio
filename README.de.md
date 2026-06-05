@@ -106,6 +106,22 @@ Da die Inhalte in sprachspezifischen MDX-Dateien (`blog/en/post.mdx`, `blog/de/p
 
 ---
 
+### 6. Dynamische mehrsprachige RSS-Feeds
+Der Standard-RSS-Feed stellte Inhalte nur auf Englisch unter `/rss.xml` bereit.
+
+* **Was ich entwickelt habe:** Eine dynamische Route unter `src/pages/[locale]/rss.xml.ts` implementiert, um RSS-Feeds für alle konfigurierten Locales (z. B. `/hr/rss.xml`, `/es/rss.xml`) dynamisch zu generieren.
+* **Inhaltsfilterung:** Feeds filtern Blog-Beiträge automatisch nach der passenden Locale und formatieren Links mit dem korrekten Sprachpräfix (z. B. `/hr/blog/...`).
+* **XML-Anpassung:** Feeds injizieren den korrekten `<language>`-Code (z. B. `hr`, `zh-cn`, `es`) und hängen den Sprachnamen an den Feed-Titel an (z. B. *Luka Piplica (Hrvatski)*).
+* **Auto-Discovery:** Die RSS-Links in `BlogContent.astro`, `BlogLayout.astro` und das `<link rel="alternate">`-Tag in `BaseLayout.astro` so angepasst, dass sie sich basierend auf der aktiven Sprache des Nutzers dynamisch aktualisieren.
+
+---
+
+### 7. Dynamische strukturierte FAQ-Daten (JSON-LD)
+Strukturierte FAQ-Daten sind entscheidend für die Suchmaschinenoptimierung (SEO), aber fest codierte statische JSON-Schema-Dateien unterstützen keine mehrsprachige Übersetzung.
+
+* **Was ich entwickelt habe:** Das **FAQPage** JSON-LD-Schema dynamisch direkt in `AboutContent.astro` generiert, unter Verwendung von Einträgen aus dem Übersetzungs-Dictionary (`aboutPage.faq.q1` bis `q8` & Antworten).
+* **Integration:** `PageLayout.astro` so erweitert, dass es `extraSchemas`-Props akzeptiert und diese an den JSON-LD-Skript-Injektor von `BaseLayout.astro` weiterleitet. Dadurch werden die übersetzten strukturierten FAQ-Daten basierend auf der aktiven Sprache (`/about`, `/hr/about`, etc.) dynamisch eingebettet.
+
 ## 📁 Projektstruktur
 
 ```

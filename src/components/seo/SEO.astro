@@ -32,7 +32,11 @@ const {
   nofollow = false,
 } = Astro.props;
 
-const pageTitle = title ? `${title} — ${siteConfig.name}` : siteConfig.name;
+const pageTitle = title
+  ? title.includes(siteConfig.name)
+    ? title
+    : `${title} — ${siteConfig.name}`
+  : siteConfig.name;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 

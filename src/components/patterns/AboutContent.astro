@@ -9,6 +9,7 @@ import TypingEffect from '@/components/ui/TypingEffect.astro';
 import TechStack from '@/components/landing/TechStack.astro';
 import LetterGlitchBand from '@/components/patterns/LetterGlitchBand.astro';
 import { t, localizedPath } from '@/i18n';
+import { createFAQSchema } from '@/lib/schema';
 
 interface Props {
   locale: string;
@@ -25,12 +26,20 @@ const card2Tags = t('aboutPage.background.card2Tags', locale).split(',');
 
 // FAQ summary class for reuse
 const summaryClass = "flex w-full items-center justify-between text-sm py-4 text-left font-medium text-foreground transition-colors hover:text-foreground-secondary cursor-pointer list-none [&::-webkit-details-marker]:hidden";
+
+// Generate FAQ page schema
+const faqItems = [1, 2, 3, 4, 5, 6, 7, 8].map((num) => ({
+  question: t(`aboutPage.faq.q${num}`, locale),
+  answer: t(`aboutPage.faq.a${num}`, locale),
+}));
+const faqSchema = createFAQSchema(faqItems);
 ---
 
 <PageLayout
   title={t('aboutPage.title', locale)}
   description={t('aboutPage.description', locale)}
   locale={locale}
+  extraSchemas={[faqSchema]}
 >
   <Hero layout="centered" size="sm">
     <Badge slot="badge" variant="brand" pill>

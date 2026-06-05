@@ -4,6 +4,7 @@
  * Layout wrapper for standard content pages (non-landing)
  * Uses Header + Footer with content page configuration
  */
+import type { Thing, WithContext } from 'schema-dts';
 import BaseLayout from './BaseLayout.astro';
 import Header from '@/components/layout/Header.astro';
 import Footer from '@/components/layout/Footer.astro';
@@ -18,9 +19,10 @@ interface Props {
   showScrollProgress?: boolean;
   eagerReveal?: boolean;
   locale?: string;
+  extraSchemas?: WithContext<Thing>[];
 }
 
-const { title, description, image, imageAlt, noindex, nofollow, showScrollProgress = false, eagerReveal = false, locale } = Astro.props;
+const { title, description, image, imageAlt, noindex, nofollow, showScrollProgress = false, eagerReveal = false, locale, extraSchemas = [] } = Astro.props;
 
 ---
 
@@ -33,6 +35,7 @@ const { title, description, image, imageAlt, noindex, nofollow, showScrollProgre
   nofollow={nofollow}
   eagerReveal={eagerReveal}
   locale={locale}
+  extraSchemas={extraSchemas}
 >
   <Header
     slot="header"

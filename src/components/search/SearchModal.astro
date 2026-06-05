@@ -79,7 +79,7 @@ const searchIndex = [
           type="text"
           id="search-input"
           placeholder={t('search.placeholder', locale)}
-          class="flex-1 bg-transparent text-foreground placeholder-foreground-muted text-base focus:outline-none"
+          class="flex-1 min-w-0 bg-transparent text-foreground placeholder-foreground-muted text-base focus:outline-none"
           autocomplete="off"
           spellcheck="false"
         />
@@ -114,7 +114,7 @@ const searchIndex = [
           <div class="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4 border border-border/50">
             <Icon name="file-question" class="w-5 h-5 text-foreground-muted" />
           </div>
-          <p class="text-sm font-medium" id="search-empty-text" data-raw-text={t('search.noResults', locale)}></p>
+          <p class="text-sm font-medium break-all px-4" id="search-empty-text" data-raw-text={t('search.noResults', locale)}></p>
         </div>
 
         <div id="search-results-list" class="hidden"></div>
