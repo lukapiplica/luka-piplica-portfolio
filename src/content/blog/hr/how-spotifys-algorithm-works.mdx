@@ -1,0 +1,212 @@
+---
+title: "Kako Spotifyjev algoritam za preporuke zapravo poznaje tvoju dušu"
+description: "Tehnička analiza arhitekture strojnog učenja koja stoji iza Spotifyja: matrična faktorizacija, LinUCB kontekstualni banditi i višedimenzionalna vektorska pretraga."
+publishedAt: 2026-07-07
+author: "Luka Piplica"
+tags: ["Algorithms", "Machine Learning", "Data Science", "Audio Analysis", "AI"]
+featured: true
+locale: hr
+image: "../../../assets/blog/spotify-algorithms/featured.webp"
+imageAlt: "Animacija kinetičke tipografije Spotify logotipa na tamnoj pozadini, s poskakujućim slovima dok se kultni zeleni val odbija od slova 'O' i smješta na svoju konačnu poziciju na lijevoj strani"
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+
+Ako ste ikada osjetili da Spotifyjev *Discover Weekly* djeluje s gotovo jezivom, vidovitom preciznošću, niste jedini. Možda otvorite aplikaciju u utorak navečer, prepustite joj kontrolu i odjednom vas pogodi pjesma koja tako savršeno utjelovljuje vaše trenutno raspoloženje da se počnete pitati sluša li vas mobitel.
+
+Sustav vam ne čita misli niti prisluškuje vaše razgovore. Matthew Ogle, koji je vodio odjel za otkrivanje (*discovery*) u Spotifyju tijekom ere *Discover Weeklyja*, slavno je definirao cilj kao stvaranje *„mixtapea od najboljeg prijatelja”*. Međutim, iza te vizije koja djeluje tako ljudski krije se sustav nevjerojatne matematičke preciznosti.
+
+Ono što djeluje kao digitalna telepatija zapravo je elegantna izvedba brutalne, višedimenzionalne matematike. Spotifyjeva arhitektura za preporuke je remek-djelo moderne podatkovne znanosti: ne oslanja se na jedan monolitni model, već koordinira ansambl različitih paradigmi strojnog učenja koje rade sinkrono. Rastavimo motor i pogledajmo matematičku arhitekturu ispod haube.
+
+![Infografika Spotifyjeve Discover Weekly arhitekture preporuka koja prikazuje matricu interakcije korisnika i stavki, matričnu faktorizaciju i višedimenzionalni vektorski prostor.](../../../assets/blog/spotify-algorithms/1.webp)
+*Slika 1: Makro orkestracija Spotifyjevog motora za preporuke, koja prikazuje cjevovod od sirove matrice interakcije korisnika i stavki do višedimenzionalnih latentnih vektorskih ugradnji.*
+
+---
+
+## Glavna arhitektura: Tri stupa ekstrakcije
+
+Da bismo razumjeli Spotify, najprije ga moramo razlikovati od determinističkih algoritama za usklađivanje zvuka. Shazam se, primjerice, <a href="https://www.toptal.com/algorithms/shazam-it-music-processing-fingerprinting-and-recognition" target="_blank" rel="noopener noreferrer">oslanja na spektrografije i lokalizirano kombinatorno sažimanje (hashing)</a> kako bi identificirao poznati akustički otisak u statičnoj bazi podataka. Spotify, međutim, rješava fundamentalno teži vjerojatnosni problem: predviđanje budućih preferencija na temelju apstraktnog ljudskog ponašanja koje nikada nije izravno promatrao.
+
+Kako bi to postigao, istovremeno povlači podatke iz tri potpuno različita izvora — ponašanja, jezika i sirovog zvuka.
+
+### Stup 1: Kolaborativno filtriranje putem izmjeničnih najmanjih kvadrata (ALS)
+
+Temeljni kamen temeljac Spotifyjevog motora je **Kolaborativno filtriranje** (Collaborative Filtering). Umjesto analize same glazbe, ono analizira metapodatke ljudskog ponašanja na civilizacijskoj razini.
+
+Spotify konceptualizira svoj ekosustav kao masivnu matricu interakcije $R$, gdje redci predstavljaju korisnike ($u$), a stupci stavke/pjesme ($i$). Vrijednost u svakoj ćeliji, $r_{ui}$, kodira implicitni signal — broj reprodukcija, koliko je puta pjesma odslušana do kraja, je li spremljena ili je preskočena u prvih 30 sekundi. Budući da korisnici kolektivno slušaju samo maleni dio od preko 100 milijuna dostupnih pjesama, ova je matrica iznimno rijetka.
+
+Cilj je **Matrična faktorizacija**: rastavljanje matrice $R$ na dvije guste matrice nižih dimenzija — matricu korisnika $U$ i matricu stavki $V$ — tako da njihov skalarni umnožak aproksimira izvornu matricu:
+
+$$R \approx U V^T$$
+
+Svaki redak matrice $U$ je latentni vektor značajki koji predstavlja glazbeni ukus korisnika u nekom apstraktnom $k$-dimenzionalnom prostoru. Svaki redak matrice $V$ je odgovarajući vektor za određenu pjesmu. Prateći standardnu notaciju strojnog učenja, latentni vektor za korisnika $u$ označavamo kao $p_u$, a za stavku $i$ kao $q_i$. Njihov skalarni umnožak $p_u^T q_i$ predviđa koliko bi snažno korisnik $u$ reagirao na pjesmu $i$.
+
+Kako bi naučio ove vektore na masovnoj razini, Spotify je povijesno koristio **<a href="https://medium.com/data-science/alternating-least-square-for-implicit-dataset-with-code-8e7999277f4b" target="_blank" rel="noopener noreferrer">algoritam izmjeničnih najmanjih kvadrata (ALS)</a>**. Cilj je minimizirati sljedeću ponderiranu funkciju gubitka:
+
+$$J = \min_{P, Q} \sum_{u, i} c_{ui} (r_{ui} - p_u^T q_i)^2 + \lambda (\|p_u\|^2 + \|q_i\|^2)$$
+
+Gdje je:
+* **$r_{ui}$**: Opažena implicitna interakcija između korisnika $u$ i stavke $i$.
+* **$p_u^T q_i$**: Predviđeni afinitet — skalarni umnožak latentnih vektora korisnika i stavke.
+* **$c_{ui}$**: Težina pouzdanosti (confidence weight). Budući da su podaci o streamanju implicitni (neslušanje pjesme ne znači nužno da vam se ona ne sviđa — možda jednostavno niste naišli na nju), $c_{ui}$ proporcionalno skalira važnost opaženih interakcija. Pjesma koja je reproducirana 50 puta dobiva daleko veću težinu u optimizaciji od pjesme koja je reproducirana samo jednom.
+* **$\lambda$**: Parametar L2 regularizacije za kažnjavanje velikih težina i sprječavanje prevelikog prilagođavanja (overfitting).
+
+Budući da istovremeno rješavanje i za $U$ i za $V$ rezultira nekonveksnim optimizacijskim problemom, algoritam ALS fiksira jednu matricu kako bi riješio drugu pomoću linearnih najmanjih kvadrata, a zatim ih izmjenjuje. Ovaj trik čini izračun visoko paraleliziranim na distribuiranim klasterima — što je ključno kada se radi s matricom od 600 milijuna korisnika.
+
+Praktična intuicija: ako vaše ponašanje pri slušanju pomalo odražava ponašanje korisnika u Tokiju, algoritam zaključuje da ste „glazbene srodne duše” i preporučuje vam pjesme koje oni vole, a na koje vi još niste naišli. Vaš *Discover Weekly* je, u svojoj srži, odabrana kompilacija onoga što vaši matematički najbliži susjedi vrte ovaj tjedan.
+
+<Alert variant="info">
+    **Ažuriranje za 2026. — Grafovske neuronske mreže.** Iako ALS ostaje konceptualni temelj, Spotify se sve više okreće **grafovskim neuronskim mrežama (GNN)** za preporuke na produkcijskoj razini. Kroz svoju internu platformu **Twine**, Spotify modelira cijeli ekosustav — korisnike, pjesme, playliste, izvođače i podcaste — kao jedan heterogeni graf. GNN-ovi mogu obuhvatiti odnose s više skokova (*multi-hop*) koji su nevidljivi matričnoj faktorizaciji: primjerice, da ste vi i superfan nekog izvođača u Seulu povezani kroz tri skoka između playlista, a ne samo izravnim zajedničkim slušanjem. ALS objašnjava *zašto* ovog pristupa, dok GNN-ovi sve više odrađuju najteži dio posla u produkciji.
+</Alert>
+
+![Infografika Spotifyjevog cjevovoda za kolaborativno filtriranje koja prikazuje matričnu dekompoziciju, matematičku optimizaciju ALS funkcije gubitka, iterativni ALS proces i integraciju grafovskih neuronskih mreža putem platforme Twine.](../../../assets/blog/spotify-algorithms/2.webp)
+*Slika 2: Arhitektura Spotifyjevog okvira za kolaborativno filtriranje, koja ilustrira faktorizaciju rijetke matrice interakcije korisnika i stavki u latentne vektore značajki, matematičku optimizaciju funkcije gubitka i iterativno izvršavanje algoritma izmjeničnih najmanjih kvadrata (ALS).*
+
+### Stup 2: Obrada prirodnog jezika — Playliste kao rečenice
+
+Kolaborativno filtriranje je moćno, ali pati od **problema hladnog starta** (Cold Start Problem): kako preporučiti pjesmu koja ima nula povijesnih podataka o reprodukciji? Potpuno novi prijenos od neovisnog izvođača nema nikakav signal ponašanja. Zbog toga je potreban drugi, komplementarni sustav.
+
+Spotify premošćuje ovaj jaz okretanjem širem kulturnom internetu. Njegovi indekseri (crawleri) neprekidno <a href="https://variogram.com/2012/12/11/how-music-recommendation-works-and-doesnt-work/" target="_blank" rel="noopener noreferrer">pretražuju web-sadržaj</a> — glazbene blogove, uredničke članke — i što je najvažnije, naslove i opise milijuna playlista koje su generirali korisnici. Ovdje vrijedi i Ogleovo poznato zapažanje: istinska inteligencija sustava *„stoji na ramenima ljudskih divova”* — milijuna običnih korisnika koji nesvjesno označavaju glazbu svaki put kada imenuju playlistu.
+
+NLP cjevovod (Natural Language Processing) tretira playliste kao rečenice, a pjesme kao riječi, primjenjujući modele koji su arhitektonski slični <a href="https://arxiv.org/abs/1301.3781" target="_blank" rel="noopener noreferrer">Word2Vec</a> modelu (točnije varijantama Skip-gram ili CBOW). Treniranjem na slijedu pjesama unutar playlista, model se obučava da maksimizira vjerojatnost predviđanja okolnih pjesama s obzirom na sidrišnu pjesmu — što je cilj koji se obično optimizira putem **negativnog uzorkovanja** (Negative Sampling, računski učinkovita aproksimacija punog softmax gubitka unakrsne entropije). To prisiljava model da nauči guste vektorske ugradnje (embeddings) u kojima pjesme koje se supojavljuju u istim playlistama geometrijski završavaju blizu jedna drugoj.
+
+To je ista intuicija koja stoji iza poznatog svojstva Word2Vec-a: baš kao što je *„Kralj” − „Muškarac” + „Žena” ≈ „Kraljica”* u prostoru ugradnje riječi, pjesma koja živi između playlista *"lo-fi hip hop"* i *"late night study"* klasterirat će se u skladu s tim u prostoru glazbenih ugradnji.
+
+Nakon što se ove ugradnje nauče, sustav procjenjuje kulturnu bliskost između kandidatske pjesme i korisničkog profila preferencija pomoću **Kosinusne sličnosti** (Cosine Similarity):
+
+$$\cos(\theta) = \frac{A \cdot B}{\|A\| \|B\|}$$
+
+Ako tisuće korisnika neovisno stave pjesmu u playliste pod nazivom *"sad boy hours,"* *"crying in the rain,"* ili *"2 AM existential crisis,"* vektorska reprezentacija te pjesme ($A$) u višedimenzionalnom prostoru primjetno se približava vektorskim reprezentacijama tih emocionalnih deskriptora ($B$). To je točno razlog zašto vas preporuka pogodi u pravom trenutku — globalni kolektivni um već je obavio emocionalno označavanje u ime Spotifyja.
+
+Spotify naziva ove naučene reprezentacije **„kulturnim vektorima”** (cultural vectors). Oni ne kodiraju samo žanr, već i raspoloženje, kontekst, potkulturu i društveno značenje — dimenzije kojima analiza sirovog zvuka jednostavno ne može pristupiti.
+
+![Infografika Spotifyjevog NLP cjevovoda za preporuke koja prikazuje puzanje internetom, unos playlista, Word2Vec Skip-gram trening koji mapira pjesme kao riječi i playliste kao rečenice, te kulturni vektorski prostor koji koristi kosinusnu sličnost.](../../../assets/blog/spotify-algorithms/3.webp)
+*Slika 3: Konceptualni okvir Spotifyjevog stupa za obradu prirodnog jezika (NLP), koji ilustrira kako se korisnički generirane playliste modeliraju kao semantičke rečenice putem Word2Vec arhitekture radi generiranja kulturno osviještenih ugradnji pjesama i izračunavanja emocionalne bliskosti.*
+
+### Stup 3: Analiza sirovog zvuka putem CNN-ova
+
+Za pjesme kod kojih nedostaju i signali ponašanja i tekstualni signali, nastupa Spotifyjev treći stup: duboka akustička analiza pomoću **konvolucijskih neuronskih mreža (CNN)** primijenjenih na spektralni prikaz zvuka.
+
+Sirovi zvučni val se najprije pretvara u **Mel-spektrogram** — dvodimenzionalni prikaz frekvencijskog spektra kroz vrijeme, s frekvencijskim pojasevima (bins) skaliranim logaritamski kako bi se približili ljudskoj auditivnoj percepciji. CNN obrađuje ovu matricu kroz više konvolucijskih slojeva, učeći otkrivati hijerarhijske obrasce u zvuku — od značajki niske razine poput tranzijentnih početaka i tonalne stabilnosti, pa sve do svojstava višeg reda kao što su tekstura žanra i emocionalni registar.
+
+Izlaz je gusti vektor značajki koji kodira mjerljive akustičke karakteristike, a sve su normalizirane na **skalu od 0.0 do 1.0** (osim glasnoće, koja se mjeri u dB):
+
+| Značajka | Skala | Što obuhvaća |
+| :--- | :--- | :--- |
+| **Valence** | 0.0 – 1.0 | Glazbena pozitivnost. Visoko = euforično, veselo. Nisko = melankolično, napeto. |
+| **Energy** | 0.0 – 1.0 | Perceptivni intenzitet. Kombinira dinamički raspon, glasnoću i brzinu nastanka tona (onset rate). |
+| **Danceability** | 0.0 – 1.0 | Ritmička stabilnost, regularnost tempa i jačina ritma (beat strength). |
+| **Acousticness** | 0.0 – 1.0 | Razina pouzdanosti da je pjesma akustična (prirodni naspram elektroničkog zvuka). |
+| **Instrumentalness** | 0.0 – 1.0 | Vjerojatnost izostanka vokalnog sadržaja. Vrijednosti iznad 0.5 vjerojatno označavaju instrumentalnu skladbu. |
+| **Loudness** | −60 do 0 dB | Ukupna prosječna glasnoća pjesme (ne glasnoća reprodukcije). |
+
+Izbacivanjem ovog gustog vektora značajki za bilo koju novu pjesmu, sustav može u potpunosti zaobići nedostatak korisničkih podataka i odmah uskladiti akustičku topologiju pjesme s preferencijama slušatelja koji povijesno bilježe visoke vrijednosti na sličnim vektorima. Problem hladnog starta urušava se iz nepremostivog jaza u jednostavno traženje najbližeg susjeda.
+
+![Infografika Spotifyjevog cjevovoda za analizu sirovog zvuka koja prikazuje pretvorbu nove pjesme u Mel-spektrogram, njezinu obradu kroz CNN slojeve (konvolucijski, sažimajući, potpuno povezani) i ekstrakciju gustog akustičkog vektora značajki za traženje najbližeg susjeda.](../../../assets/blog/spotify-algorithms/4.webp)
+*Slika 4: Arhitektura neuronske mreže za Spotifyjevu analizu sirovog zvuka, koja ilustrira cjevovod ekstrakcije iz logaritamski skaliranog Mel-spektrograma kroz CNN radi generiranja gustog vektora značajki akustičkih svojstava za rješavanje problema hladnog starta.*
+
+---
+
+## Discover Weekly: Gdje tri stupa konvergiraju
+
+*Discover Weekly* nije jedan algoritam. To je proizvod koji proizlazi iz sinkroniziranog izlaza sva tri gore navedena stupa.
+
+Evo pojednostavljenog prikaza onoga što se događa svakog ponedjeljka kada se sastavlja vaša nova playlista:
+
+1. **Generiranje kandidata (Candidate Generation).** ALS model identificira vaše najbliže susjede u prostoru ugradnje korisnika — slušatelje čiji su vektori ukusa najbliži vašima na temelju nedavnih signala ponašanja. Iz njihove zajedničke povijesti slušanja sastavlja se skup potencijalnih pjesama (kandidata): pjesme koje oni vole, a vi ih još niste čuli.
+
+2. **Bodovanje i ponovno rangiranje (Scoring and Re-ranking).** Svaka pjesma kandidat boduje se u odnosu na vaš akustički profil (iz CNN značajki zvuka) i njezin kulturni vektor (iz NLP cjevovoda). Pjesma koja se čini relevantnom po ponašanju *i* akustički dosljednom *i* nosi kulturne deskriptore koji odgovaraju vašem kontekstu, penje se na vrh.
+
+3. **Ograničenje noviteta (Novelty Constraint).** Sustav eksplicitno filtrira pjesme koje ste već reproducirali ili spremili. Cilj je otkrivanje, a ne ponavljanje.
+
+4. **Ograničenje od 30 pjesama (The 30-Track Limit).** Spotifyjev tim za upravljanje proizvodima dosljedno tvrdi da je 30 pjesama optimalna duljina za tjednu playlistu otkrivanja — dovoljno dugačka da djeluje opsežno, a dovoljno kratka da se može poslušati tijekom jednog putovanja na posao ili trčanja. Konačna rangirana lista reže se na 30 pjesama, s većom težinom usmjerenom prema preporukama visoke pouzdanosti na vrhu i eksperimentalnijim izborima na dnu.
+
+5. **Konačno ponovno rangiranje putem BaRT-a.** Prije nego što se lista isporuči, isti **BaRT** (Bandits for Recommendations as Treatments) okvir opisan u odjeljku Smart Shuffle provodi konačni prolaz kroz redoslijed. Na temelju vaših kontekstualnih signala u trenutku otvaranja aplikacije — doba dana, povijest sesije slušanja, nedavna stopa preskakanja — odlučuje hoće li pozicija br. 3 na vašoj playlisti u ponedjeljak ujutro biti siguran izbor visoke pouzdanosti (eksploatacija) ili izračunati istraživački potez (eksploracija). Oba sustava dijele isti temeljni RL (reinforcement learning) motor.
+
+Konačni rezultat je playlista koja, u svom najboljem izdanju, djeluje točno poput preporuke prijatelja koji dijeli vaš ukus, ali je preslušao daleko više glazbe nego što biste vi ikada mogli.
+
+![Infografika Spotifyjevog cjevovoda za generiranje Discover Weekly playliste koja ilustrira četiri faze: generiranje kandidata putem ALS najbližih susjeda, bodovanje i ponovno rangiranje pomoću vektora ponašanja, kulturnih i akustičkih vektora, filter noviteta i ograničenja te konačno ponovno rangiranje putem BaRT motora za potkrepljeno učenje za izlaz playliste od 30 pjesama.](../../../assets/blog/spotify-algorithms/5.webp)
+*Slika 5: Cjeloviti (end-to-end) cjevovod generiranja Discover Weekly playliste, koji prikazuje konvergenciju kolaborativnog filtriranja, NLP kulturnih vektora i CNN akustičkih značajki u jedinstveni motor za bodovanje, nakon čega slijedi uklanjanje već poznatog sadržaja i kontekstualna optimizacija u stvarnom vremenu putem BaRT okvira za potkrepljeno učenje.*
+
+---
+
+## Matematika Smart Shufflea: Kontekstualni banditi
+
+<Alert variant="warning">
+    **Paradoks nasumičnosti:** Ljudi su notorno loši u percipiranju istinske statističke nasumičnosti.
+</Alert>
+
+<br/>
+
+Rano u svom životnom ciklusu, Spotify je koristio generator istinske nasumičnosti — **Fisher-Yatesov algoritam miješanja** (Fisher-Yates shuffle). Statistički gledano, istinska nasumičnost često dovodi do grupiranja (clustering): potpuno je moguće čuti tri uzastopne pjesme istog izvođača iz biblioteke od 400 pjesama. Kada bi korisnici naišli na to, glasno bi se žalili da sustav „nije nasumičan”. Pericipirana nasumičnost je zakazala, iako je matematička nasumičnost bila savršena.
+
+Inženjeri su odgovorili <a href="https://web.archive.org/web/20220215030739/https://engineering.atspotify.com/2014/02/how-to-shuffle-songs/" target="_blank" rel="noopener noreferrer">implementacijom algoritma inspiriranog ditherom (dithering)</a> — tehnikom posuđenom iz obrade slika — koja namjerno *narušava* istinsku nasumičnost kako bi stvorila *percepciju* pravednosti ravnomjernim raspoređivanjem izvođača kroz red čekanja.
+
+Danas je standardno miješanje zamijenjeno opcijom **Smart Shuffle**, inteligentnim sustavom usmjeravanja kojim upravlja **potkrepljeno učenje** (Reinforcement Learning), točnije arhitektura koju Spotify naziva **BaRT** (Bandits for Recommendations as Treatments).
+
+Ovo je problem **kontekstualnog višerukog bandita** (Contextual Multi-Armed Bandit). Algoritam mora neprestano balansirati između *eksploatacije* (reproduciranje pjesama za koje zna da ih volite) i *eksploracije* (ubacivanje nepoznatih pjesama kako bi se mapirao vaš ukus koji se razvija i spriječilo da upadnete u „balon filtera”). Klasu algoritama koji to pokreću najbolje oslikava **<a href="https://arxiv.org/abs/1003.0146" target="_blank" rel="noopener noreferrer">LinUCB (Linear Upper Confidence Bound)</a>**:
+
+$$\text{LinUCB}(a) = \underbrace{ \hat{\theta}_a^T x_{t,a} }_{\text{Exploitation}} + \underbrace{ \alpha \sqrt{ x_{t,a}^T A_a^{-1} x_{t,a} } }_{\text{Exploration}}$$
+
+Evo kako algoritam „razmišlja” u stvarnom vremenu, pri svakom koraku vašeg reda čekanja:
+1.  **Eksploatacija** ($\hat{\theta}_a^T x_{t,a}$): Predviđena nagrada za odabir pjesme $a$ s obzirom na vaš trenutni vektor konteksta $x$ — koji kodira signale poput doba dana, vrste uređaja (slušalice, automobil, pametni zvučnik) i nedavnih obrazaca preskakanja.
+2.  **Bonus za eksploraciju** ($\alpha \sqrt{ x_{t,a}^T A_a^{-1} x_{t,a} }$): Statistička nesigurnost te pjesme. Pjesme koje je sustav rijetko nudio korisnicima poput vas u sličnim kontekstima dobivaju matematički uvećanu ocjenu, što potiče algoritam da prikupi više signala o njima. $\alpha$ je hiperparametar koji se može podešavati, a kontrolira agresivnost ove eksploracije.
+
+Petlja povratnih informacija je izravna i brutalna: ako algoritam ponudi istraživačku pjesmu, a vi je preskočite u prvih 30 sekundi, on bilježi snažan signal negativne nagrade i matrica kovarijance $A_a$ se ažurira u skladu s tim. Ako dodate pjesmu u svoju biblioteku ili pojačate glasnoću, algoritam je upravo dobio potvrdu da se ovaj kontekstualni rizik isplatio. Sustav uči kontinuirano, prilagođavajući svaku sljedeću odluku.
+
+![Infografika Spotifyjeve Smart Shuffle arhitekture koja ilustrira paradoks nasumičnosti (Fisher-Yates naspram inženjerski prilagođenog ditheringa), matematičke komponente LinUCB algoritma kontekstualnog bandita (eksploatacija naspram bonusa za eksploraciju) i petlju povratnih informacija potkrepljenog učenja u stvarnom vremenu.](../../../assets/blog/spotify-algorithms/6.webp)
+*Slika 6: Mehanika potkrepljenog učenja Spotifyjeve značajke Smart Shuffle, koja suprotstavlja istinsku statističku nasumičnost s percipiranom pravednošću te opisuje izvođenje LinUCB algoritma kontekstualnog višerukog bandita zajedno s njegovom kontinuiranom petljom korisničkih povratnih informacija u stvarnom vremenu.*
+
+---
+
+## Arhitektonski pomaci: Vektorska pretraga i LLM-ovi
+
+Glavni matematički teoremi koji upravljaju preporukama ostali su stabilni, ali infrastruktura koja ih izvršava u 2026. drastično je evoluirala.
+
+### Približni najbliži susjedi (ANN)
+
+Jednom kada su korisnici i pjesme predstavljeni kao vektori, temeljna operacija koja pokreće preporuke je pretraga **k-najbližih susjeda (kNN)**: pronalaženje $k$ vektora u bazi podataka koji su najbliži zadanom vektoru upita. Izračunata naivno kao skalarni umnožak kroz sve vektore, ova operacija skalira kao $O(n \cdot d)$ po upitu za $n$ pjesama u $d$ dimenzija — što je računski nemoguće u stvarnom vremenu za katalog od 100 milijuna pjesama.
+
+Spotifyjevo rješenje bilo je stvaranje i otvaranje izvornog koda (open-source) biblioteke **<a href="https://erikbern.com/2015/10/01/nearest-neighbors-and-vector-models-part-2-how-to-search-in-high-dimensional-spaces.html" target="_blank" rel="noopener noreferrer">Annoy (Approximate Nearest Neighbors Oh Yeah)</a>**, koju je prvotno razvio Erik Bernhardsson 2013. godine. Annoy particionira vektorski prostor koristeći šumu nasumičnih stabala hiperravnina, omogućujući pronalaženje približnih najbližih susjeda u vremenu $O(\log n)$. Kompromis je mali, ograničeni gubitak u točnosti — što je prihvatljivo za preporuke, gdje je 99.9% optimalan rezultat neprimjetan u usporedbi sa 100% optimalnim.
+
+Do 2023. godine, Spotify je prešao na njezinu nasljednicu, biblioteku **<a href="https://engineering.atspotify.com/2023/10/introducing-voyager-spotifys-new-nearest-neighbor-search-library/" target="_blank" rel="noopener noreferrer">Voyager</a>**, koja je poboljšala Annoyjevu skalabilnost, učinkovitost memorije i vrijeme izgradnje indeksa — što je ključno kada se temeljna vektorska baza podataka kontinuirano ažurira kako pristižu novi podaci o ponašanju korisnika.
+
+### Kognitivni sloj: Veliki jezični modeli (LLM-ovi)
+
+S pojavom generativne umjetne inteligencije, sirovi matematički izlazi cjevovoda za preporuke sada su orkestrirani semantičkim slojem izgrađenim na LLM-ovima. Značajke poput **AI DJ-a** djeluju kao inteligentno prevoditeljsko sučelje: LLM interpretira nestrukturirani kontekst korisnika — konverzacijski upit, implicitno emocionalno stanje, vrijeme i lokaciju — te ga prevodi u precizan dimenzionalni upit prema temeljnoj vektorskoj bazi podataka.
+
+Stari i novi sustavi nisu u konkurenciji. LLM personalizira narativ i humanizira isporuku. Matrična faktorizacija, kosinusna sličnost i LinUCB optimizacija i dalje odrađuju najteži dio posla same selekcije glazbe. Generativni AI je rječiti front-end; matematika je motor na kojem on radi.
+
+![Infografika koja detaljno prikazuje Spotifyjeve moderne arhitektonske promjene, podijeljena na matematički motor (vektorska pretraga putem kNN-a, Annoya i Voyagera) i kognitivni sloj (LLM orkestracija koja prevodi nestrukturirane korisničke upite u precizne dimenzionalne upite).](../../../assets/blog/spotify-algorithms/7.webp)
+*Slika 7: Spotifyjeva objedinjena moderna arhitektura, koja ilustrira sjecište između visokoperformansnih biblioteka za pretragu približnih najbližih susjeda (ANN) poput Annoya i Voyagera, te kognitivnog sloja LLM orkestracije koji prevodi semantički ljudski kontekst u strukturirane upite baze podataka.*
+
+---
+
+## Tehnički pojmovnik
+
+| Pojam | Definicija |
+| :--- | :--- |
+| **Kolaborativno filtriranje** | Pristup preporukama koji se temelji na zajedničkim obrascima ponašanja među korisnicima. |
+| **Matrična faktorizacija** | Rastavljanje rijetke matrice interakcije korisnika i stavki na matrice latentnih faktora $U$ i $V$. |
+| **ALS** | Alternating Least Squares (Izmjenični najmanji kvadrati) — iterativni algoritam za rješavanje matrične faktorizacije. |
+| **Latentni vektor** | Gusti numerički prikaz apstraktnih karakteristika korisnika ili pjesme u $k$-dimenzionalnom prostoru. |
+| **Problem hladnog starta** | Izazov preporučivanja stavki koje nemaju povijesne podatke o interakciji s korisnicima. |
+| **Word2Vec** | Plitka neuronska mreža koja uči ugradnje riječi (ili pjesama) na temelju njihovog supojavljivanja u sekvencama. |
+| **Kulturni vektor** | Ugradnja glazbe (music embedding) izvedena iz NLP analize naslova playlista, članaka i šireg kulturnog konteksta. |
+| **Kosinusna sličnost** | Mjera kuta između dva vektora; 1.0 = identičan smjer, 0 = ortogonalni vektori. |
+| **Mel-spektrogram** | Dvodimenzionalni vremensko-frekvencijski prikaz zvuka, s frekvencijom skaliranom prema ljudskoj auditivnoj percepciji. |
+| **Valence** | Značajka zvuka (0.0–1.0) koja kodira glazbenu pozitivnost ili melankoliju. |
+| **Višeruki bandit** | Paradigma potkrepljenog učenja za balansiranje između istraživanja nepoznatog (exploration) i iskorištavanja poznatih nagrada (exploitation). |
+| **LinUCB** | Linear Upper Confidence Bound — algoritam kontekstualnog bandita koji odabire akcije na temelju predviđene nagrade i nesigurnosti. |
+| **ANN / Annoy / Voyager** | Biblioteke za pretragu približnih najbližih susjeda (Approximate Nearest Neighbor) za brzu pretragu sličnosti vektora u višedimenzionalnim prostorima. |
+| **BaRT** | Bandits for Recommendations as Treatments — Spotifyjev RL okvir za personalizaciju reda čekanja u stvarnom vremenu. |
+
+---
+
+## Zaključak: Višedimenzionalno ogledalo
+
+U konačnici, Spotifyjev motor za preporuke ne čita misli. On je neumoljivo ogledalo visoke frekvencije — zrcalo koje vam vraća vaše vlastite obrasce ponašanja, pojačane kolektivnom inteligencijom više od 600 milijuna drugih slušatelja diljem svijeta.
+
+Vaš glazbeni identitet unutar Spotifyjevog pozadinskog sustava (backend) nije pohranjen kao popis žanrova ili izvođača. To je niz brojeva s pomičnim zarezom (floating-point numbers) — jedna koordinata koja pluta kroz beskonačan, višedimenzionalni prostor. Sposobnost algoritma da pronađe točnu pjesmu koja odgovara vašem raspoloženju u utorak navečer jednostavno je rezultat milijardi kontinuiranih matričnih množenja, odluka kontekstualnih bandita i pretraga kosinusne sličnosti, koje nezaustavljivo konvergiraju prema točki u tom vektorskom prostoru u kojoj već živite.
+
+Duša koju sustav prividno čita oduvijek je bila samo geometrija.
