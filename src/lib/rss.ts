@@ -79,17 +79,16 @@ export async function renderPostContent(post: any, siteUrl: string): Promise<str
 
   cleaned = cleaned.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_: string, math: string) => {
     const trimmed = math.trim();
-    const encoded = encodeURIComponent(trimmed);
-    const alt = trimmed.replace(/"/g, '&quot;');
-    return `\n\n<div style="text-align: center; margin: 1.5em 0;">\n<img src="https://latex.codecogs.com/svg.image?${encoded}" alt="${alt}" />\n</div>\n\n`;
+    const encoded = encodeURIComponent(`\\dpi{150} ${trimmed}`);
+    const alt = escapeXml(trimmed);
+    return `\n\n<div style="text-align: center; margin: 1.5em 0;">\n<img src="https://latex.codecogs.com/png.image?${encoded}" alt="${alt}" style="max-width: 100%; height: auto;" />\n</div>\n\n`;
   });
-
 
   cleaned = cleaned.replace(/(?<!\\|\$)\$([^\$\n]+?)(?<!\\|\$)\$/g, (_: string, math: string) => {
     const trimmed = math.trim();
-    const encoded = encodeURIComponent(trimmed);
-    const alt = trimmed.replace(/"/g, '&quot;');
-    return `<img src="https://latex.codecogs.com/svg.image?${encoded}" alt="${alt}" style="vertical-align: middle;" />`;
+    const encoded = encodeURIComponent(`\\dpi{150} ${trimmed}`);
+    const alt = escapeXml(trimmed);
+    return `<img src="https://latex.codecogs.com/png.image?${encoded}" alt="${alt}" style="vertical-align: middle; max-width: 100%; height: auto;" />`;
   });
 
   let html = (await marked.parse(cleaned)) as string;
