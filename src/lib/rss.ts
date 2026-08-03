@@ -1,4 +1,4 @@
-import katex from 'katex';
+
 import { marked } from 'marked';
 
 marked.setOptions({
@@ -76,32 +76,23 @@ export async function renderPostContent(post: any, siteUrl: string): Promise<str
     }
   );
 
-  let hasMath = false;
+
   cleaned = cleaned.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_: string, math: string) => {
-    try {
-      hasMath = true;
-      const katexHtml = katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
-      return `\n\n<div class="math-block" style="text-align: center; margin: 1em 0; overflow-x: auto;">${katexHtml}</div>\n\n`;
-    } catch {
-      return _;
-    }
+    const trimmed = math.trim();
+    const encoded = encodeURIComponent(trimmed);
+    const alt = trimmed.replace(/"/g, '&quot;');
+    return `\n\n<div style="text-align: center; margin: 1.5em 0;">\n<img src="https://latex.codecogs.com/svg.image?${encoded}" alt="${alt}" />\n</div>\n\n`;
   });
 
+
   cleaned = cleaned.replace(/(?<!\\|\$)\$([^\$\n]+?)(?<!\\|\$)\$/g, (_: string, math: string) => {
-    try {
-      hasMath = true;
-      return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
-    } catch {
-      return _;
-    }
+    const trimmed = math.trim();
+    const encoded = encodeURIComponent(trimmed);
+    const alt = trimmed.replace(/"/g, '&quot;');
+    return `<img src="https://latex.codecogs.com/svg.image?${encoded}" alt="${alt}" style="vertical-align: middle;" />`;
   });
 
   let html = (await marked.parse(cleaned)) as string;
-
-  if (hasMath) {
-    const katexCss = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/katex.min.css" />\n`;
-    html = katexCss + html;
-  }
 
   html = html.replace(/<img([^>]+)src=["']([^"']+)["']/gi, (_match: string, p1: string, p2: string) => {
     const resolvedUrl = resolveImageUrl(p2, siteUrl);
