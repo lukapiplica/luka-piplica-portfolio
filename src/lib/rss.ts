@@ -1,4 +1,3 @@
-
 import { marked } from 'marked';
 
 marked.setOptions({
@@ -63,6 +62,79 @@ export function resolveImageUrl(rawSrc: string, siteUrl: string): string {
   return `${siteUrl}${rootPath}`;
 }
 
+export function latexToHtml(latex: string, isBlock: boolean = false): string {
+  let s = latex.trim();
+
+  s = s.replace(/\\text\{([^}]+)\}/g, '$1');
+  s = s.replace(/\\mathrm\{([^}]+)\}/g, '$1');
+  s = s.replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>');
+
+  s = s.replace(/\\vec\{([^}]+)\}/g, '$1\u20D7');
+  s = s.replace(/\\hat\{([^}]+)\}/g, '$1\u0302');
+  s = s.replace(/\\bar\{([^}]+)\}/g, '$1\u0304');
+
+  s = s.replace(/\\underbrace\{\s*([\s\S]+?)\s*\}_\{\s*([\s\S]+?)\s*\}/g, '$1 [$2]');
+
+  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)');
+
+  s = s.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
+
+  s = s.replace(/\\lVert\s*([\s\S]+?)\s*\\rVert/g, '||$1||');
+  s = s.replace(/\\\|\s*([\s\S]+?)\s*\\\|/g, '||$1||');
+  s = s.replace(/\\left\|/g, '|').replace(/\\right\|/g, '|');
+  s = s.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')');
+  s = s.replace(/\\left\[/g, '[').replace(/\\right\]/g, ']');
+
+  s = s.replace(/\\cdot/g, '·');
+  s = s.replace(/\\times/g, '×');
+  s = s.replace(/\\approx/g, '≈');
+  s = s.replace(/\\le/g, '≤');
+  s = s.replace(/\\ge/g, '≥');
+  s = s.replace(/\\neq/g, '≠');
+  s = s.replace(/\\pm/g, '±');
+  s = s.replace(/\\infty/g, '∞');
+  s = s.replace(/\\sum/g, '∑');
+  s = s.replace(/\\prod/g, '∏');
+  s = s.replace(/\\int/g, '∫');
+  s = s.replace(/\\alpha/g, 'α');
+  s = s.replace(/\\beta/g, 'β');
+  s = s.replace(/\\gamma/g, 'γ');
+  s = s.replace(/\\delta/g, 'δ');
+  s = s.replace(/\\epsilon/g, 'ε');
+  s = s.replace(/\\theta/g, 'θ');
+  s = s.replace(/\\lambda/g, 'λ');
+  s = s.replace(/\\mu/g, 'μ');
+  s = s.replace(/\\pi/g, 'π');
+  s = s.replace(/\\sigma/g, 'σ');
+  s = s.replace(/\\phi/g, 'φ');
+  s = s.replace(/\\omega/g, 'ω');
+  s = s.replace(/\\Delta/g, 'Δ');
+  s = s.replace(/\\Sigma/g, 'Σ');
+  s = s.replace(/\\cos/g, 'cos');
+  s = s.replace(/\\sin/g, 'sin');
+  s = s.replace(/\\tan/g, 'tan');
+  s = s.replace(/\\log/g, 'log');
+  s = s.replace(/\\ln/g, 'ln');
+  s = s.replace(/\\min/g, 'min');
+  s = s.replace(/\\max/g, 'max');
+
+  s = s.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>');
+  s = s.replace(/_([a-zA-Z0-9])/g, '<sub>$1</sub>');
+
+  s = s.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+  s = s.replace(/\^([a-zA-Z0-9])/g, '<sup>$1</sup>');
+
+  s = s.replace(/\\,/g, ' ');
+  s = s.replace(/\\/g, '');
+  s = s.replace(/\s+/g, ' ').trim();
+
+  if (isBlock) {
+    return `\n\n<div class="rss-math-block" style="text-align: center; margin: 1.2em 0; padding: 0.8em; background: rgba(150, 150, 150, 0.08); border-left: 3px solid #666; font-family: 'Cambria Math', 'Times New Roman', serif; font-size: 1.1em; line-height: 1.5; overflow-x: auto;">\n<strong>${s}</strong>\n</div>\n\n`;
+  } else {
+    return `<span class="rss-math-inline" style="font-family: 'Cambria Math', 'Times New Roman', serif; font-size: 1.05em; padding: 0 2px;">${s}</span>`;
+  }
+}
+
 export async function renderPostContent(post: any, siteUrl: string): Promise<string> {
   let cleaned = post.body || '';
 
@@ -76,19 +148,12 @@ export async function renderPostContent(post: any, siteUrl: string): Promise<str
     }
   );
 
-
   cleaned = cleaned.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_: string, math: string) => {
-    const trimmed = math.trim();
-    const encoded = encodeURIComponent(`\\dpi{150} ${trimmed}`);
-    const alt = escapeXml(trimmed);
-    return `\n\n<div style="text-align: center; margin: 1.5em 0;">\n<img src="https://latex.codecogs.com/png.image?${encoded}" alt="${alt}" style="max-width: 100%; height: auto;" />\n</div>\n\n`;
+    return latexToHtml(math, true);
   });
 
   cleaned = cleaned.replace(/(?<!\\|\$)\$([^\$\n]+?)(?<!\\|\$)\$/g, (_: string, math: string) => {
-    const trimmed = math.trim();
-    const encoded = encodeURIComponent(`\\dpi{150} ${trimmed}`);
-    const alt = escapeXml(trimmed);
-    return `<img src="https://latex.codecogs.com/png.image?${encoded}" alt="${alt}" style="vertical-align: middle; max-width: 100%; height: auto;" />`;
+    return latexToHtml(math, false);
   });
 
   let html = (await marked.parse(cleaned)) as string;
