@@ -1,79 +1,7 @@
 import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
 import siteConfig from '@/config/site.config';
-import { marked } from 'marked';
-
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-});
-
-/**
- * Escapes XML special characters
- */
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-/**
- * Formats a date to RFC-822 format for RSS
- */
-function formatRfc822Date(date: Date): string {
-  return date.toUTCString();
-}
-
-/**
- * Wraps content in CDATA block, escaping any internal ]]> sequences
- */
-function wrapCdata(content: string): string {
-  return `<![CDATA[${content.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
-}
-
-/**
- * Renders post body Markdown into clean HTML for RSS feeds
- */
-async function renderPostContent(post: any, siteUrl: string): Promise<string> {
-  const rawBody = post.body || '';
-
-  // 1. Remove MDX import statements (e.g. import { Alert } from '...')
-  let cleaned = rawBody.replace(/^import\s+[\s\S]*?;?\s*$/gm, '');
-
-  // 2. Convert custom MDX components like <Alert variant="...">content</Alert>
-  cleaned = cleaned.replace(
-    /<Alert(?:\s+variant="([^"]+)")?>([\s\S]*?)<\/Alert>/g,
-    (_: string, variant: string = 'info', content: string) => {
-      const label = variant.toUpperCase();
-      return `\n\n> **[${label}]**\n> ${content.trim().replace(/\n/g, '\n> ')}\n\n`;
-    }
-  );
-
-  // 3. Render Markdown to HTML
-  let html = (await marked.parse(cleaned)) as string;
-
-  // 4. Prepend featured image if available
-  if (post.data.image) {
-    const imgSrc =
-      typeof post.data.image === 'object' && post.data.image?.src
-        ? post.data.image.src
-        : String(post.data.image);
-
-    let fullImgUrl = imgSrc;
-    if (!imgSrc.startsWith('http')) {
-      const cleanPath = imgSrc.startsWith('/') ? imgSrc : `/${imgSrc}`;
-      fullImgUrl = `${siteUrl}${cleanPath}`;
-    }
-
-    const altText = escapeXml(post.data.imageAlt || post.data.title);
-    html = `<p><img src="${fullImgUrl}" alt="${altText}" /></p>\n` + html;
-  }
-
-  return html;
-}
+import { escapeXml, formatRfc822Date, wrapCdata, renderPostContent } from '@/lib/rss';
 
 export async function GET(context: APIContext) {
   // Get only English, non-draft posts for RSS
@@ -138,4 +66,3 @@ ${items}
     },
   });
 }
-
