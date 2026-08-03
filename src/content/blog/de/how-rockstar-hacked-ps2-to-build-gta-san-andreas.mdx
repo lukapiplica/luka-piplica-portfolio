@@ -1,0 +1,181 @@
+---
+title: "Wie Rockstar die PS2 hackte, um GTA: San Andreas zu entwickeln"
+description: "Systemanalyse der RenderWare-Anpassungen, des VU-Mikrocodes und der CLUT-Tricks, mit denen Rockstar drei Städte und einen Staat von einer PS2 mit nur 32 MB RAM streamte."
+publishedAt: "2026-08-03"
+author: "Luka Piplica"
+tags: ["game-engineering", "playstation-2", "systems-programming", "renderware", "reverse-engineering", "game-history"]
+featured: true
+locale: de
+image: "../../../assets/blog/gta-san-andreas-ps2/featured.webp"
+imageAlt: "Animierte Intro-Sequenz, die den Text 'Rockstar Games Presents' anzeigt, zu 'A Rockstar North Production' übergeht und mit dem klassischen Grand Theft Auto: San Andreas-Spiellogo endet."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+
+Drei Städte, ein ganzer fiktiver Staat mit verbindenden ländlichen Gebieten und keinerlei Ladebildschirme – und das alles auf einer Konsole mit 32 MB System-RAM und einem Videospeicher-Budget, das kleiner war als ein einzelnes unkomprimiertes 4K-Foto. Das war die technische Vorgabe, ob implizit oder explizit, hinter Rockstar Norths *Grand Theft Auto: San Andreas* im Jahr 2004. Sie zwang ein kleines Team von Low-Level-Programmierern dazu, die PlayStation 2 weniger wie eine Spielkonsole und mehr wie ein eingebettetes Echtzeitsystem mit einem feindseligen, direkt angebundenen Speichermedium zu behandeln.
+
+Dies ist keine Retrospektive über die Handlung oder den Soundtrack des Spiels. Es ist eine Analyse der technischen Infrastruktur: der asynchronen Streaming-Pipeline, der LOD-Hierarchie (Level of Detail), die die Latenz des mechanischen Laufwerks verbirgt, des handgeschriebenen Vektoreinheit-Mikrocodes (VU-Mikrocode), der den Compiler komplett umging, und der indizierten Farbspeichertricks, mit denen ein Videospeicherbudget von nur 4 MB über einen ganzen Staat gestreckt wurde. Einige der genauen internen Konstanten, die Rockstar verwendete, wurden nie veröffentlicht und im Laufe der letzten zwei Jahrzehnte von der Reverse-Engineering-Community nur näherungsweise ermittelt – wo das der Fall ist, habe ich darauf hingewiesen. Die Architektur hingegen ist gut dokumentiert und eine Meisterklasse in restriktionsbasiertem Engineering.
+
+## 1. Die Hardware-Krise von 2004 & Das Paradoxon
+
+Die Emotion Engine der PlayStation 2 adressierte 32 MB Direct RDRAM als Hauptsystemspeicher – Code, KI-Zustände, Physik, Audio-Puffer, gestreamte Geometrie und Texturen im Speicher kämpften alle um denselben Pool. Der Graphics Synthesizer, der Rasterizer der PS2, arbeitete mit separaten 4 MB eingebettetem DRAM (eDRAM), das sich direkt auf dem GPU-Die befand. Dieses musste den Framebuffer, den Z-Buffer und jede aktiv für das Rendering gebundene Textur gleichzeitig aufnehmen. Es gab keine vereinheitlichte Speicherarchitektur (Unified Memory Architecture) und kein virtuelles Textur-Paging im modernen Sinne – wenn ein Asset nicht physisch in einem dieser beiden Pools vorhanden war, existierte es für den Renderer schlichtweg nicht.
+
+<Alert variant="warning">
+**Der eigentliche Flaschenhals war nicht der RAM – es war das Laufwerk.** Ein 4-fach schnelles DVD-ROM-Laufwerk liefert eine theoretische sequentielle Transferrate von etwa 5,28 MB/s ($4 \times 1.32\ \text{MB/s}$ für ein Single-Speed-DVD-Laufwerk). Doch der sequentielle Durchsatz ist der Best-Case. Optische Laufwerke dieser Generation zahlten jedes Mal einen hohen Preis – üblicherweise im Bereich von 100 bis 200 ms –, wenn der Lesekopf einen Suchvorgang zu einem nicht zusammenhängenden Sektor durchführen musste. Ein *einziges* Suchen konnte das Zeitbudget von sechs oder mehr Frames des Spiels komplett aufzehren.
+</Alert>
+
+<br/>
+
+Dieses Zeitbudget war erbarmungslos. Bei einer Ziel-Framerate von 30 FPS hatte die Engine:
+
+$$
+T_{frame} = \frac{1}{30\ \text{fps}} \approx 33.3\ \text{ms}
+$$
+
+um die Simulation zu aktualisieren, Animationen und Physik auszuführen, Draw Calls abzusetzen und die Streaming-Pipeline zu füttern – und das alles ohne spürbare Ruckler für den Spieler. Wenn man die sequentielle Rate des Laufwerks im besten Fall naiv mit diesem Zeitfenster pro Frame multipliziert, erhält man eine theoretische Obergrenze für die Datenmenge pro Frame:
+
+$$
+D_{frame} = R_{DVD} \times T_{frame} = 5.28\ \frac{\text{MB}}{\text{s}} \times 0.0333\ \text{s} \approx 176\ \text{KB}
+$$
+
+Diese Zahl ist so optimistisch, dass sie in der Praxis praktisch fiktiv ist, da sie keinerlei Suchverzögerung (Seek Overhead) voraussetzt – eine Bedingung, die im Grunde nie erfüllt ist, sobald der Spieler durch eine Stadt fährt und in einem Muster zwischen Sektoren des Disc-Layouts hin- und herspringt, das in keiner Weise der linearen Reihenfolge der Dateien entspricht. Das gesamte Designproblem für das Engine-Team von San Andreas lief auf eine einzige Frage hinaus: Wie versteckt man ein Speichermedium, das für Hunderte von Millisekunden blockieren kann, in einer Game-Loop, die nur 33 Millisekunden Zeit hat?
+
+Das Ziel war kompromisslos: nahtloses Streaming über den gesamten Staat, mit einer Fortbewegung in der Welt, die kein einziges Mal zu einem Ladebildschirm führte – etwas, das kein Open-World-Konsolenspiel zuvor in dieser geografischen Dimension gewagt hatte.
+
+## 2. Asset-Streaming: Vektorisierung und Segmentierung von San Andreas in Echtzeit
+
+San Andreas lizensierte RenderWare, die plattformübergreifende Rendering-Middleware von Criterion, aber nur die Low-Level-Rasterisierungsschicht *RenderWare Graphics* – nicht die übergeordneten Module von Criterion für Szenenverwaltung, Audio, Physik oder KI. Rockstar North entwickelte den eigenen Szenengraphen (Scene Graph), das Okklusionsverfahren, das LOD-System und die Streaming-Engine komplett im eigenen Haus. Diese bauten auf den Rendering-Primitiven von RenderWare auf, anstatt in ihnen integriert zu sein. „Stark angepasstes RenderWare“ ist im wahrsten Sinne des Wortes eine Untertreibung: Große Teile dessen, was die Leute in San Andreas als „RenderWare-Engine“ bezeichnen, waren Rockstars eigener Code, der den Rasterizer von RenderWare lediglich als Backend nutzte.
+
+Die Welt selbst war in ein 2D-Raster aus Szenensektoren unterteilt – diskrete räumliche Zellen, von denen jede die Modelle, Kollisionsdaten und Texturen besaß, die physisch zu diesem Teil der Karte gehörten. In jedem Frame gleicht die Engine die Position des Spielers im Weltraum mit den Sektorgrenzen ab; das Überschreiten einer neuen Sektorgrenze löst eine *Streaming-Anforderung* für den Ressourcensatz dieses Sektors aus. Ein Hintergrundzähler – im Grunde eine laufende Erfassung des „genutzten Streaming-Speichers“ – verfolgt, wie viel des RAM-Budgets derzeit für geladene Assets reserviert ist. Wenn sich dieser Zähler seiner Obergrenze nähert, beginnt die Engine, die am wenigsten relevanten residenten Objekte zu verwerfen: Dinge, die weit von der Kamera entfernt sind, außerhalb des Sichtvolumens (View Frustum) liegen oder einfach am weitesten vom Spieler entfernt sind, um Platz zu schaffen, bevor die Daten des neuen Sektors eintreffen.
+
+<Alert variant="info">
+Dies ist eine klassische **Least-Relevant-Eviction**-Cache-Strategie, kein LRU (Least Recently Used). Entfernung und Sichtbarkeit, nicht die zeitliche Nähe der letzten Nutzung, entscheiden darüber, was verworfen wird – was in einer offenen Welt, in der sich der Spieler umdrehen und direkt wieder in einen gerade verlassenen Sektor zurückkehren kann, von enormer Bedeutung ist.
+</Alert>
+
+<br/>
+
+Der Auslöseradius für eine Streaming-Anforderung ist kein starrer Kreis um den Spieler – er muss berücksichtigen, wie schnell sich der Spieler der noch nicht geladenen Geografie nähert. Ein Spieler zu Fuß und ein Spieler, der einen Hydra-Jet mit Vollgas steuert, stellen völlig unterschiedliche Anforderungen an die vorausschauende Berechnung (Lookahead). Konzeptuell (Rockstars genaue Abstimmungskonstanten wurden nie veröffentlicht, betrachte dies also eher als anschauliches Modell des Mechanismus und nicht als deren wortgetreuen Quellcode) skaliert der Streaming-Radius mit der Geschwindigkeit:
+
+$$
+R_{stream}(\vec{v}) = R_{base} + k \cdot \lVert \vec{v} \rVert
+$$
+
+wobei $R_{base}$ der minimale Blasenradius (bubble radius) ist, der bei Schrittgeschwindigkeit benötigt wird, $\lVert \vec{v} \rVert$ die Magnitude (Betrag) des aktuellen Geschwindigkeitsvektors des Spielers ist und $k$ eine Abstimmungskonstante ist, die die Blase bei steigender Geschwindigkeit vergrößert. Eine prädiktivere Variante projiziert eine zukünftige Position entlang der aktuellen Bewegungsrichtung und zentriert die Ladeanforderung dort anstatt auf den aktuellen Koordinaten des Spielers:
+
+$$
+\vec{p}_{predicted} = \vec{p}_{current} + \vec{v} \cdot T_{lookahead}
+$$
+
+Dies ist der Unterschied zwischen einer Engine, die auf das Betreten neuen Terrains durch den Spieler *reagiert*, und einer, die es *antizipiert* – und angesichts der in Hunderten von Millisekunden gemessenen DVD-Suchlatenz gegenüber einem Frame-Budget von 33,3 ms war eine reine Reaktion niemals schnell genug. Die Höchstgeschwindigkeit des Hydra-Jets zwingt das Streaming-System im Grunde dazu, Geografie Sekunden vor dem Eintreffen des Spielers zu laden, da ihm sonst die Welt unter den Füßen weglaufen würde.
+
+![Abbildung 1: Vergleich des statischen Streaming-Radius bei niedriger Geschwindigkeit gegenüber der prädiktiven Streaming-Blase bei hoher Geschwindigkeit, was die Streckung der Ladezone vor dem Vektor des Spielers zeigt.](../../../assets/blog/gta-san-andreas-ps2/1.webp)
+
+Abbildung 1: Das Verhältnis zwischen dem Szenensektor-Raster und der dynamischen Streaming-Blase. Bei niedriger Geschwindigkeit ist der Laderadius annähernd kreisförmig; bei hoher Geschwindigkeit streckt er sich vor der Bewegungsrichtung des Spielers und priorisiert Sektoren, die der Spieler gleich betreten wird, gegenüber jenen, die bereits hinter ihm liegen.
+
+## 3. Minimierung der Speicherlatenz: LOD-Hierarchien & die Reduzierung von „Pop-in“
+
+Selbst mit einer prädiktiven Streaming-Blase gewinnt am Ende die Physik: Ein Jet, der sich schnell genug bewegt, kann die Disc überholen. Dies ist die Hauptursache für das berüchtigte „Pop-in“ in San Andreas – voll detaillierte Gebäude, Brücken und Bäume, die plötzlich ins Bild springen, einen Moment nachdem sie eigentlich schon da sein sollten, weil die DVD die hochauflösende Geometrie einfach nicht rechtzeitig liefern konnte.
+
+Jedes Mal, wenn ein Spieler miterlebte, wie sich eine Hängebrücke oder eine Gruppe hochdetaillierter Bäume direkt vor seinem sich schnell bewegenden Fahrzeug aus dem Nichts materialisierte, blickte er nicht nur auf einen Software-Fehler – er erlebte die mechanischen Grenzen der Hardware von 2004. Im Inneren der PlayStation-2-Konsole fegte der physische Laserkopf des DVD-Laufwerks hektisch über die rotierende Disc hin und her. Um die hochauflösenden Texturen und 3D-Meshes für ein neues Viertel abzurufen, musste sich dieser Laserkopf physisch neu positionieren, was bis zu 200 Millisekunden dauern konnte, um auf dem richtigen Sektor zu landen. Während der Laser über die Disc flog, tickte die Game-Loop weiterhin mit 33,3 Millisekunden pro Frame. Anstatt das gesamte Spiel einzufrieren und darauf zu warten, dass der Laser aufholt, entschied sich die Engine, weiterzulaufen – und renderte entweder einen leeren Raum oder einen blockhaften Platzhalter.
+
+Die Schadensbegrenzung bestand nicht darin, das Problem vollständig zu beseitigen – das war mit einem optischen Laufwerk mit 5,28 MB/s physisch unmöglich –, sondern den Übergang so nahtlos wie möglich zu gestalten. Der Kernmechanismus ist ein persistentes Low-Polygon-Proxy-Modell – eine grobe, „immer residente“ Version der entfernten Geografie –, die unabhängig vom Streaming-Zustand im Speicher bleibt. Sobald die hochdetaillierte Version eines Gebäudes oder einer Sehenswürdigkeit fertig geladen ist, tauscht die Engine sie gegen den Low-Poly-Platzhalter aus. Da *immer* etwas auf dem Bildschirm zu sehen ist – nur eben nicht immer das Asset in finaler Qualität –, verschlechtert sich die visuelle Pipeline elegant zu einem Platzhalter mit geringerem Detailgrad, anstatt katastrophal in ein leeres, ungerendertes Nichts abzufallen.
+
+<Alert variant="info">
+**Hysterese verhindert unruhiges Hin- und Herspringen (Thrashing).** Wenn eine Engine einen einzelnen Entfernungsschwellenwert verwenden würde, um über den Wechsel zwischen den LOD-Stufen zu entscheiden, würde ein Rendering-Objekt, das sich genau an dieser Grenze befindet – was beim Fahren in konstantem Abstand um eine Sehenswürdigkeit herum ständig passiert –, in jedem Frame zwischen den Modellen hin- und herflackern. Engines der San-Andreas-Ära lösten dies mit zwei Schwellenwerten statt einem: einer größeren Entfernung für das *Downgrade* auf das Low-Poly-Modell und einer geringeren Entfernung für das *Upgrade* zurück auf die volle Detailstufe. Dadurch entsteht eine neutrale Zone, in der kein Wechsel stattfindet. Der Wechsel selbst wird in der Regel durch ein Alpha-Cross-Fade über einige wenige Frames hinweg weiter abgemildert, sodass selbst der stattfindende Übergang eher wie eine weiche Überblendung und nicht wie ein harter Schnitt wirkt.
+</Alert>
+
+<br/>
+
+Das Interessante daran ist, was dies der Engine bringt, ausgedrückt im Frame-Budget selbst: Die Low-Poly-Proxy-Schicht ist praktisch völlig unabhängig von der DVD-Latenz, da sie den Speicher nie verlässt. Das bedeutet, dass die visuelle Ausgabe des Renderers im *schlimmsten Fall* immer „korrekt, aber detailarm“ ist, niemals „fehlend“. Dies formuliert die Suchlatenz der DVD von einem Korrektheitsproblem in ein reines Quality-of-Service-Problem um – genau die Art von Fehlerbereich, in dem ein Echtzeitsystem operieren möchte.
+
+## 4. Assembler-Magie: Die Ausnutzung der Emotion Engine & Vektoreinheiten
+
+Der CPU-Komplex der PlayStation 2 – Sonys und Toshibas „Emotion Engine“ – ist architektonisch in einer Weise asymmetrisch, die kein klares modernes Analogon besitzt. In seinem Zentrum befindet sich ein 128-Bit MIPS R5900-Kern, der mit rund 294,912 MHz getaktet ist und die allgemeine Spiellogik ausführt. An diesen Kern sind zwei Vektoreinheiten gekoppelt, VU0 und VU1, bei denen es sich jeweils um kleine SIMD-Prozessoren handelt. Diese sind um 128-Bit-Register herum aufgebaut, die für 4-fache Float-Vektormathematik optimiert sind – genau die Datenform, die für 3D-Transformationen, Quaternionen-Arithmetik und Physikintegration benötigt wird.
+
+VU0 arbeitet eng gekoppelt mit dem Hauptkern zusammen, praktisch als Coprozessor-Erweiterung des CPU-eigenen Befehlsstroms. Sie war der natürliche Ort für latenzempfindliche, spielnahe Vektorberechnungen: Modellierung der Fahrzeugaufhängung, Kollisionsreaktion pro Frame, ragdoll-ähnliche Physikberechnungen – alles, was im selben Taktzyklus mit der Spiellogik hin- und herkommunizieren musste. VU1 ist ein völlig anderes Kaliber: Sie verfügt über einen eigenen lokalen Befehls- und Datenspeicher und kann *autonom* laufen. Sie führt ihr eigenes Mikroprogramm parallel zur Haupt-CPU aus, anstatt darauf zu warten, Befehl für Befehl gefüttert zu werden. Entscheidend ist, dass VU1 über einen exklusiven, hochpriorisierten Bus direkt zum Graphics Synthesizer verfügt – „Path 1“ in der PS2-Terminologie. Dieser wird durch einen einzigen Befehl, `XGKICK`, gesteuert, der einen Schub transformierter, beleuchteter und geclippter Geometrie direkt an die GPU sendet, ohne überhaupt den Umweg über die Haupt-CPU oder den System-RAM-Bus zu nehmen.
+
+<Alert variant="info">
+**Warum VU-Assembler handgeschrieben wurde, anstatt dem Compiler zu vertrauen?** VU0 und VU1 führen zwei Befehlsslots pro Zyklus aus – einen „oberen“ Slot für Vektorarithmetik und einen „unteren“ Slot für Dinge wie Speicherzugriffe oder Verzweigungen. Um echten Durchsatz aus dieser Pipeline herauszuholen, mussten Befehlspaare manuell koordiniert, eine winzige lokale Registerdatei verwaltet und Pipeline-Stalls mit fester Latenz von Hand ausgeglichen werden. Compiler dieser Ära waren auf einer so ungewöhnlichen Architektur nicht zuverlässig gut darin, diese Art von Dual-Issue- und latenzminderndem Befehlsscheduling durchzuführen. Studios, die den beworbenen Vertex-Transformations-Durchsatz der PS2 – der bei gleichzeitigem Betrieb von VU0 und VU1 oft im Bereich von mehreren Dutzend Millionen Vertices pro Sekunde beziffert wurde – tatsächlich erreichen wollten, griffen für die zeitkritischsten inneren Schleifen routinemäßig auf rohen VU-Mikrocode zurück: Vertex-Skinning, Matrix-Palette-Transformationen, Frustum-Culling, Projektion im Clip-Space.
+</Alert>
+
+<br/>
+
+Die resultierende Pipeline sieht in etwa so aus: Die Haupt-CPU (unterstützt von VU0) aktualisiert den Spielzustand und die Physik für den Frame. VU1 übernimmt die Ergebnisse und arbeitet sich unabhängig durch Matrix-Transformationen, Beleuchtung und Clip-Space-Culling für die Geometrie, die die Sichtbarkeitstests bestanden hat. Die fertigen, GPU-bereiten Primitive werden schließlich über Path 1 an den Graphics Synthesizer gesendet, während sich die CPU bereits dem nächsten Arbeitsschritt zugewandt hat. Das ist softwareseitig gepipelinte Parallelität, herausgequetscht aus Hardware, die an Festfunktionsarchitekturen grenzt – Jahre bevor irgendjemand den Begriff „Compute Shader“ überhaupt verwendete.
+
+![Abbildung 2: Datenfluss durch die Emotion Engine. VU0 bleibt nah an der CPU für spielbezogene Physikberechnungen, während VU1 halbautonom läuft und fertige Geometrie über den dedizierten Path-1-Bus mittels des XGKICK-Befehls direkt zur GS streamt – ohne den Hauptsystem-RAM-Bus zu berühren.](../../../assets/blog/gta-san-andreas-ps2/2.webp)
+
+Abbildung 2: Datenfluss durch die Emotion Engine. VU0 bleibt nah an der CPU für spielbezogene Physikberechnungen, während VU1 halbautonom läuft und fertige Geometrie über den dedizierten Path-1-Bus mittels des XGKICK-Befehls direkt zur GS streamt – ohne den Hauptsystem-RAM-Bus zu berühren.
+
+## 5. Speicherökonomie: CLUT-Texturierung & prozedurales Entity-Recycling
+
+Da nur 4 MB eDRAM zur Verfügung standen, um jede während eines Frames aktiv gebundene Textur zu speichern, setzte San Andreas für die überwältigende Mehrheit seiner Umgebungsgrafiken massiv auf indizierte Farben – Color Look-Up Tables, kurz CLUTs. Anstatt eine vollständige 32-Bit-RGBA-Farbe pro Pixel zu speichern, sichert eine indizierte Textur einen kleinen ganzzahligen *Index* pro Pixel, während eine separate, winzige Palettentabelle jeden Index einer tatsächlichen 16-Bit-Farbe zuordnet. Der Graphics Synthesizer der PS2 unterstützte nativ zwei Indizierungstiefen: 4-Bit (16 mögliche Farben pro Textur) und 8-Bit (256 mögliche Farben pro Textur).
+
+Die Einsparungen sind dramatisch und skaleninvariant – sie bleiben unabhängig von der Texturauflösung im Wesentlichen auf demselben prozentualen Niveau, da der Paletten-Overhead im Vergleich zu den Pixeldaten selbst vernachlässigbar ist:
+
+| Texturgröße | Format | Pixeldaten | Palette (CLUT) | Gesamtgröße | Einsparung vs. 32-Bit-RGBA |
+|---|---|---|---|---|---|
+| 128×128 | 32-Bit RGBA | 64 KB | — | 64 KB | — |
+| 128×128 | 8-Bit indiziert (256 Farben) | 16 KB | 0,5 KB | 16,5 KB | ~74,2% |
+| 128×128 | 4-Bit indiziert (16 Farben) | 8 KB | ~0,03 KB | ~8,03 KB | ~87,4% |
+| 256×256 | 32-Bit RGBA | 256 KB | — | 256 KB | — |
+| 256×256 | 8-Bit indiziert (256 Farben) | 64 KB | 0,5 KB | 64,5 KB | ~74,8% |
+| 256×256 | 4-Bit indiziert (16 Farben) | 32 KB | ~0,03 KB | ~32,03 KB | ~87,5% |
+
+*\*Die Palettengrößen basieren auf einem 16-Bit-Farbeintrag pro Index: 256 Einträge × 2 Byte = 512 Byte für 8-Bit-CLUTs, 16 Einträge × 2 Byte = 32 Byte für 4-Bit-CLUTs.*
+
+Die Formel hinter der Spalte für die Pixeldaten basiert auf einfacher Bit-Packing-Mathematik. Für eine Textur mit $W \times H$ Pixeln bei $b$ Bit pro Pixel gilt:
+
+$$
+S_{pixels} = \frac{W \times H \times b}{8}\ \text{Byte}
+$$
+
+weshalb der Wechsel von 32 Bit pro Pixel auf 4 Bit pro Pixel keine lineare Einsparung ist – es handelt sich um eine 8-fache Reduzierung des rohen Pixelspeichers, da $32 / 4 = 8$.
+
+Die CLUT-Indizierung bietet über die reine Speichereinsparung hinaus einen zweiten, subtileren Vorteil: Da jedes Pixel in einer indizierten Textur lediglich ein Zeiger auf eine kleine Palette ist, lässt sich das gesamte Erscheinungsbild einer Textur radikal verändern, indem man ausschließlich die Palette umschreibt – ein paar Dutzend oder Hundert Byte –, ohne ein einziges Byte der (weitaus größeren) Pixeldaten anzurühren. Tauscht, rotiert oder blendet man die Paletteneinträge aus, aktualisiert sich jedes darauf verweisende Pixel augenblicklich und einheitlich. Diese als „Palette Shifting“ bekannte Technik, die bei Grafiken mit indizierten Farben bis in die 8-Bit-Ära zurückreicht, ist genau der Kniff, der Beleuchtungswechsel nahezu ohne VRAM-Kosten praxistauglich für Konsolen macht. Die Farbkorrektur (Color Grading), die eine Szene benötigt, wenn der Tag-Nacht-Wechsel in San Andreas die Umgebungstexturen von grellem Mittagslicht zu bernsteinfarbenen Dämmerungstönen verschiebt, lässt sich so extrem effizient umsetzen: Das erneute Hochladen einer Handvoll Paletten-Bytes ist um Größenordnungen günstiger als das erneute Hochladen oder Mischen hochauflösender Texturdaten in jedem Frame.
+
+![Abbildung 3: Wie die CLUT-Indizierung den Pixelspeicher von der Farbspeicherung entkoppelt. Das Umschreiben des kleinen Palettenstreifens färbt jedes darauf verweisende Pixel augenblicklich neu ein – der Mechanismus hinter günstigen, VRAM-freien Beleuchtungs- und Palette-Shift-Effekten.](../../../assets/blog/gta-san-andreas-ps2/3.webp)
+
+Abbildung 3: Wie die CLUT-Indizierung den Pixelspeicher von der Farbspeicherung entkoppelt. Das Umschreiben des kleinen Palettenstreifens färbt jedes darauf verweisende Pixel augenblicklich neu ein – der Mechanismus hinter günstigen, VRAM-freien Beleuchtungs- und Palette-Shift-Effekten.
+
+Die Speicherökonomie auf der CPU-Seite des RAM-Budgets funktionierte nach derselben Philosophie: Speichere nichts, was du regenerieren kannst. Die Fußgänger- und Verkehrspopulation in San Andreas war keine feste Gruppe persistenter Akteure – es handelte sich um einen prozedural verwalteten Pool, der dynamisch gespawnt und despawnt wurde, während sich der Spieler durch die Welt bewegte. Begrenzt wurde dies durch deterministische, zonenabhängig gewichtete Tabellen, die beeinflussten, welche Modelle in welchem Bezirk spawnen konnten (z. B. eine Häufung von Lowrider-Fahrzeugen in Ganton oder eine Konzentration von Sportwagen rund um Las Venturas). Das Spawnen wurde durch das Sichtvolumen (View Frustum) gesteuert – neue Entities materialisierten sich knapp außerhalb des Sichtfelds der Kamera und nicht irgendwo in der geladenen Welt. Das Despawnen war ebenso aggressiv: Alles, was das Sichtvolumen verließ und sich weit genug vom Spieler entfernte, wurde sofort aus dem aktiven Heap gelöscht, anstatt als Ballast das RAM-Budget zu belasten. Das gesamte System verhält sich wie ein Object-Pool mit fester Kapazität, über den eine räumliche und statistische Richtlinie gelegt wurde – genau das, was man braucht, wenn die simulierte Bevölkerung mit gestreamter Geometrie, Texturen und Audio um den Speicher konkurrieren muss, und das alles innerhalb derselben 32-MB-Obergrenze.
+
+## 6. Fazit: Der Triumph einer Constraint-getriebenen Architektur
+
+Wenn wir aus heutiger Sicht auf *Grand Theft Auto: San Andreas* zurückblicken, wird klar, dass die riesige, nahtlose Welt des Spiels kein Produkt roher Hardware-Leistung war, sondern eine Illusion, aufrechterhalten durch kompromisslosen Mikrocode, aggressives Caching und eine hochgradig strukturierte Speicherbudgetierung. Die 32 MB System-RAM und die 4 MB eDRAM schränkten die Vision von Rockstar North nicht ein – auf paradoxe Weise definierten diese starren Grenzen gerade jenen sauberen, vorhersehbaren Entwicklungsrahmen, der das Spiel überhaupt erst möglich machte.
+
+Die Streaming-Engine lud nicht einfach nur Assets; sie orchestrierte einen Echtzeit-Tanz gegen die mechanischen, physikalischen Grenzen eines rotierenden Laserkopfes. Die Vektoreinheiten transformierten nicht nur Vertices; sie umgingen hochrangige Software-Abstraktionen, um rohe parallele Ausführungsleistung direkt aus dem Silizium herauszukitzeln.
+
+In einer Ära, in der die moderne Web- und Spieleentwicklung oft Abstraktion über Abstraktion schichtet – was häufig zu gigantischen Deployment-Größen und unoptimierten Laufzeitumgebungen führt –, steht San Andreas als Meisterklasse des Bare-Metal-Systems-Engineering. Es ist eine Erinnerung daran: Wenn die Hardware einem nichts schenkt, ist das ultimative Optimierungswerkzeug ein tiefes, kompromissloses Verständnis des Bare Metals. Der Staat San Andreas war in Wirklichkeit nie auf dieser Dual-Layer-DVD gespeichert; er wurde Frame für 33-Millisekunden-Frame regelrecht ins Dasein hineinentwickelt.
+
+---
+
+## Literaturhinweise & Weiterführende Literatur
+
+* **Copetti, R.** (2018). <a href="https://www.copetti.org/writings/consoles/playstation-2/" target="_blank" rel="noopener noreferrer">*PlayStation 2 Architecture: A Practical Analysis*</a>. Ein tiefer Einblick in die Pipelines von Emotion Engine, Vector Units und Graphics Synthesizer.
+* **Criterion Software.** (2002). <a href="https://gtamods.com/wiki/RenderWare" target="_blank" rel="noopener noreferrer">*RenderWare Graphics SDK Documentation*</a>. Strukturelle Spezifikationen und von der Community bewahrte Details der hardwarenahen Rasterisierungsschicht.
+* **GTA Modding Community.** <a href="https://gtamods.com/wiki/Memory_Addresses_(SA)" target="_blank" rel="noopener noreferrer">*GTA:SA Memory Addresses*</a> & <a href="https://gtamods.com/wiki/Resource_Streaming" target="_blank" rel="noopener noreferrer">*Resource Streaming Documentation*</a>. Ein von der Community getragenes Reverse-Engineering-Wiki, das `.ipl`- und `.ide`-Strukturen sowie Konstanten des Speicher-Streamings detailliert beschreibt.
+* **The re3 & reVC Projects.** <a href="https://github.com/Cai1Hsu/re3" target="_blank" rel="noopener noreferrer">*Open-source decompilation of RenderWare-era GTA engines*</a> (und archivierter <a href="https://archive.org/details/gta-3-gta-vc-re_20210222_0707" target="_blank" rel="noopener noreferrer">Internet Archive Torrent</a>). Vollständig rekonstruierter Original-Quellcode, der Engine-Strukturen, Memory Pooling und Abläufe beim Entity-Recycling abbildet.
+
+---
+
+## Technisches Glossar
+
+| Begriff | Definition |
+|---|---|
+| **Emotion Engine (EE)** | Die Haupt-CPU der PS2: Ein 128-Bit-MIPS-R5900-Kern (~294,912 MHz), der auf demselben Die mit zwei Vektoreinheiten (VU0, VU1) und einer Gleitkommaeinheit (FPU) kombiniert ist. Speziell für die 3D-Echtzeitsimulation entwickelt. |
+| **RDRAM** | Direct Rambus DRAM – der 32 MB große Hauptarbeitsspeicher der PS2 mit einer Bandbreite von rund 3,2 GB/s, der von Programmcode, Spielzustand und allen gestreamten Assets gemeinsam genutzt wird. |
+| **eDRAM** | Embedded DRAM, das direkt auf dem Die des Graphics Synthesizers integriert ist – ein separater, deutlich schnellerer, aber weitaus kleinerer (4 MB) Speicherpool, der den Framebuffer, den Z-Buffer und die aktiv gebundenen Texturen enthält. |
+| **Graphics Synthesizer (GS)** | Die dedizierte Rasterisierungs-GPU der PS2. Fixed-Function-Architektur ohne programmierbare Shader; verarbeitet vor-transformierte Geometriedaten sowie Texturen und gibt Pixel aus. |
+| **VU0** | Eine Vektoreinheit, die als Koprozessor eng an den EE-Kern gekoppelt ist und typischerweise für spielrelevante Berechnungen wie Physik und Aufhängungsmodellierung genutzt wird, die in jedem Taktzyklus mit der CPU-Logik interagieren müssen. |
+| **VU1** | Eine zweite, autonomere Vektoreinheit mit eigenem lokalen Speicher, die typischerweise für Geometrietransformationen, Beleuchtung, Clipping und Culling vor der Übergabe an den GS zuständig ist. |
+| **GIF (Graphics Interface)** | Die Hardware-Schnittstelle, die die Datenübertragung aus drei priorisierten Pfaden („Paths“) in den GS regelt, um sicherzustellen, dass Geometrie- und Texturdaten den Rasterisierer in der richtigen Reihenfolge erreichen. |
+| **Path 1 / XGKICK** | Die am höchsten priorisierte Busverbindung von VU1 direkt zum GS, ausgelöst durch den `XGKICK`-Befehl – ermöglicht es VU1, fertige Geometriedaten an die GPU zu senden, ohne den Umweg über den Hauptspeicher (RAM) zu nehmen. |
+| **CLUT (Color Look-Up Table)** | Eine kleine Palettentabelle, die mit einer indizierten Textur verknüpft ist. Jedes Pixel speichert einen kompakten Index anstelle einer vollständigen Farbe, und die CLUT ordnet diese Indizes den tatsächlichen Farbwerten zu. |
+| **Palette Shifting** | Das Umschreiben der CLUT-Palette einer Textur (einige Dutzend bis Hundert Byte), um das visuelle Erscheinungsbild jedes darauf verweisenden Pixels augenblicklich zu verändern, ohne die zugrunde liegenden Pixeldaten selbst anzurühren. |
+| **LOD (Level of Detail)** | Ein Ersatzmodell mit geringerer Polygonanzahl und Detailtiefe, das dauerhaft im Speicher verbleibt (resident ist), damit der Renderer für weit entfernte oder noch nicht gestreamte Geometrie immer *etwas* zum Zeichnen hat. |
+| **Hysterese (LOD-Wechsel)** | Die Verwendung zweier unterschiedlicher Entfernungsschwellenwerte (einer für das Herabstufen, einer für das Heraufstufen) anstelle eines einzigen, um zu verhindern, dass ein Objekt nahe der Grenze in jedem Frame unruhig zwischen den LOD-Stufen hin- und herflackert. |
+| **Streaming Sector** | Eine diskrete Rasterzelle der Spielwelt, die eine begrenzte Menge an Geometrie-, Kollisions- und Texturressourcen besitzt. Sie dient als atomare Einheit für die Lade- und Entladeentscheidungen des Streaming-Systems. |
+| **Streaming Bubble** | Der dynamische Laderadius um den Spieler herum, innerhalb dessen die Engine vorausschauend Sektordaten anfordert. Dieser wird anhand des Geschwindigkeitsvektors des Spielers skaliert, um die DVD-Suchlatenz auszugleichen. |
+| **DVD-ROM (4x)** | Das optische Speichermedium der PS2 mit einem theoretischen sequenziellen Durchsatz von rund 5,28 MB/s. Die Suchlatenz (meist im Bereich von 100–200 ms angegeben) stellt den eigentlichen Flaschenhals bei nicht-kontinuierlichen Lesevorgängen dar. |
+| **Frustum Culling** | Das Verwerfen von Geometriedaten, die außerhalb des aktuellen Sichtfelds (Sichtvolumens) der Kamera liegen, bevor sie an die GPU gesendet werden. Dies spart Berechnungsaufwand bei der Transformation und schont die Füllrate. |
+| **RenderWare Graphics** | Die hardwarenahe 3D-Rasterisierungs-Middleware (von Criterion Software), auf der San Andreas aufbaut. Das eigene, maßgeschneiderte Szenenmanagement, das Streaming und die LOD-Systeme von Rockstar North bauten darauf auf, anstatt direkt darin implementiert zu sein. |

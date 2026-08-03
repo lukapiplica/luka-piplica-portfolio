@@ -1,0 +1,181 @@
+---
+title: "Kako je Rockstar hakirao PS2 da bi stvorio GTA: San Andreas"
+description: "Tehnička analiza optimizacija RenderWarea, ručno pisanog VU mikrokoda i CLUT memorijskih trikova pomoću kojih je Rockstar North uspio učitavati tri grada i čitavu državu s konzole sa samo 32 MB RAM-a."
+publishedAt: "2026-08-03"
+author: "Luka Piplica"
+tags: ["game-engineering", "playstation-2", "systems-programming", "renderware", "reverse-engineering", "game-history"]
+featured: true
+locale: hr
+image: "../../../assets/blog/gta-san-andreas-ps2/featured.webp"
+imageAlt: "Animirana uvodna sekvenca koja prikazuje tekst 'Rockstar Games Presents', prelazi u 'A Rockstar North Production' i završava s klasičnim logotipom igre Grand Theft Auto: San Andreas."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+
+Tri grada, čitava fiktivna država povezana ruralnim područjima i nula zaslona za učitavanje – sve to na konzoli s 32 MB sistemskog RAM-a i proračunom video memorije manjim od jedne nekomprimirane 4K fotografije. To je bio inženjerski zadatak, implicitno ili na drugi način, iza igre *Grand Theft Auto: San Andreas* studija Rockstar North iz 2004. godine. Taj je zadatak prisilio mali tim programera niske razine da PlayStation 2 tretiraju manje kao igraću konzolu, a više kao ugrađeni sustav u stvarnom vremenu (real-time embedded system) s neprijateljskim medijem za pohranu pričvršćenim sa strane.
+
+Ovo nije retrospektiva o radnji ili glazbi u igri. Ovo je analiza same arhitekture i njezina funkcioniranja: asinkronog streaming pipelinea, LOD (Level of Detail) hijerarhije koja skriva mehaničku latenciju diska, ručno pisanog mikrokoda za vektorske jedinice (Vector Unit) koji je u potpunosti zaobilazio prevoditelj (compiler), te memorijskih trikova s indeksiranim bojama koji su omogućili da se proračun video memorije od samo 4 MB rastegne preko cijele države. Neke od točnih internih konstanti koje je Rockstar koristio nikada nisu objavljene i zajednica koja se bavi obrnutim inženjeringom (reverse engineering) ih je samo približno izračunala tijekom posljednja dva desetljeća – na mjestima gdje je to slučaj, to sam i napomenuo. Arhitektura je, međutim, dobro dokumentirana i predstavlja ogledni primjer inženjerstva vođenog strogim ograničenjima.
+
+## 1. Hardverska kriza iz 2004. i paradoks
+
+Emotion Engine PlayStationa 2 adresirao je 32 MB Direct RDRAM-a kao svoju glavnu sistemsku memoriju – kod, stanje umjetne inteligencije (AI), fizika, zvučni međuspremnici (audio buffers), strujana geometrija i teksture u tranzitu borili su se za isti zajednički spremnik. S druge strane, Graphics Synthesizer (rasterizator PS2-a) radio je s odvojenih 4 MB ugrađenog DRAM-a (eDRAM) smještenog izravno na matrici (die) grafičkog procesora (GPU), koji je morao istovremeno sadržavati međuspremnik okvira (framebuffer), Z-međuspremnik (Z-buffer) i svaku teksturu aktivno povezanu za iscrtavanje. Nije postojala objedinjena memorijska arhitektura niti straničenje virtualnih tekstura (virtual texture paging) u modernom smislu – ako resurs nije bio fizički prisutan u jednom od ta dva spremnika, on za renderer jednostavno nije postojao.
+
+<Alert variant="warning">
+**Stvarno usko grlo nije bio RAM – bio je to optički pogon.** DVD-ROM pogon brzine 4x pružao je teoretsku sekvencijalnu brzinu prijenosa od oko 5,28 MB/s ($4 \times 1.32\ \text{MB/s}$ za DVD čitač jedinstvene brzine). No, sekvencijalna propusnost predstavlja najbolji mogući scenarij. Optički pogoni ove generacije plaćali su golemu kaznu – obično procijenjenu na oko 100 do 200 ms – svaki put kada bi glava čitača morala izvršiti traženje (seek) na nesusjednom sektoru. Samo *jedno* traženje moglo je potrošiti vremenski proračun ekvivalentan širini od šest ili više sličica (frames) igre.
+</Alert>
+
+<br/>
+
+Taj vremenski proračun bio je neumoljiv. S ciljanih 30 sličica u sekundi (FPS), pokretač je imao na raspolaganju:
+
+$$
+T_{frame} = \frac{1}{30\ \text{fps}} \approx 33.3\ \text{ms}
+$$
+
+za ažuriranje simulacije, pokretanje animacije i fizike, izdavanje poziva za iscrtavanje (draw calls) i napajanje streaming pipelinea – sve bez ijednog trzaja koji bi igrač mogao osjetiti. Ako naivno pomnožimo sekvencijalnu brzinu čitanja pogona u najboljem slučaju s tim vremenskim prozorom po sličici, dobivamo teoretsku gornju granicu količine podataka po sličici:
+
+$$
+D_{frame} = R_{DVD} \times T_{frame} = 5.28\ \frac{\text{MB}}{\text{s}} \times 0.0333\ \text{s} \approx 176\ \text{KB}
+$$
+
+Ta je brojka u praksi toliko optimistična da graniči s fantastikom, jer pretpostavlja nulti gubitak vremena na traženje (seek overhead) – uvjet koji se praktički nikada ne ispunjava kada se igrač vozi kroz grad, skačući između sektora na disku u uzorku koji nema nikakve veze s linearnim redoslijedom datoteke. Cijeli problem dizajna za tim koji je radio na pokretaču San Andreasa svodio se na jedno pitanje: kako sakriti uređaj za pohranu koji može zastati na nekoliko stotina milisekundi unutar petlje igre (game loop) kojoj je preostalo svega 33 milisekunde?
+
+Cilj je bio beskompromisan: besprijekorno strujanje (streaming) diljem države, pri čemu kretanje kroz svijet nikada ne bi prekinuo zaslon za učitavanje – nešto što nijedna igra otvorenog svijeta na konzolama prije nije pokušala u ovakvom geografskom omjeru.
+
+## 2. Strujanje resursa: Vektorizacija i segmentacija San Andreasa u stvarnom vremenu
+
+San Andreas je licencirao RenderWare, Criterionov višeplatformski međuprogram (middleware) za iscrtavanje, ali samo njegovu nisku razinu – *RenderWare Graphics* rasterizacijski sloj. Izostavljeni su Criterionovi moduli više razine za upravljanje scenom, audio, fiziku ili umjetnu inteligenciju. Rockstar North je u potpunosti samostalno razvio vlastiti graf scene (scene graph), sustav okluzije, LOD sustav i pokretač strujanja (streaming engine), koji su se nalazili povrh RenderWareovih primitiva za iscrtavanje, a ne unutar njih. Reći da se radilo o "teško prilagođenom RenderWareu" je, u vrlo doslovnom smislu, preskromna tvrdnja: veliki dio onoga što su ljudi u San Andreasu nazivali "RenderWare pokretačem" zapravo je bio Rockstarov vlastiti kod koji je RenderWareov rasterizator koristio samo kao back-end.
+
+Sam svijet bio je podijeljen na 2D mrežu sektora scene – diskretnih prostornih ćelija, od kojih je svaka posjedovala skup modela, podatke o kolizijama i teksture koje fizički pripadaju tom dijelu karte. U svakoj sličici (frame) pokretač provjerava igračevu poziciju u prostoru svijeta u odnosu na granice sektora; prelazak u novi sektor pokreće *zahtjev za strujanje* (streaming request) za skup resursa tog sektora. Pozadinski brojač – zapravo tekući zbroj "streaming memorije u uporabi" – prati koliko je proračuna RAM-a trenutno dodijeljeno učitanim resursima. Kada se taj brojač približi svojoj gornjoj granici, pokretač počinje izbacivati najmanje važne prisutne objekte: stvari koje su daleko od kamere, izvan frustuma pogleda (view frustum) ili jednostavno najudaljenije od igrača, oslobađajući prostor prije nego što stignu podaci novog sektora.
+
+<Alert variant="info">
+Riječ je o klasičnoj politici predmemoriranja (cache) **izbacivanjem najmanje važnih elemenata** (least-relevant eviction), a ne LRU (Least Recently Used). Udaljenost i vidljivost, a ne vremenska učestalost korištenja, odlučuju o tome što će se ukloniti – što je iznimno važno u otvorenom svijetu gdje se igrač može okrenuti i vratiti natrag kroz sektor koji je upravo napustio.
+</Alert>
+
+<br/>
+
+Radijus aktivacije za zahtjev za strujanje nije fiksni krug oko igrača – on mora uzeti u obzir brzinu kojom igrač smanjuje udaljenost do još neučitane geografije. Igrač koji se kreće pješke i igrač koji upravlja mlažnjakom Hydra pod punim gasom imaju potpuno različite zahtjeve za predviđanje unaprijed (lookahead). Konceptualno (točne Rockstarove konstante podešavanja nikada nisu objavljene, pa ovo treba promatrati kao ilustrativni model mehanizma, a ne kao njihov doslovni izvorni kod), radijus strujanja skalira se s brzinom:
+
+$$
+R_{stream}(\vec{v}) = R_{base} + k \cdot \lVert \vec{v} \rVert
+$$
+
+gdje je $R_{base}$ minimalni radijus mjehurića potreban pri brzini hodanja, $\lVert \vec{v} \rVert$ je magnituda igračevog trenutnog vektora brzine, a $k$ je konstanta podešavanja koja širi mjehurić kako se brzina povećava. Prediktivnija varijanta projicira buduću poziciju duž trenutnog smjera kretanja i tamo centrira zahtjev za učitavanje, umjesto na trenutnoj koordinati igrača:
+
+$$
+\vec{p}_{predicted} = \vec{p}_{current} + \vec{v} \cdot T_{lookahead}
+$$
+
+To je razlika između pokretača koji *reagira* na ulazak igrača u novo područje i onog koji to *predviđa* – a s obzirom na to da se latencija pretraživanja DVD-a mjerila u stotinama milisekundi naspram proračuna sličice od 33,3 ms, reagiranje nikada ne bi bilo dovoljno brzo. Maksimalna brzina Hydre praktički prisiljava sustav strujanja da počne dohvaćati geografiju nekoliko sekundi prije nego što igrač stigne, jer bi mu u protivnom ponestalo tla pod nogama.
+
+![Slika 1: Usporedba statičnog radijusa strujanja pri niskoj brzini naspram prediktivnog mjehurića strujanja pri visokoj brzini, što prikazuje produljenje zone učitavanja ispred vektora igrača.](../../../assets/blog/gta-san-andreas-ps2/1.webp)
+
+Slika 1: Odnos između mreže sektora scene i dinamičnog mjehurića strujanja. Pri niskoj brzini radijus učitavanja je otprilike kružan; pri visokoj brzini rasteže se ispred igračevog smjera kretanja, dajući prioritet sektorima u koje igrač tek treba ući u odnosu na one koji su već ostali iza njega.
+
+## 3. Ublažavanje latencije pohrane: LOD hijerarhije i rješavanje problema "pop-ina"
+
+Čak i uz prediktivni mjehurić strujanja, fizika na kraju pobjeđuje: mlažnjak koji se kreće dovoljno brzo može nadmašiti brzinu čitanja diska. To je glavni uzrok ozloglašenog "pop-ina" u San Andreasu – zgrada, mostova i stabala u punoj razlučivosti koji naglo uskaču u vidno polje trenutak nakon što su već trebali biti tamo, jer DVD jednostavno nije mogao na vrijeme isporučiti geometriju u punoj razlučivosti.
+
+Svaki put kada bi igrač svjedočio kako se viseći most ili skupina visoko detaljnih stabala iznenada materijaliziraju niotkuda izravno ispred njegovog brzog vozila, nije gledao samo u softversku pogrešku (glitch) – svjedočio je mehaničkim ograničenjima hardvera iz 2004. godine. Unutar konzole PlayStation 2, fizička laserska glava DVD pogona bjesomučno se pomicala naprijed-natrag preko rotirajućeg diska. Kako bi dohvatio teksture visoke razlučivosti i 3D mreže (meshes) za novu četvrt, taj se laser morao fizički repozicionirati, pri čemu mu je trebalo i do 200 milisekundi da sleti na točan sektor. Dok je laser letio preko diska, petlja igre i dalje je kucala na 33,3 milisekunde po sličici. Umjesto da zamrzne cijelu igru čekajući da je laser dostigne, pokretač je odlučio nastaviti s radom – prikazujući ili prazan prostor ili kockasti zamjenski objekt (placeholder).
+
+Rješenje nije bilo ukloniti problem – što je bilo fizički nemoguće s optičkim pogonom brzine 5,28 MB/s – već učiniti tranziciju što neprimjetnijom. Ključni mehanizam je postojani, niskopoligonalni proxy model – gruba, "uvijek prisutna" (always resident) verzija udaljene geografije – koja ostaje u memoriji bez obzira na stanje strujanja. Kada se završi učitavanje verzije visoke razlučivosti neke zgrade ili znamenitosti, pokretač je zamjenjuje umjesto tog niskopoligonalnog zamjenskog modela. Budući da se na zaslonu *uvijek* nešto nalazi – iako to nije uvijek resurs konačne kvalitete – vizualni pipeline graciozno degradira na zamjenski objekt niže razine detalja, umjesto da katastrofalno potone u praznu, neiscrtanu prazninu.
+
+<Alert variant="info">
+**Histereza sprječava titranje (thrashing).** Ako bi pokretač koristio samo jedan prag udaljenosti za donošenje odluke o prebacivanju između LOD razina, objekt koji lebdi točno na toj granici – što se stalno događa pri vožnji na konstantnoj udaljenosti od neke znamenitosti – treperio bi izmjenjujući modele u svakoj sličici. Pokretači iz ere San Andreasa to su riješili pomoću dva praga umjesto jednog: veća udaljenost za *smanjenje detalja* (downgrade) na niskopoligonalni model i manja udaljenost za *povećanje detalja* (upgrade) natrag na punu razlučivost, stvarajući tako mrtvu zonu u kojoj se ne događa nikakva zamjena. Sama zamjena obično se dodatno ublažava prozirnim pretapanjem (alpha cross-fade) kroz nekoliko sličica, pa se čak i tranzicija koja se dogodi doživljava kao glatko stapanje, a ne kao nagli rez.
+</Alert>
+
+<br/>
+
+Zanimljiv dio je ono što to donosi pokretaču, izraženo u samom vremenskom proračunu sličice: niskopoligonalni proxy sloj praktički uopće ne ovisi o latenciji DVD-a jer nikada ne napušta memoriju, što znači da je u najgorem slučaju vizualni izlaz renderera uvijek "točan, ali niske kvalitete", a nikada "nepostojeći". To redefinira latenciju traženja DVD-a iz problema točnosti podataka u čisti problem kvalitete usluge (Quality of Service) – što je upravo ona vrsta tolerancije na pogreške u kojoj sustav u stvarnom vremenu želi raditi.
+
+## 4. Čarolija asemblera: Iskorištavanje Emotion Enginea i vektorskih jedinica
+
+Procesorski kompleks PlayStationa 2 – Sonyjev i Toshibin "Emotion Engine" – arhitektonski je asimetričan na način koji nema čistog modernog ekvivalenta. U njegovu se središtu nalazi 128-bitna jezgra MIPS R5900 s radnim taktom od otprilike 294,912 MHz, koja pokreće opću logiku igre. Na tu su jezgru nadograđene dvije vektorske jedinice (Vector Units), VU0 i VU1. Svaka od njih je mali SIMD procesor izgrađen oko 128-bitnih registara optimiziranih za 4-smjernu vektorsku matematiku s pomičnim zarezom (4-wide float vector math) – što je točan oblik podataka koji se koriste u 3D transformacijama, matematici kvaterniona i integraciji fizike.
+
+VU0 radi usko povezan s glavnom jezgrom, zapravo kao koprocesorsko proširenje vlastitog instrukcijskog toka procesora (CPU). Bio je prirodno mjesto za vektorsku matematiku osjetljivu na latenciju i usko vezanu uz gameplay: modeliranje ovjesa vozila, reakcije na kolizije po sličici (per-frame collision response), fizikalne proračune slične ragdoll efektima – sve što je moralo komunicirati naprijed-natrag s logikom igre u istom taktnom ciklusu. VU1 je potpuno drugačija zvijer: ima vlastitu lokalnu memoriju za instrukcije i podatke te može raditi *autonomno*, izvršavajući vlastiti mikroprogram paralelno s glavnim procesorom umjesto da čeka da ga se hrani instrukciju po instrukciju. Ključno je to što VU1 ima privatnu, visokoprioritetnu sabirnicu koja vodi izravno do Graphics Synthesizera – "Path 1" u terminologiji PS2-a – a koju pokreće jedna jedina instrukcija, `XGKICK`. Ta instrukcija šalje paket transformirane, osvijetljene i odsječene (clipped) geometrije izravno grafičkom procesoru (GPU), bez ikakvog povratnog prolaska kroz glavni procesor ili sabirnicu sistemskog RAM-a.
+
+<Alert variant="info">
+**Zašto ručno pisati VU asembler umjesto povjerenja prevoditelju (compileru)?** VU0 i VU1 izvršavaju dva instrukcijska utora po ciklusu – "gornji" (upper slot) za vektorsku aritmetiku i "donji" (lower slot) za stvari poput pristupa memoriji ili grananja. Postizanje stvarne propusnosti iz tog cjevovoda (pipeline) značilo je ručno usklađivanje (co-scheduling) instrukcijskih parova, upravljanje sićušnim lokalnim skupom registara (register file) i ručno skrivanje zastoja u pipelineu fiksne latencije (fixed-latency pipeline stalls). Prevoditelji tog vremena nisu bili pouzdano dobri u ovoj vrsti dvostrukog izdavanja instrukcija (dual-issue) i raspoređivanja instrukcija radi skrivanja latencije na tako neobičnoj arhitekturi. Studiji koji su doista željeli postići oglašavanu propusnost transformacije vrhova (vertices) na PS2 – koja se obično procjenjivala na desetke milijuna vrhova u sekundi kada su VU0 i VU1 radili u tandemu – rutinski su se spuštali na čisti VU mikrokod za najkritičnije unutarnje petlje (hot loops): skinning (skeletnu animaciju), transformacije palete matrica, frustum culling (odbacivanje geometrije izvan vidnog polja) i projekciju u prostoru odsijecanja (clip-space).
+</Alert>
+
+<br/>
+
+Dobiveni pipeline izgleda otprilike ovako: glavni procesor (uz pomoć jedinice VU0) ažurira stanje igre i fiziku za trenutnu sličicu, VU1 preuzima rezultate i neovisno obrađuje transformacije matrica, osvjetljenje i culling u prostoru odsijecanja za geometriju koja je prošla testove vidljivosti, a gotovi primitivi spremni za GPU ispaljuju se prema Graphics Synthesizeru preko Path 1 dok je procesor već prešao na sljedeći dio posla. To je paralelizam strukturiran softverskim pipelineom (software-pipelined parallelism) istisnut iz hardvera bliskog fiksnoj funkciji (fixed-function), godinama prije nego što je pojam "compute shader" uopće ušao u uporabu.
+
+![Slika 2: Tok podataka kroz Emotion Engine. VU0 ostaje blizu procesora za proračune fizike povezane s igrom, dok VU1 radi poluautonomno i struji gotovu geometriju prema GS-u preko namjenske Path 1 sabirnice putem instrukcije XGKICK — nikada ne dotičući sabirnicu glavnog sistemskog RAM-a.](../../../assets/blog/gta-san-andreas-ps2/2.webp)
+
+Slika 2: Tok podataka kroz Emotion Engine. VU0 ostaje blizu procesora za proračune fizike povezane s igrom, dok VU1 radi poluautonomno i struji gotovu geometriju prema GS-u preko namjenske Path 1 sabirnice putem instrukcije XGKICK – nikada ne dotičući sabirnicu glavnog sistemskog RAM-a.
+
+## 5. Ekonomija memorije: CLUT teksture i proceduralno recikliranje entiteta
+
+Sa samo 4 MB eDRAM-a za pohranu svih tekstura koje su aktivno povezane tijekom jedne sličice, San Andreas se snažno oslanjao na indeksirane boje – tablice za pretraživanje boja (Color Look-Up Tables ili CLUTs) – za veliku većinu grafike okoliša. Umjesto pohranjivanja pune 32-bitne RGBA boje po pikselu, indeksirana tekstura pohranjuje mali cjelobrojni *indeks* po pikselu, a zasebna, sićušna tablica palete mapira svaki indeks u stvarnu 16-bitnu boju. PS2-ov Graphics Synthesizer izvorno je podržavao dvije dubine indeksiranja: 4-bitnu (16 mogućih boja po teksturi) i 8-bitnu (256 mogućih boja po teksturi).
+
+Uštede su dramatične i neovisne o razlučivosti (scale-invariant) – zadržavaju se na gotovo istom postotku bez obzira na razlučivost teksture, jer je trošak palete zanemariv u usporedbi sa samim podacima o pikselima:
+
+| Veličina teksture | Format | Podaci o pikselima | Paleta (CLUT) | Ukupna veličina | Ušteda u odnosu na 32-bitni RGBA |
+|---|---|---|---|---|---|
+| 128×128 | 32-bitni RGBA | 64 KB | — | 64 KB | — |
+| 128×128 | 8-bitna indeksirana (256 boja) | 16 KB | 0,5 KB | 16,5 KB | ~74,2% |
+| 128×128 | 4-bitna indeksirana (16 boja) | 8 KB | ~0,03 KB | ~8,03 KB | ~87,4% |
+| 256×256 | 32-bitni RGBA | 256 KB | — | 256 KB | — |
+| 256×256 | 8-bitna indeksirana (256 boja) | 64 KB | 0,5 KB | 64,5 KB | ~74,8% |
+| 256×256 | 4-bitna indeksirana (16 boja) | 32 KB | ~0,03 KB | ~32,03 KB | ~87,5% |
+
+*Veličine paleta pretpostavljaju 16-bitni unos boje po indeksu: 256 unosa × 2 bajta = 512 bajtova za 8-bitne CLUT-ove, 16 unosa × 2 bajta = 32 bajta za 4-bitne CLUT-ove.*
+
+Formula iza stupca s podacima o pikselima je jednostavna matematika pakiranja bitova (bit-packing). Za teksturu od $W \times H$ piksela s $b$ bita po pikselu:
+
+$$
+S_{pixels} = \frac{W \times H \times b}{8}\ \text{bajtova}
+$$
+
+zbog čega smanjenje s 32 bita po pikselu na 4 bita po pikselu nije linearna ušteda – to je osmerostruko (8x) smanjenje sirove pohrane piksela, budući da je $32 / 4 = 8$.
+
+Indeksiranje pomoću CLUT-a ima i drugu, suptilniju prednost osim same uštede prostora: budući da je svaki piksel u indeksiranoj teksturi samo pokazivač (pointer) u malu paletu, izgled teksture možete radikalno promijeniti prepisivanjem isključivo palete – nekoliko desetaka ili stotina bajtova – bez diranja ijednog bajta (znatno većih) podataka o pikselima. Zamijenite, rotirajte ili prigušite (fade) unose u paleti i svaki piksel koji upućuje na njih ažurirat će se trenutno i ujednačeno. Ova tehnika „izmjenjivanja palete” (palette shifting), dobro poznata u grafici s indeksiranim bojama još iz ere 8-bitnog hardvera, upravo je onaj trik koji omogućuje promjene osvjetljenja s gotovo nultim troškom VRAM-a. To je upravo ono stupnjevanje boja (color grading) koje je sceni potrebno kako ciklus dana i noći u San Andreasu pomiče teksture okoliša s oštrog podnevnog svjetla prema jantarnim tonovima sumraka, čineći ga praktičnim na razini konzole: ponovno učitavanje nekoliko bajtova palete redovima je veličine jeftinije od ponovnog učitavanja ili ponovnog miješanja (blendinga) teksturnih podataka u punoj razlučivosti u svakoj sličici.
+
+![Slika 3: Kako CLUT indeksiranje razdvaja pohranu piksela od pohrane boja. Prepisivanje male trake palete trenutno mijenja boju svakog piksela koji upućuje na nju – mehanizam koji stoji iza jeftinog osvjetljenja bez troška VRAM-a i efekata izmjene palete.](../../../assets/blog/gta-san-andreas-ps2/3.webp)
+
+Slika 3: Kako CLUT indeksiranje razdvaja pohranu piksela od pohrane boja. Prepisivanje male trake palete trenutno mijenja boju svakog piksela koji upućuje na nju – mehanizam koji stoji iza jeftinog osvjetljenja bez troška VRAM-a i efekata izmjene palete.
+
+Ekonomija memorije na CPU strani proračuna RAM-a radila je po istoj filozofiji: ne pohranjuj ono što možeš ponovno generirati. Stanovništvo i promet u San Andreasu nisu bili fiksni skup postojanih aktera – bio je to proceduralno upravljani spremnik (pool) koji se dinamički stvarao (spawn) i uklanjao (despawn) kako se igrač kretao kroz svijet, ograničen determinističkim tablicama s ponderiranim zonama koje su određivale koji se modeli mogu stvoriti u kojoj četvrti (npr. vozila u lowrider stilu okupljala su se u Gantonu, dok su sportski automobili bili koncentrirani oko Las Venturasa i slično). Stvaranje je bilo ograničeno frustumom pogleda (view frustum) – novi entiteti materijaliziraju se tik izvan vidnog polja kamere, a ne bilo gdje u učitanom svijetu – a uklanjanje je bilo jednako agresivno: sve što je napustilo frustum i udaljilo se dovoljno daleko od igrača odmah je uklonjeno iz aktivne hrpe (heap), umjesto da ostane kao mrtvi teret u proračunu RAM-a. Cijeli se sustav ponaša kao spremnik objekata fiksnog kapaciteta (fixed-capacity object pool) s nadograđenim prostornim i statističkim pravilima, što je upravo ono što je potrebno kada se vaša simulirana populacija mora boriti za memoriju protiv strujane geometrije, tekstura i zvuka – sve unutar iste gornje granice od 32 MB.
+
+## 6. Zaključak: Trijumf inženjerstva vođenog ograničenjima
+
+Kada se osvrnemo na *Grand Theft Auto: San Andreas* kroz modernu prizmu, postaje jasno da prostrani, neprekinuti svijet ove igre nije bio proizvod sirove hardverske snage, već iluzija održavana brutalnim mikrokodom, agresivnim predmemoriranjem (caching) i visoko strukturiranim upravljanjem proračunom memorije. Tih 32 MB sistemskog RAM-a i 4 MB eDRAM-a nisu ograničili viziju studija Rockstar North – na paradoksalan način, te su krute granice definirale čist i predvidljiv inženjerski okvir koji je igru uopće učinio mogućom.
+
+Pokretač strujanja (streaming engine) nije samo učitavao resurse; on je orkestrirao ples u stvarnom vremenu protiv mehaničkih fizičkih ograničenja rotirajuće laserske glave. Vektorske jedinice nisu samo transformirale vrhove (vertices); one su zaobilazile softverske apstrakcije visoke razine kako bi izvukle sirovi paralelizam izvršavanja izravno iz silicija.
+
+U eri u kojoj moderni razvoj weba i igara često slaže apstrakciju na apstrakciju – što nerijetko dovodi do golemih instalacijskih paketa i neoptimiziranih izvršnih okruženja (runtimes) – San Andreas stoji kao ogledni primjer sistemskog inženjerstva niske razine (bare-metal systems engineering). Ovo je podsjetnik da, kada vam hardver ne daje ništa besplatno, ultimativni alat za optimizaciju predstavlja duboko, beskompromisno razumijevanje samog hardvera. Država San Andreas zapravo nikada nije bila samo pohranjena na tom dvoslojnom DVD-u; ona je inženjerski osmišljena i oživljena, sličicu po sličicu, u intervalima od 33 milisekunde.
+
+---
+
+## Reference i dodatna literatura
+
+* **Copetti, R.** (2018). <a href="https://www.copetti.org/writings/consoles/playstation-2/" target="_blank" rel="noopener noreferrer">*PlayStation 2 Architecture: A Practical Analysis*</a>. Detaljna analiza arhitekture Emotion Enginea, vektorskih jedinica i Graphics Synthesizer cjevovoda (pipeline).
+* **Criterion Software.** (2002). <a href="https://gtamods.com/wiki/RenderWare" target="_blank" rel="noopener noreferrer">*RenderWare Graphics SDK Documentation*</a>. Strukturne specifikacije i detalji o sloju rasterizacije niske razine sačuvani zahvaljujući zajednici.
+* **GTA Modding Community.** <a href="https://gtamods.com/wiki/Memory_Addresses_(SA)" target="_blank" rel="noopener noreferrer">*GTA:SA Memory Addresses*</a> & <a href="https://gtamods.com/wiki/Resource_Streaming" target="_blank" rel="noopener noreferrer">*Resource Streaming Documentation*</a>. Wiki o obrnutom inženjeringu koji vodi zajednica, a koji detaljno opisuje strukture `.ipl` i `.ide` datoteka te konstante za strujanje memorije.
+* **The re3 & reVC Projects.** <a href="https://github.com/Cai1Hsu/re3" target="_blank" rel="noopener noreferrer">*Open-source decompilation of RenderWare-era GTA engines*</a> (i sačuvani <a href="https://archive.org/details/gta-3-gta-vc-re_20210222_0707" target="_blank" rel="noopener noreferrer">torrent na platformi Internet Archive</a>). Potpuno reverzirani izvorni kod koji mapira strukture pokretača, pooling memorije i rutine za recikliranje entiteta.
+
+---
+
+## Tehnički pojmovnik
+
+| Pojam | Definicija |
+|---|---|
+| **Emotion Engine (EE)** | Glavni procesor (CPU) PS2-a: 128-bitna MIPS R5900 jezgra (~294,912 MHz) integrirana na istoj matrici (on-die) s dvije vektorske jedinice (VU0, VU1) i jedinicom za rad s pomičnim zarezom (floating-point unit), namjenski izgrađen za 3D simulaciju u stvarnom vremenu. |
+| **RDRAM** | Direct Rambus DRAM – glavna sistemska memorija PS2-a od 32 MB koja pruža propusnost od otprilike 3,2 GB/s, a dijele je kod, stanje igre i svi strujani resursi. |
+| **eDRAM** | Ugrađeni DRAM (Embedded DRAM) integriran izravno na matrici Graphics Synthesizera – odvojeni, znatno brži, ali i znatno manji (4 MB) memorijski spremnik koji sadrži međuspremnik okvira (framebuffer), Z-međuspremnik (Z-buffer) i aktivno povezane teksture. |
+| **Graphics Synthesizer (GS)** | PS2-ov namjenski grafički procesor (GPU) za rasterizaciju. Fiksne funkcije (fixed-function), bez programabilnih sjenčara (shaders); obrađuje prethodno transformiranu geometriju i teksture te ispisuje piksele. |
+| **VU0** | Vektorska jedinica usko povezana s EE jezgrom kao koprocesor, obično korištena za matematiku povezanu s igrom poput fizike i modeliranja ovjesa koja se u svakom ciklusu mora ispreplitati s logikom procesora. |
+| **VU1** | Druga, autonomnija vektorska jedinica s vlastitom lokalnom memorijom, obično namijenjena za transformacije geometrije, osvjetljenje, odsijecanje (clipping) i culling (odbacivanje) prije slanja podataka u GS. |
+| **GIF (Graphics Interface)** | Hardversko sučelje koje upravlja isporukom podataka u GS iz triju prioritetnih "putanja" (Paths), osiguravajući da podaci o geometriji i teksturama stignu do rasterizatora u ispravnom redoslijedu. |
+| **Path 1 / XGKICK** | Sabirnica najvišeg prioriteta izravno od VU1 do GS-a, koju pokreće instrukcija `XGKICK` – omogućuje jedinici VU1 da pošalje gotovu geometriju grafičkom procesoru bez prolaska kroz glavni RAM. |
+| **CLUT (Color Look-Up Table)** | Mala tablica palete uparena s indeksiranom teksturom; svaki piksel pohranjuje kompaktni indeks umjesto pune boje, a CLUT mapira te indekse u stvarne vrijednosti boja. |
+| **Palette Shifting** | Prepisivanje CLUT palete teksture (nekoliko desetaka do nekoliko stotina bajtova) kako bi se promijenila prividna boja svakog piksela koji upućuje na nju, bez diranja samih podataka o pikselima. |
+| **LOD (Level of Detail)** | Zamjenski model nižeg broja poligona i niže kvalitete koji ostaje stalno prisutan u memoriji kako bi renderer uvijek imao *nešto* za iscrtati u slučaju udaljene geometrije ili one koja se tek treba učitati. |
+| **Hysteresis (LOD swapping)** | Korištenje dvaju različitih pragova udaljenosti – jednog za smanjenje detalja (downgrade), a drugog za povećanje (upgrade) – umjesto samo jednog, kako bi se spriječilo da objekt u blizini granice treperi izmjenjujući LOD razine u svakoj sličici. |
+| **Streaming Sector** | Diskretna ćelija mreže igraćeg svijeta koja posjeduje ograničen skup resursa geometrije, kolizija i tekstura, a koristi se kao atomska jedinica pri donošenju odluka sustava strujanja o učitavanju i uklanjanju. |
+| **Streaming Bubble** | Dinamički radijus oko igrača unutar kojeg pokretač proaktivno zahtijeva podatke o sektorima, skaliran prema vektoru brzine igrača kako bi se kompenzirala latencija traženja DVD-a. |
+| **DVD-ROM (4x)** | PS2-ov optički medij za pohranu; teoretska sekvencijalna propusnost od otprilike 5,28 MB/s, s latencijom traženja (obično procijenjenom na oko 100 do 200 ms) koja predstavlja stvarno usko grlo za nesusjedna čitanja. |
+| **Frustum Culling** | Odbacivanje geometrije koja se nalazi izvan trenutnog vidnog polja kamere prije nego što se pošalje grafičkom procesoru, čime se štedi na troškovima transformacije i brzine ispunjavanja (fill-rate). |
+| **RenderWare Graphics** | Niskorazinski međuprogram (middleware) za 3D rasterizaciju (tvrtke Criterion Software) na kojem je izgrađen San Andreas; Rockstarovi prilagođeni sustavi za upravljanje scenom, strujanje i LOD nalazili su se povrh njega, a ne unutar njega. |
