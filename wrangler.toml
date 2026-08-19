@@ -1,3 +1,6 @@
 name = "luka-piplica-portfolio"
 compatibility_date = "2026-08-19"
 pages_build_output_dir = "./dist"
+
+[assets]
+directory = "./dist"
