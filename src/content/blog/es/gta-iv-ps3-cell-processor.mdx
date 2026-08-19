@@ -1,0 +1,227 @@
+---
+title: "Infierno arquitectónico: Cómo GTA IV hizo sudar al procesador Cell de la PS3"
+description: "Análisis a bajo nivel sobre multihilo asimétrico, transferencias DMA, límites del Local Store y cuellos de botella de memoria en la implementación de RAGE de Rockstar para PS3."
+publishedAt: "2026-08-19"
+author: "Luka Piplica"
+tags: ["game-engineering", "playstation-3", "cell-broadband-engine", "systems-programming", "rage-engine", "game-history"]
+featured: true
+locale: es
+image: "../../../assets/blog/gta-iv-ps3/featured.webp"
+imageAlt: "Vista previa animada que muestra la icónica secuencia de introducción de Grand Theft Auto IV, pasando de los logotipos de Rockstar Games a la pantalla de carga con las ilustraciones de los personajes."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+Presentada en 2005 y lanzada al mercado en noviembre de 2006, la PlayStation 3 de Sony estaba impulsada por el Cell Broadband Engine: una arquitectura conjunta de 400 millones de dólares desarrollada en colaboración con IBM y Toshiba. Promocionada con promesas de un rendimiento de punto flotante de teraflops, supercomputación en tiempo real y un dominio generacional absoluto, el hardware prometía simplificar enormemente el cálculo de física moderna compleja. Sin embargo, cuando Rockstar Games lanzó *Grand Theft Auto IV* en abril de 2008, los programadores de bajo nivel no se encontraron con un supercomputador accesible, sino con uno de los modelos de ejecución y memoria más hostiles en la historia de la electrónica de consumo.
+
+Mientras que la Xbox 360 de Microsoft ofrecía un entorno multinúcleo simétrico y cómodo que ejecutaba código C++ multihilo estándar a través de un pool flexible y unificado de 512 MB de RAM, la PlayStation 3 era una anomalía de ingeniería radical. Dar vida a Liberty City exigió un cambio de paradigma completo: migrar la física de cuerpos rígidos de alta frecuencia, la animación procedimental de personajes a través del motor Euphoria de NaturalMotion y el streaming continuo de assets hacia una arquitectura agresiva y asimétrica.
+
+Este artículo es un análisis a nivel de sistema sobre cómo el motor RAGE de Rockstar Games conquistó el procesador Cell: la tubería de distribución de 1 PPE + 6 SPEs, la brutal logística detrás de la gestión de los límites de 256 KB del Local Store mediante acceso directo a memoria (DMA) asíncrono y las concesiones visuales impuestas por el cuello de botella de la memoria dividida de la PS3.
+
+## 1. La ilusión del supercomputador: La realidad heterogénea de la PS3
+
+El Cell Broadband Engine era fundamentalmente una tubería de procesamiento vectorial diseñada en torno al multiprocesamiento asimétrico. En su centro se encontraba un único **PPE (Power Processing Element)**: un núcleo basado en PowerPC de 64 bits con doble hilo (dual-threaded) que funcionaba a 3,2 GHz. Rodeando al PPE había ocho **SPEs (Synergistic Processing Elements)**, pequeños coprocesadores vectoriales altamente optimizados que operaban a la misma frecuencia de reloj, cada uno con una **SPU (Synergistic Processing Unit)** y un espacio de memoria local especializado de 256 KB llamado **Local Store (LS)**. Un SPE venía desactivado permanentemente de fábrica para aumentar el rendimiento de fabricación de los chips (yield), y un segundo estaba reservado exclusivamente por el Hypervisor / GameOS de Sony, lo que dejaba a los desarrolladores con exactamente **6 SPEs utilizables** para cargas de trabajo computacionales generales.
+
+![Figura 1: Diseño arquitectónico del procesador STI Cell Broadband Engine](../../../assets/blog/gta-iv-ps3/1.webp)
+
+Figura 1: Topología arquitectónica del STI Cell Broadband Engine. El PPE actúa como controlador host mientras que 6 coprocesadores SPE activos se comunican a través de la topología en anillo Element Interconnect Bus (EIB) de 4x16 bytes.
+
+Las capacidades computacionales teóricas de este esquema eran asombrosas. Un solo SPE podía ejecutar hasta 4 operaciones de punto flotante de precisión simple por ciclo utilizando sus registros SIMD de 128 bits:
+
+$$
+\text{FLOPS}_{\text{SPE}} = 4\ \text{ops/ciclo} \times 2\ (\text{FMA}) \times 3.2\ \text{GHz} = 25.6\ \text{GFLOPS}
+$$
+
+A lo largo de los 6 SPEs disponibles, el rendimiento vectorial bruto alcanzaba:
+
+$$
+\text{FLOPS}_{\text{SPE\_Total}} = 6 \times 25.6\ \text{GFLOPS} = 153.6\ \text{GFLOPS}
+$$
+
+Al combinarse con la unidad de procesamiento vectorial del PPE (Altivec/VMX), el chip presumía de aproximadamente 200 GFLOPS de rendimiento teórico. Sin embargo, este pico de cómputo teórico estaba condicionado por una grave trampa arquitectónica: **el núcleo PPE era un motor de ejecución en orden (in-order execution)**.
+
+<Alert variant="warning">
+**La trampa de la ejecución en orden (In-Order Execution):** Las CPUs de escritorio modernas (y hasta cierto punto también los núcleos Xenon de la Xbox 360) recurren a la ejecución fuera de orden (OoOE, Out-of-Order Execution) para reordenar instrucciones de forma dinámica ante retrasos de memoria y fallos de caché. El PPE de la PS3 no contaba con ese lujo. Si un hilo que se ejecutaba en el PPE sufría un fallo de caché L2, la tubería se detenía por completo durante hasta 200 ciclos de reloj. El código C++ estándar con persecución profunda de punteros (típica de los grafos de objetos C++ en los motores de juegos) se ejecutaba de manera alarmantemente lenta en el PPE.
+</Alert>
+
+<br/>
+
+En consecuencia, los desarrolladores tenían que tratar al PPE como nada más que un director de orquesta. Si intentaban ejecutar los bucles de juego monolíticos tradicionales en C++, árboles de decisión de IA, configuración de renderizado y simulaciones de física íntegramente en el PPE, la PS3 funcionaba más lento que un Pentium 4 de gama media. Para extraer rendimiento, los sistemas del juego debían desglosarse radicalmente, vectorizarse y delegarse a los coprocesadores SPE autónomos.
+
+## 2. Multihilo asimétrico: Delegando Euphoria y la física de conducción
+
+La Xbox 360 contaba con tres núcleos PowerPC simétricos (6 hilos de hardware) con acceso equitativo a una caché L2 compartida y memoria unificada. Aunque los núcleos Xenon también eran motores de ejecución en orden (in-order execution), los paradigmas estándar de multihilo —como dividir cargas de trabajo entre hilos convencionales mediante pools de hilos o OpenMP— funcionaban de manera natural gracias a una jerarquía de memoria compartida y coherente con la caché.
+
+En la PS3, este modelo se derrumbó por completo. Los SPEs no eran núcleos de propósito general. No disponían de una caché de datos L1/L2 por hardware para respaldar las operaciones estándar de carga y almacenamiento (load/store) de punteros, no tenían hardware de predicción de saltos (branch prediction) estándar, ni compatibilidad de conjunto de instrucciones con el código PowerPC o x86 estándar. Un hilo de C++ tradicional no se podía enviar simplemente a un SPE.
+
+Para ejecutar Grand Theft Auto IV, el equipo detrás del motor RAGE (Rockstar Advanced Game Engine) de Rockstar tuvo que rediseñar por completo sus tuberías de física y animación para adaptarlas a un modelo de gestor de tareas (Job-Manager).
+
+### Delegación de Euphoria y física de cuerpos rígidos a los SPEs
+
+GTA IV introdujo dos sistemas revolucionarios en los juegos de mundo abierto:
+1. **Animación procedimental (NaturalMotion Euphoria):** En lugar de reproducir animaciones de muerte pregrabadas (pre-baked), Euphoria sintetizaba respuestas biomecánicas de control motor en tiempo real. Simulaba reflejos del sistema nervioso central, tensiones musculares, restricciones de equilibrio y la inercia del esqueleto.
+2. **Dinámica de vehículos y física de colisiones:** Modelado de suspensión mediante raycast de alta frecuencia, curvas de fricción de neumáticos, deformación de cuerpos blandos (soft-body) y complejas colisiones de cuerpos rígidos para docenas de vehículos activos.
+
+![Figura 2: Flujo de datos y tubería de distribución de tareas del Job-Manager desde el PPE hacia los núcleos trabajadores SPE](../../../assets/blog/gta-iv-ps3/2.webp)
+
+Figura 2: El modelo Job-Manager de RAGE en el Cell. El PPE principal orquesta la lógica del juego y envía paquetes de trabajo especializados a través del EIB a unidades SPE dedicadas para el procesamiento en paralelo de física, biomecánica y streaming.
+
+Dado que estos cálculos eran matemáticamente intensos, deterministas y vectorizables, resultaban candidatos ideales para los SPEs.
+- **Responsabilidad del PPE:** Gestionaba la lógica de juego, el scripting de misiones, la búsqueda de caminos (pathfinding) de IA de alto nivel, el enrutamiento de la mezcla de audio y las llamadas al sistema operativo. Empaquetaba los parámetros de simulación en "descriptores de tareas" (Job Descriptors) ligeros.
+- **Responsabilidad de los SPEs:** Extraían los Job Descriptors, ejecutaban matemática vectorial pura en aislamiento y devolvían las matrices transformadas. El SPE 0 y el SPE 1 ejecutaban los bucles biomecánicos de Euphoria; el SPE 2 y el SPE 3 procesaban la física de los vehículos y las mallas de colisión por raycast; el SPE 4 y el SPE 5 se encargaban de la descompresión de mallas, el procesamiento de consultas de oclusión (occlusion queries) y las transmisiones de DSP de audio.
+
+<Alert variant="info">
+**Euphoria en los SPEs:** Simular la biomecánica humana en tiempo real requería resolver cinemática inversa (IK) compleja y dinámica de cuerpos rígidos múltiples en cada fotograma (33,3 ms). Un SPE podía calcular la reacción muscular de un personaje entero en microsegundos utilizando registros vectoriales SIMD ajustados a mano, liberando al PPE de cientos de miles de transformaciones matriciales.
+</Alert>
+
+## 3. El infierno de los 256 KB del Local Store y la fontanería DMA manual
+
+El cuello de botella más brutal del procesador Cell era el aislamiento de la memoria. Un SPE **no** podía leer directamente de la RAM principal de 256 MB (XDR) de la PS3 ni de los 256 MB de RAM de vídeo (GDDR3).
+
+En su lugar, cada SPE solo podía ejecutar código y leer/escribir datos que residieran físicamente dentro de su propio **Local Store de 256 KB**. Este espacio de memoria de 256 KB se compartía entre el código ejecutable (el binario del microcódigo), la pila (stack) y los búferes de datos.
+
+![Figura 3: Desglose de asignación de memoria interna de un Local Store de 256 KB en un SPE](../../../assets/blog/gta-iv-ps3/3.webp)
+
+Figura 3: Distribución de memoria dentro del Local Store de 256 KB de un SPE. El código ejecutable, la pila de trabajo y los búferes de trabajo (scratchpads) de doble búfer para DMA entrante y saliente deben caber dentro de este estricto límite sin el respaldo de una caché por hardware.
+
+No había una caché de datos L1 o L2 gestionada por hardware en el SPE para extraer de forma transparente bloques de memoria faltantes desde la RAM principal. Si un programa ejecutado en un SPE solicitaba una dirección de memoria fuera de su Local Store de 256 KB, el hardware no la recuperaba automáticamente: sencillamente no podía direccionarla.
+
+### La mecánica de las transferencias DMA asíncronas
+
+Para procesar una malla, un árbol de colisiones o una instancia de muñeco de trapo (ragdoll) en un SPE, los desarrolladores tenían que escribir instrucciones manuales de **acceso directo a memoria (DMA)** enviadas a la interfaz **MFC (Memory Flow Controller)** integrada en cada SPE.
+
+La tubería de datos operaba bajo un estricto patrón asíncrono:
+1. **Iniciar DMA de lectura:** Ordenar al MFC que extraiga un bloque de datos de la RAM XDR principal a través del Element Interconnect Bus (EIB) y lo deposite en el Búfer A del Local Store.
+2. **Detención o doble búfer (Double Buffering):** El SPE espera la señal de confirmación de finalización del grupo de etiquetas (o realiza cálculos en el Búfer B del Local Store mientras se llena el A).
+3. **Ejecutar operaciones vectoriales:** Procesar los datos localmente a la máxima velocidad del procesador (3,2 GHz) utilizando registros SIMD de 128 bits.
+4. **Iniciar DMA de escritura:** Emitir una solicitud al MFC para escribir los resultados calculados de vuelta en la RAM XDR principal o en la VRAM.
+
+export const spuDmaCode = `// Código C/C++ conceptual de bajo nivel ejecutado directamente en una SPU
+#include <spu_mfcio.h>
+
+#define BUFFER_SIZE 16384 // Bloques de 16 KB (deben estar alineados a 128 bytes)
+#define DMA_TAG 1
+
+unsigned char local_buffer[BUFFER_SIZE] __attribute__((aligned(128)));
+
+void process_physics_chunk(uint64_t main_ram_ea) {
+    // 1. Emitir comando DMA GET asíncrono para traer datos de la RAM principal al Local Store
+    spu_mfcdma64(
+        (void*)local_buffer,        // Destino en el Local Store
+        mhi(main_ram_ea),           // Dirección EA de 32 bits superiores
+        mlo(main_ram_ea),           // Dirección EA de 32 bits inferiores
+        BUFFER_SIZE,                // Tamaño de la transferencia
+        DMA_TAG,                    // Identificación de etiqueta (Tag)
+        MFC_GET_CMD                 // Tipo de comando
+    );
+
+    // 2. Detener la tubería de la SPU hasta que se complete la transacción DMA
+    mfc_write_tag_mask(1 << DMA_TAG);
+    mfc_read_tag_status_all();
+
+    // 3. Realizar cálculos vectoriales SIMD de alta velocidad dentro del Local Store
+    vector float* vec_data = (vector float*)local_buffer;
+    for(int i = 0; i < (BUFFER_SIZE / 16); i++) {
+        vec_data[i] = spu_add(vec_data[i], spu_splats(1.0f)); // Matemática vectorial SIMD
+    }
+
+    // 4. Emitir comando DMA PUT asíncrono para enviar los resultados de vuelta a la RAM XDR
+    spu_mfcdma64(
+        (void*)local_buffer, 
+        mhi(main_ram_ea), 
+        mlo(main_ram_ea), 
+        BUFFER_SIZE, 
+        DMA_TAG, 
+        MFC_PUT_CMD
+    );
+    
+    mfc_write_tag_mask(1 << DMA_TAG);
+    mfc_read_tag_status_all(); // Esperar confirmación de la escritura de vuelta
+}
+`;
+
+<CodeBlock 
+  code={spuDmaCode} 
+  filename="spu_dma_physics.c" 
+  showLineNumbers={true} 
+/>
+
+<br/>
+
+Para evitar que los SPEs quedaran inactivos durante las transferencias DMA, Rockstar utilizó una técnica de doble búfer (double-buffering). Mientras el SPE ejecutaba el procesamiento sobre el Búfer A, el MFC transmitía simultáneamente los datos DMA entrantes a través del Element Interconnect Bus (EIB) hacia el Búfer B. Esto mantenía las unidades de ejecución ocupadas de forma constante, aunque requería dividir el de por sí pequeño espacio de 256 KB en bloques de trabajo (scratchpads) aún más reducidos.
+
+## 4. El cuello de botella de la memoria dividida: PS3 vs. Xbox 360
+
+Mientras que las tuberías de procesamiento planteaban desafíos de arquitectura de software, los límites de la memoria física impusieron duras concesiones gráficas y de renderizado en el lanzamiento de GTA IV para PS3.
+
+| Especificación de hardware | Microsoft Xbox 360 | Sony PlayStation 3 |
+|---|---|---|
+| **RAM total del sistema** | 512 MB GDDR3 unificada | 512 MB dividida en particiones |
+| **Asignación de RAM del sistema** | Compartida dinámicamente (p. ej., 300 MB VRAM / 212 MB Sys) | **Fija:** 256 MB XDR principal + 256 MB GDDR3 VRAM |
+| **Ancho de banda de memoria principal** | 22,4 GB/s al sistema principal | 25,6 GB/s (RAM principal XDR) |
+| **Ancho de banda de memoria GPU** | 22,4 GB/s (Unificada) | 20,8 GB/s (VRAM GDDR3) |
+| **eDRAM / Daughter Die** | **Daughter Die de 10 MB** (Tasa de relleno MSAA rápida) | **Ninguna** |
+| **Topología de bus** | Interconexión unificada flexible | Arquitectura rígida de bus dividido |
+
+### La trampa de la RAM dividida
+
+La Xbox 360 permitía a los desarrolladores de juegos asignar su pool unificado de 512 MB de forma flexible. Si un juego como GTA IV requería más memoria de geometría y estado del sistema para el streaming, los desarrolladores podían asignar 320 MB a la RAM del sistema y 192 MB a las texturas y objetivos de renderizado (render targets).
+
+La PS3 imponía un muro rígido y fuertemente particionado:
+- **256 MB de RAM de sistema XDR** (RAM ultrarrápida de baja latencia reservada para la CPU, los SPEs y el estado del juego).
+- **256 MB de VRAM GDDR3** (Dedicada estrictamente a los render targets y mapas de texturas de la GPU RSX).
+
+Si la GPU RSX se quedaba sin VRAM en una escena densa, técnicamente podía acceder a la RAM XDR principal a través del bus FlexIO, pero leer a través de este puente conllevaba una penalización masiva en el ancho de banda. Además, si la lógica del juego ejecutada en el PPE necesitaba más de 256 MB de RAM principal, no podía tomar prestado ni un solo kilobyte del pool de 256 MB de VRAM, independientemente de cuánta memoria de la GPU estuviera libre.
+
+![Figura 4: Diagrama de topología de memoria que contrasta la memoria unificada de la Xbox 360 con las particiones de RAM de hardware divididas de la PS3](../../../assets/blog/gta-iv-ps3/4.webp)
+
+Figura 4: Diagrama de topología de memoria que contrasta la memoria unificada de la Xbox 360 con las particiones de RAM de hardware divididas de la PS3. La barrera rígida de la PS3 impedía la asignación cruzada entre las tareas del sistema de la CPU y los render targets de la GPU. Las flechas dinámicas y las barreras fijas aclaran las limitaciones de acceso a la memoria.
+
+### El compromiso del renderizado a 640p y los filtros de desenfoque
+
+Esta partición rígida tuvo consecuencias inmediatas para la tubería de renderizado de GTA IV en PS3:
+
+1. **Falta de eDRAM para Anti-Aliasing:** La GPU de la Xbox 360 contaba con un módulo eDRAM dedicado de 10 MB directamente en el die de la GPU, capaz de realizar Anti-Aliasing de Múltiple Muestreo (MSAA) de 2x o 4x con un coste de tasa de relleno (fill-rate) prácticamente nulo. La GPU RSX de la PS3 (basada en la arquitectura G70 de NVIDIA) carecía por completo de eDRAM. Ejecutar 2x MSAA nativo a 720p consumía una VRAM muy valiosa y destruía la tasa de fotogramas (frame rate).
+2. **Reducción de la resolución (Downscaling):** Para mantener una tasa de fotogramas objetivo de 30 FPS mientras se gestionaban las asignaciones de VRAM para los render targets del framebuffer, los búferes de profundidad (depth buffers) y los mapas de sombras dinámicas, Rockstar se vio obligada a reducir la resolución de salida de la PS3:
+   - **Resolución en Xbox 360:** Nativa 1280x720 (720p) con 2x MSAA.
+   - **Resolución en PS3:** Nativa 1152x640 (640p) sin MSAA por hardware.
+3. **Anti-Aliasing por software y desenfoque de posprocesamiento:** Para enmascarar los severos artefactos de aliasing (dientes de sierra) causados al escalar una imagen de 640p a pantallas de 720p o 1080p, Rockstar implementó en la PS3 un agresivo filtro de desenfoque en el espacio de pantalla (screen-space blur) durante el posprocesamiento. Aunque esto mitigó con éxito los bordes dentados, le dio a la versión de PS3 su característica presentación visual más suave y claramente más "borrosa" en comparación con la Xbox 360.
+
+![Figura 5: Comparación de resolución de renderizado que muestra 720p con 2x MSAA frente a resolución sub-nativa de 640p con desenfoque en el espacio de pantalla](../../../assets/blog/gta-iv-ps3/5.webp)
+
+Figura 5: Comparación de la resolución del framebuffer entre la Xbox 360 (1280x720) y la PS3 (1152x640).
+
+## 5. Conclusión: Una clase magistral de adaptación bare-metal
+
+*Grand Theft Auto IV* en la PlayStation 3 sigue siendo uno de los logros técnicos más notables de la séptima generación de consolas. Lo que en la superficie parecía ser una adaptación con una resolución ligeramente menor era, bajo el capó, una reinvención completa de las tuberías de ejecución de un motor de juegos moderno.
+
+Rockstar Games tomó una arquitectura que rechazaba las convenciones de programación estándar modernas y la sometió a su voluntad. Abandonaron las capas de abstracción convencionales de alto nivel en C++, diseñaron tuberías de microcódigo personalizadas impulsadas por DMA, delegaron complejas matemáticas procedimentales biomecánicas a seis coprocesadores vectoriales aislados y navegaron por una de las topologías de memoria más restrictivas en la historia moderna de los videojuegos.
+
+El Cell Broadband Engine finalmente fue retirado; las futuras generaciones de consolas adoptaron por unanimidad arquitecturas de memoria unificada y CPUs multinúcleo simétricas x86-64. Sin embargo, las lecciones arquitectónicas aprendidas al exprimir Liberty City dentro de Local Stores de 256 KB allanaron el camino para los planificadores de tareas de sistemas de trabajo (job systems) modernos, las tuberías de shaders de cómputo (compute shaders) y las APIs gráficas explícitas de bajo nivel (Vulkan, DirectX 12) utilizadas en toda la industria hoy en día.
+
+---
+
+## Referencias y lecturas adicionales
+
+* **Gschwind, M.** (2006). <a href="https://www.researchgate.net/publication/221151072_Chip_multiprocessing_and_the_cell_broadband_engine" target="_blank" rel="noopener noreferrer">*Chip Multiprocessing with the Cell Broadband Engine*</a>. IEEE Micro Journal. Desglose técnico y arquitectónico profundo de las especificaciones del PPE, los SPEs y el bus en anillo EIB.
+* **Riley, M. W., Warnock, J. D., & Wendel, D. F.** (2007). <a href="https://ieeexplore.ieee.org/document/5388682" target="_blank" rel="noopener noreferrer">*Cell Broadband Engine Processor: Design and Implementation*</a>. IBM Journal of Research and Development, 51(5), 545–557. Artículo técnico exhaustivo sobre el diseño de circuitos, la implementación SoC y las restricciones de fabricación del procesador Cell BE.
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Euphoria_(software)" target="_blank" rel="noopener noreferrer">*Euphoria (software)*</a>. Contexto técnico sobre el middleware Dynamic Motion Synthesis de NaturalMotion, la animación procedimental en tiempo real y la integración del código fuente con el motor RAGE de Rockstar en Grand Theft Auto IV.
+* **PS3Dev Wiki Archives.** <a href="https://www.psdevwiki.com/ps3/CELL_BE" target="_blank" rel="noopener noreferrer">*Especificaciones de hardware del Cell Broadband Engine y el RSX*</a>. Documentación de hardware de bajo nivel preservada por la comunidad, diseño de registros DMA y mapas de memoria.
+
+---
+
+## Glosario técnico
+
+| Término | Definición |
+|---|---|
+| **Cell Broadband Engine** | El microprocesador heterogéneo de alto rendimiento desarrollado por Sony, Toshiba e IBM (STI) que impulsaba la consola PlayStation 3. |
+| **PPE (Power Processing Element)** | El núcleo principal PowerPC de 64 bits de propósito general y doble hilo del procesador Cell, funcionando a 3,2 GHz. |
+| **SPE (Synergistic Processing Element)** | Una de las ocho unidades coprocesadoras vectoriales independientes y especializadas en el procesador Cell, optimizada para operaciones vectoriales SIMD de precisión simple y alto rendimiento. |
+| **Local Store (LS)** | Un espacio de direcciones de memoria SRAM ultrarrápido y dedicado de 256 KB local para cada SPE, que alberga tanto el microcódigo ejecutable como los búferes de datos de cálculo. |
+| **DMA (Direct Memory Access)** | Comandos de transferencia de memoria asíncrona gestionados por hardware que se ejecutan a través del controlador de flujo de memoria (MFC) para mover bloques de memoria entre la RAM principal y el Local Store. |
+| **EIB (Element Interconnect Bus)** | Un bus interno en anillo circular de gran ancho de banda que conecta el PPE, los SPEs, el controlador de memoria y la interfaz de la GPU a hasta 204,8 GB/s. |
+| **Euphoria Engine** | Un entorno de ejecución de síntesis de animación procedimental creado por NaturalMotion que calcula la dinámica motora biomecánica y las respuestas físicas en tiempo real. |
+| **RSX 'Reality Synthesizer'** | La unidad de procesamiento gráfico de la PS3 desarrollada en conjunto con NVIDIA (basada en la arquitectura NV47/G70) que opera a 550 MHz con 256 MB de VRAM GDDR3. |
+| **XDR DRAM** | RAM DRAM de Rambus de extremadamente baja latencia utilizada como memoria principal del sistema (256 MB) en la PS3, funcionando en un bus de 64 bits que ofrece 25,6 GB/s. |
+| **In-Order Execution** | Un diseño de tubería de CPU donde las instrucciones se procesan estrictamente de forma secuencial sin reordenamiento dinámico a nivel de hardware, lo que provoca severas detenciones durante la latencia de memoria. |

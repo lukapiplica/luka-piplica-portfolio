@@ -1,0 +1,227 @@
+---
+title: "Arhitekturni pakao: Kako je GTA IV prisilio Cell procesor PS3 konzole na maksimum"
+description: "Dubinska analiza asimetrične višedretvenosti, DMA transfera, ograničenja Local Storea i uskih grla podijeljene memorije u Rockstarovoj RAGE implementaciji za PS3."
+publishedAt: "2026-08-19"
+author: "Luka Piplica"
+tags: ["game-engineering", "playstation-3", "cell-broadband-engine", "systems-programming", "rage-engine", "game-history"]
+featured: true
+locale: hr
+image: "../../../assets/blog/gta-iv-ps3/featured.webp"
+imageAlt: "Animirani pregled koji prikazuje kultnu uvodnu sekvencu za Grand Theft Auto IV, s prijelazom s Rockstar Games logotipa na ekran za učitavanje s likovima."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+Predstavljen 2005. i lansiran u studenome 2006. godine, Sonyjev PlayStation 3 pokretao je Cell Broadband Engine — arhitektura vrijedna 400 milijuna dolara razvijena u suradnji s IBM-om i Toshibom. Promoviran uz obećanja o teraflopsom protoku u radu s pomičnim zarezom, superračunalnim performansama u stvarnom vremenu i potpunoj generacijskoj dominaciji, hardver je obećavao jednostavnu obradu složene moderne fizike. Međutim, kada je Rockstar Games u travnju 2008. izdao *Grand Theft Auto IV*, programere niske razine nije dočekalo superračunalo jednostavno za rad, već jedan od najneprijateljskijih memorijskih i izvršnih modela u povijesti potrošačke elektronike.
+
+Dok je Microsoftov Xbox 360 pružao ugodno, simetrično višezatvorničko okruženje koje je izvršavalo standardni višedretveni C++ kôd kroz fleksibilni, ujedinjeni spremnik od 512 MB RAM-a, PlayStation 3 bio je radikalna inženjerska anomalija. Oživljavanje Liberty Cityja zahtijevalo je potpunu promjenu paradigme: migraciju fizike krutih tijela visoke frekvencije, proceduralne animacije likova putem NaturalMotionovog Euphoria pokretača i kontinuirano strujanje imovine u agresivnu, asimetričnu arhitekturu.
+
+Ovaj je članak sistemska analiza načina na koji je Rockstarov RAGE pokretač svladao Cell procesor: distribucijski cjevovod s 1 PPE-om + 6 SPE-ova, brutalna logistika upravljanja ograničenjima Local Storea od 256 KB putem asinkronog izravnog pristupa memoriji (DMA) te vizualni kompromisi uzrokovani uskim grlom podijeljene memorije PS3 konzole.
+
+## 1. Iluzija o superračunalu: Heterogena stvarnost PS3 konzole
+
+Cell Broadband Engine u svojoj je osnovi bio cjevovod za vektorsku obradu dizajniran oko asimetričnog višeprocesiranja. U njegovom se središtu nalazio jedan **PPE (Power Processing Element)** — dvojezgreni/dvodretveni (dual-threaded) 64-bitni procesor baziran na PowerPC arhitekturi koji je radio na 3,2 GHz. PPE su okruživala osam **SPE-ova (Synergistic Processing Elements)**, malih, iznimno optimiziranih vektorskih koprocesora koji su radili na istom radnom taktu, a svaki je sadržavao **SPU (Synergistic Processing Unit)** i specijalizirani lokalni memorijski prostor od 256 KB nazvan **Local Store (LS)**. Jedan SPE bio je trajno onemogućen u tvornici kako bi se povećao prinos ispravnih čipova pri proizvodnji (silicon yield), dok je drugi bio rezerviran isključivo za Sonyjev Hypervisor / GameOS, ostavljajući programerima točno **6 upotrebljivih SPE-ova** za opća računalna opterećenja.
+
+![Slika 1: Arhitekturni raspored STI Cell Broadband Engine procesora](../../../assets/blog/gta-iv-ps3/1.webp)
+
+Slika 1: Arhitekturna topologija STI Cell Broadband Enginea. PPE djeluje kao glavni kontroler (host), dok 6 aktivnih SPE koprocesora komunicira putem Element Interconnect Bus (EIB) prstenaste topologije propusnosti 4x16 bajtova.
+
+Teorijske računalne mogućnosti ove konfiguracije bile su zapanjujuće. Jedan SPE mogao je izvršiti do 4 operacije s pomičnim zarezom jedinstvene preciznosti po ciklusu koristeći svoje 128-bitne SIMD registre:
+
+$$
+\text{FLOPS}_{\text{SPE}} = 4\ \text{ops/ciklusu} \times 2\ (\text{FMA}) \times 3.2\ \text{GHz} = 25.6\ \text{GFLOPS}
+$$
+
+Kroz 6 dostupnih SPE-ova, sirova vektorska performansa doseizala je:
+
+$$
+\text{FLOPS}_{\text{SPE\_Total}} = 6 \times 25.6\ \text{GFLOPS} = 153.6\ \text{GFLOPS}
+$$
+
+U kombinaciji s PPE-ovom jedinicom za vektorsku obradu (Altivec/VMX), čip se hvalio s oko 200 GFLOPS-a teorijskih performansi. Međutim, ovaj teorijski vrhunac bio je zaključan iza ozbiljne arhitekturne zamke: **PPE jezgra bila je izvršni motor sa slijednim izvršavanjem naredbi (in-order execution)**.
+
+<Alert variant="warning">
+**Zamka slijednog izvršavanja (In-Order Execution):** Moderni stolni procesori (pa i Xenon jezgre Xboxa 360 do određene mjere) oslanjaju se na vanredno izvršavanje (OoOE, Out-of-Order Execution) kako bi dinamički preuredili instrukcije oko memorijskih zastoja i promašaja predmemorije (cache miss). PPE u PS3 nije imao taj luksuz. Ako bi dretva koja se izvršava na PPE-u pretrpjela promašaj L2 predmemorije, cjevovod bi se potpuno zaustavio na do 200 taktnih ciklusa. Standardni C++ kôd s dubokim praćenjem pokazivača (karakterističan za grafove C++ objekata u pokretačima igara) izvodio se katastrofalno sporo na PPE-u.
+</Alert>
+
+<br/>
+
+Slijedom toga, programeri su PPE morali tretirati kao ništa više od dirigenta orkestra. Ako bi pokušali pokrenuti klasične monolitne C++ petlje igre, stabla odlučivanja umjetne inteligencije, pripremu renderiranja i simulaciju fizike u potpunosti na PPE-u, PS3 bi radio sporije od prosječnog Pentium 4 procesora. Da bi se izvukle performanse, sustavi igre morali su se radikalno raščlaniti, vektorizirati i prebaciti na autonomne SPE koprocesore.
+
+## 2. Asimetrična višedretvenost: Prebacivanje Euphoria animacija i fizike vožnje
+
+Xbox 360 imao je tri simetrične PowerPC jezgre (6 hardverskih dretvi) s jednakim pristupom dijeljenoj L2 predmemoriji i ujedinjenoj memoriji. Iako su Xenon jezgre također bile motori sa slijednim izvršavanjem, standardne paradigme višedretvenosti — poput podjele opterećenja na konvencionalne dretve pomoću skupova dretvi (thread pools) ili OpenMP-a — funkcionirale su prirodno zahvalzijujući dijeljenoj, predmemorijski koherentnoj (cache-coherent) memorijskoj hijerarhiji.
+
+Na PS3 konzoli ovaj se model u potpunosti urušio. SPE-ovi nisu bili jezgre opće namjene. Nisu imali hardversku L1/L2 podatkovnu predmemoriju kao oslonac za standardne operacije učitavanja i pohrane putem pokazivača (pointer load/store), nisu imali standardni hardver za predviđanje grananja (branch prediction), niti kompatibilnost skupa instrukcija sa standardnim PowerPC/x86 kôdom. Tradicionalna C++ dretva jednostavno se nije mogla poslati na SPE.
+
+Kako bi pokrenuo Grand Theft Auto IV, tim iza Rockstarovog RAGE-a (Rockstar Advanced Game Engine) morao je iznova arhitekturno zasnovati svoje cjevovode za fiziku i animaciju u model upravitelja zadataka (Job-Manager model).
+
+### Prebacivanje Euphoria animacija i fizike krutih tijela na SPE-ove
+
+GTA IV uveo je dva revolucionarna sustava u igre otvorenog svijeta:
+1. **Proceduralna animacija (NaturalMotion Euphoria):** Umjesto reprodukcije unaprijed pripremljenih animacija smrti, Euphoria je u stvarnom vremenu sintetizirala biomehaničke reakcije motoričke kontrole. Simulirala je refleksne odzive središnjeg živčanog sustava, napetost mišića, ograničenja ravnoteže i zamah kostura.
+2. **Dinamika vozila i fizika sudara:** Raycast modeliranje ovjesa visoke frekvencije, krivulje trenja guma, deformacija mekih tijela (soft-body) i složeni sudari krutih tijela za desetaak aktivnih vozila.
+
+![Slika 2: Tijek podataka i cjevovod distribucije zadataka Upravitelja zadataka s PPE-a na SPE radne jezgre](../../../assets/blog/gta-iv-ps3/2.webp)
+
+Slika 2: Model RAGE Upravitelja zadataka na Cellu. Glavni PPE koordinira logiku igre i šalje specijalizirane pakete zadataka preko EIB-a na namjenske SPE jedinice za paralelną obradu biomehanike, fizike i strujanja podataka.
+
+Budući da su ti izračuni bili matematički intenzivni, deterministički i pogodni za vektorizaciju, bili su savršeni kandidati za SPE-ove.
+- **Odgovornost PPE-a:** Upravljao je logikom igre, skriptiranjem misija, pronalaženjem putanja umjetne inteligencije na visokoj razini, usmjeravanjem miksanja zvuka i pozivima operacijskog sustava. Pakirao je parametre simulacije u lagane "Opise zadataka" (Job Descriptors).
+- **Odgovornost SPE-a:** Preuzimao je Opise zadataka, izvršavao sirovu vektorsku matematiku u izolaciji i vraćao transformirane matrice. SPE 0 i SPE 1 izvodili su biomehaničke petlje Euphorie; SPE 2 i SPE 3 obrađivali su fiziku vozila i mreže raycast sudara; SPE 4 i SPE 5 bavili su se dekompresijom poligonalnih mreža, raščlanjivanjem upita zaklanjanja (occlusion query) i DSP strujanjima zvuka.
+
+<Alert variant="info">
+**Euphoria na SPE-ovima:** Simulacija ljudske biomehanike u stvarnom vremenu zahtijevala je rješavanje složene inverzne kinematike (IK) i dinamike više povezanih krutih tijela u svakom kadru (33,3 ms). SPE je mogao izračunati mišićnu reakciju cijelog lika u mikrosekundama koristeći ručno podešene SIMD vektorske registre, oslobađajući PPE od stotina tisuća matričnih transformacija.
+</Alert>
+
+## 3. Pakao Local Storea od 256 KB i ručni DMA prijenos podataka
+
+Jednostavno najbrutalnije usko grlo na Cell procesoru bila je izolacija memorije. SPE **nije mogao** izravno čitati iz glavne sistemske RAM memorije PS3 konzole od 256 MB (XDR) niti iz video RAM-a od 256 MB (GDDR3).
+
+Umjesto toga, svaki SPE mogao je izvršavati kôd i čitati/pisati podatke koji su se fizički nalazili isključivo unutar njegovog vlastitog **Local Storea od 256 KB**. Ovaj memorijski prostor od 256 KB dijelio se između izvršnog kôda (binarnog mikrokôda), stoga (stack) i podatkovnih spremnika (buffers).
+
+![Slika 3: Unutarnja raspodjela memorije unutar SPE Local Storea od 256 KB](../../../assets/blog/gta-iv-ps3/3.webp)
+
+Slika 3: Raspored memorije unutar SPE Local Storea od 256 KB. Izvršni kôd, radni stog te radni spremnici (scratchpads) za dvostruko međuspremanje (double-buffering) ulaznih i izlaznih DMA prijenosa moraju svi stati unutar ove stroge granice bez podrške hardverske predmemorije.
+
+Na SPE-u nije postojala hardverski upravljana L1 ili L2 podatkovna predmemorija koja bi neprimjetno povukla nedostajuće memorijske blokove iz glavne RAM memorije. Ako bi program na SPE-u zatražio memorijsku adresu izvan svog Local Storea od 256 KB, hardver je nije automatski dohvaćao — jednostavno joj nije mogao pristupiti.
+
+### Mehanika asinkronih DMA prijenosa
+
+Kako bi obradili poligonalnu mrežu (mesh), stablo sudara ili instancu fizike lika (ragdoll) na SPE-u, programeri su morali pisati ručne instrukcije za **izravan pristup memoriji (DMA)** koje su se slale sučelju **MFC (Memory Flow Controller)** spojenom na svaki SPE.
+
+Podatkovni cjevovod radio je po strogom asinkronom obrascu:
+1. **Pokretanje čitanja putem DMA:** Zada se naredba MFC-u da povuče blok podataka iz glavne XDR RAM memorije preko Element Interconnect Busa (EIB) u Spremnik A unutar Local Storea.
+2. **Zastoj ili dvostruko međuspremanje (Double Buffering):** SPE čeka signal potvrde završetka grupe oznaka (tag group completion mask) ili računa na Spremniku B dok se Spremnik A puni.
+3. **Izvršavanje vektorskih operacija:** Obrada podataka lokalno pri punoj brzini procesora (3,2 GHz) koristeći 128-bitne SIMD registre.
+4. **Pokretanje pisanja putem DMA:** Šalje se zahtjev MFC-u za zapisivanje izračunatih rezultata natrag u glavnu XDR RAM memoriju ili VRAM.
+
+export const spuDmaCode = `// Konceptualni C/C++ kôd niske razine koji se izvodi izravno na SPU-u
+#include <spu_mfcio.h>
+
+#define BUFFER_SIZE 16384 // Blokovi od 16 KB (moraju biti poravnati na 128 bajtova)
+#define DMA_TAG 1
+
+unsigned char local_buffer[BUFFER_SIZE] __attribute__((aligned(128)));
+
+void process_physics_chunk(uint64_t main_ram_ea) {
+    // 1. Pokretanje asinkrone DMA GET naredbe za povlačenje podataka iz glavne RAM memorije u Local Store
+    spu_mfcdma64(
+        (void*)local_buffer,        // Odredište u Local Storeu
+        mhi(main_ram_ea),           // Gornja 32-bitna EA adresa
+        mlo(main_ram_ea),           // Donja 32-bitna EA adresa
+        BUFFER_SIZE,                // Veličina prijenosa
+        DMA_TAG,                    // Identifikacijska oznaka (Tag)
+        MFC_GET_CMD                 // Vrsta naredbe
+    );
+
+    // 2. Zaustavljanje cjevovoda SPU-a dok se DMA transakcija ne završi
+    mfc_write_tag_mask(1 << DMA_TAG);
+    mfc_read_tag_status_all();
+
+    // 3. Izvršavanje brze SIMD vektorske matematike unutar Local Storea
+    vector float* vec_data = (vector float*)local_buffer;
+    for(int i = 0; i < (BUFFER_SIZE / 16); i++) {
+        vec_data[i] = spu_add(vec_data[i], spu_splats(1.0f)); // SIMD vektorska matematika
+    }
+
+    // 4. Pokretanje asinkrone DMA PUT naredbe za slanje rezultata natrag u XDR RAM
+    spu_mfcdma64(
+        (void*)local_buffer, 
+        mhi(main_ram_ea), 
+        mlo(main_ram_ea), 
+        BUFFER_SIZE, 
+        DMA_TAG, 
+        MFC_PUT_CMD
+    );
+    
+    mfc_write_tag_mask(1 << DMA_TAG);
+    mfc_read_tag_status_all(); // Čekanje na potvrdu zapisivanja natrag
+}
+`;
+
+<CodeBlock 
+  code={spuDmaCode} 
+  filename="spu_dma_physics.c" 
+  showLineNumbers={true} 
+/>
+
+<br/>
+
+Kako bi spriječio da SPE stoji neaktivan (idling) tijekom DMA prijenosa, Rockstar je koristio dvostruko međuspremanje (double-buffering). Dok se obrada na SPE-u izvodila na Spremniku A, MFC je istovremeno strujao dolazne DMA podatke u Spremnik B preko Element Interconnect Busa (EIB). To je održavalo jedinice za izvršavanje zasićenima, ali je zahtijevalo podjelu već sićušnog prostora od 256 KB na još manje pod-spremnike (sub-scratchpads).
+
+## 4. Usko grlo podijeljene memorije: PS3 vs. Xbox 360
+
+Dok su procesorski cjevovodi predstavljali izazove u arhitekturi softvera, fizička ograničenja memorije nametnula su teške grafičke i rendererske kompromise na PS3 verziji GTA IV.
+
+| Specifikacija hardvera | Microsoft Xbox 360 | Sony PlayStation 3 |
+|---|---|---|
+| **Ukupni RAM sustava** | 512 MB ujedinjeni GDDR3 | 512 MB podijeljen na particije |
+| **Alokacija sistemske RAM memorije** | Dinamički dijeljena (npr. 300 MB VRAM / 212 MB Sys) | **Fiksna:** 256 MB XDR Main + 256 MB GDDR3 VRAM |
+| **Propusnost glavne memorije** | 22.4 GB/s prema glavnom sustavu | 25.6 GB/s (XDR glavna RAM) |
+| **Propusnost memorije GPU-a** | 22.4 GB/s (ujedinjeno) | 20.8 GB/s (GDDR3 VRAM) |
+| **eDRAM / Sporedni čip (Daughter Die)** | **10 MB Daughter Die** (brza MSAA brzina ispune/fillrate) | **Nema** |
+| **Topologija sabirnice** | Fleksibilna ujedinjena međuveza | Kruta podijeljena arhitektura sabirnice |
+
+### Zamka podijeljene RAM memorije
+
+Xbox 360 omogućavao je programerima igara fleksibilno alociranje njegovog ujedinjenog spremnika od 512 MB. Ako je igri poput GTA IV trebalo više memorije za geometriju i stanje sustava radi strujanja podataka (streaming), programeri su mogli alocirati 320 MB sistemskoj RAM memoriji i 192 MB teksturama i render ciljevima (render targets).
+
+PS3 je nametao kruti, tvrdo pregrađeni zid:
+- **256 MB XDR sistemske RAM memorije** (Ultra-brza RAM memorija niske latencije rezervirana za CPU, SPE-ove i stanje igre).
+- **256 MB GDDR3 VRAM-a** (Strogo namijenjena RSX GPU render ciljevima i kartama tekstura).
+
+Ako bi RSX GPU ostao bez VRAM-a u gustoj sceni, tehnički je mogao pristupiti glavnoj XDR RAM memoriji preko FlexIO sabirnice, ali čitanje preko ovog mosta nosilo je masivno smanjenje propusnosti. Nadalje, ako je logici igre koja se izvodila na PPE-u trebalo više od 256 MB glavne RAM memorije, nije mogla posuditi niti jedan jedini kilobajt iz spremnika od 256 MB VRAM-a, bez obzira na to koliko je memorije GPU-a bilo slobodno.
+
+![Slika 4: Dijagram topologije memorije koji uspoređuje ujedinjenu memoriju Xboxa 360 i podijeljene hardverske RAM particije PS3 konzole](../../../assets/blog/gta-iv-ps3/4.webp)
+
+Slika 4: Dijagram topologije memorije koji prikazuje kontrast između ujedinjene memorije Xboxa 360 i podijeljenih hardverskih RAM particija PS3 konzole. Kruta pregrada PS3 konzole sprječavala je unakrsnu alokaciju između sistemskih zadataka CPU-a i render ciljeva GPU-a. Dinamičke strelice i fiksne prepreke pojašnjavaju ograničenja pristupa memoriji.
+
+### Rendererski kompromis od 640p i filteri zamućenja
+
+Ova kruta podjela imala je izravne posljedice na RAGE cjevovod renderiranja na PS3 konzoli:
+
+1. **Nedostatak eDRAM-a za zaglađivanje rubova (Anti-Aliasing):** GPU Xboxa 360 imao je namjenski eDRAM modul od 10 MB izravno na GPU čipu, sposoban za izvođenje 2x ili 4x Multi-Sample Anti-Aliasinga (MSAA) uz praktički nula utjecaja na brzinu ispune (fill-rate). RSX GPU PS3 konzole (baziran na NVIDIA G70 arhitekturi) u potpunosti je bio bez eDRAM-a. Pokretanje izvornog 2x MSAA pri 720p trošilo je dragocjeni VRAM i uništavalo brzinu izmjene sličica (frame rate).
+2. **Smanjenje razlučivosti (Resolution Downscaling):** Kako bi održao ciljani frame rate od 30 FPS uz upravljanje alokacijama VRAM-a za ciljeve međuspremnika sličica (framebuffer targets), međuspremnike dubine (depth buffers) i dinamičke karte sjena, Rockstar je bio primoran smanjiti izlaznu rezoluciju PS3 sličice:
+   - **Rezolucija Xboxa 360:** Izvorna 1280x720 (720p) s 2x MSAA.
+   - **Rezolucija PS3 konzole:** Izvorna 1152x640 (640p) bez hardverskog MSAA-a.
+3. **Softverski Anti-Aliasing i post-procesijsko zamućenje:** Kako bi prikrio izražene artefakte zupčanja (aliasing) uzrokovane skaliranjem slike od 640p na zaslone od 720p ili 1080p, Rockstar je na PS3 konzoli implementirao snažan post-procesijski filter zamućenja u prostoru zaslona (screen-space blur filter). Iako je to uspješno ublažilo oštre zupčaste rubove, PS3 verziji dalo je njezin karakterističan mekši, zamućeniji vizualni izgled u usporedbi s Xboxom 360.
+
+![Slika 5: Usporedba razlučivosti renderiranja koja prikazuje 720p s 2x MSAA nasuprot pod-izvornoj 640p sa zamućenjem u prostoru zaslona](../../../assets/blog/gta-iv-ps3/5.webp)
+
+Slika 5: Usporedba razlučivosti međuspremnika sličice (framebuffer) između Xboxa 360 (1280x720) i PS3 konzole (1152x640).
+
+## 5. Zaključak: Majstorska lekcija iz prilagodbe sirovom hardveru
+
+*Grand Theft Auto IV* na PlayStationu 3 ostaje jedno od najznačajnijih tehničkih postignuća Sedme generacije konzola. Ono što se na površini činilo kao port u nešto nižoj razlučivosti bilo je, ispod haube, potpuno ponovno osmišljavanje modernih cjevovoda za izvršavanje u pokretačima igara.
+
+Rockstar Games uzeo je arhitekturu koja je odbacivala moderne standardne konvencije programiranja i prisilio ju na pokornost. Napustili su konvencionalne slojeve apstrakcije visoke razine u C++-u, dizajnirali prilagođene cjevovode mikrokôda vođene DMA-om, preuzeli složenu biomehaničku proceduralnu matematiku na šest izoliranih vektorskih koprocesora i kretali se kroz jednu od najrestriktivnijih memorijskih topologija u modernoj povijesti igara.
+
+Cell Broadband Engine je s vremenom umirovljen — buduće generacije konzola jednoglasno su usvojile ujedinjene memorijske arhitekture i simetrične x86-64 višejezgrene procesore. Ipak, arhitektonske lekcije naučene sabijanjem Liberty Cityja u Local Store od 256 KB utabale su put modernim raspoređivačima zadataka sustava poslova (job-system task schedulers), cjevovodima računalnih sjena (compute-shader pipelines) i eksplicitnim grafičkim API-jevima niske razine (Vulkan, DirectX 12) koji se danas koriste diljem industrije.
+
+---
+
+## Literatura i dodatno štivo
+
+* **Gschwind, M.** (2006). <a href="https://www.researchgate.net/publication/221151072_Chip_multiprocessing_and_the_cell_broadband_engine" target="_blank" rel="noopener noreferrer">*Chip Multiprocessing with the Cell Broadband Engine*</a>. IEEE Micro Journal. Duboka tehnička arhitektonska analiza specifikacija PPE, SPE i EIB prstenaste sabirnice.
+* **Riley, M. W., Warnock, J. D., & Wendel, D. F.** (2007). <a href="https://ieeexplore.ieee.org/document/5388682" target="_blank" rel="noopener noreferrer">*Cell Broadband Engine Processor: Design and Implementation*</a>. IBM Journal of Research and Development, 51(5), 545–557. Sveobuhvatni tehnički rad o dizajnu sklopova, SoC implementaciji i proizvodnim ograničenjima Cell BE procesora.
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Euphoria_(software)" target="_blank" rel="noopener noreferrer">*Euphoria (software)*</a>. Tehnička pozadina NaturalMotionove srednje skripte (middleware) za sintezu dinamičkog kretanja, proceduralnu animaciju u stvarnom vremenu i integraciju izvornog kôda s Rockstarovim RAGE pokretačem u Grand Theft Auto IV.
+* **PS3Dev Wiki Archives.** <a href="https://www.psdevwiki.com/ps3/CELL_BE" target="_blank" rel="noopener noreferrer">*Cell Broadband Engine and RSX Hardware Specifications*</a>. Arhivirana hardverska dokumentacija niske razine koju je sačuvala zajednica, rasporedi DMA registara i memorijske mape.
+
+---
+
+## Tehnički pojmovnik
+
+| Pojam | Definicija |
+|---|---|
+| **Cell Broadband Engine** | Visokoučinkoviti heterogeni mikroprocesor koji su razvili Sony, Toshiba i IBM (STI), a pokreće konzolu PlayStation 3. |
+| **PPE (Power Processing Element)** | Primarna dvojezgrena dretvena (dual-threaded) 64-bitna PowerPC jezgra opće namjene na Cell procesoru, takta 3,2 GHz. |
+| **SPE (Synergistic Processing Element)** | Jedna od osam specijaliziranih, neovisnih jedinica vektorskog koprocesora na Cell procesoru optimizirana za jedinstvenu preciznost i SIMD vektorske operacije visoke propusnosti. |
+| **Local Store (LS)** | Namjenski, ultrabrzi adresni prostor od 256 KB SRAM-a lokalan za svaki SPE, koji sadrži i izvršni mikrokôd i podatkovne spremnike. |
+| **DMA (Direct Memory Access)** | Hardverski posredovane asinkrone naredbe prijenosa memorije izvršene preko sučelja Memory Flow Controller (MFC) za premještanje memorijskih blokova između glavnog RAM-a i Local Storea. |
+| **EIB (Element Interconnect Bus)** | Unutarnja kružna prstenasta sabirnica visoke propusnosti koja povezuje PPE, SPE-ove, memorijski kontroler i GPU sučelje pri brzinama do 204.8 GB/s. |
+| **Euphoria Engine** | Izvršno okruženje za sintezu proceduralnih animacija koje je kreirao NaturalMotion, a koje u stvarnom vremenu izračunava biomehaničku motoričku dinamiku i reakcije fizike. |
+| **RSX 'Reality Synthesizer'** | Grafički procesor PS3 konzole koji je razvila NVIDIA (baziran na NV47/G70 arhitekturi) s radnim taktom od 550 MHz i 256 MB GDDR3 VRAM-a. |
+| **XDR DRAM** | Izuzetno niskolatentni Rambus DRAM korišten kao glavna sistemska memorija (256 MB) na PS3 konzoli, koji radi na 64-bitnoj sabirnici isporučujući 25.6 GB/s. |
+| **In-Order Execution** | Dizajn cjevovoda procesora u kojem se instrukcije obrađuju strogo slijedno bez dinamičkog reuređivanja na hardverskoj razini, što uzrokuje teške zastoje tijekom latencije memorije. |
