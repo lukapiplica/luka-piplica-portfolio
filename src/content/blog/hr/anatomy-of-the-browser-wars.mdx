@@ -1,0 +1,282 @@
+---
+title: "Anatomija ratova preglednika: Od dot-com booma do dominacije Chromiuma"
+description: "Sistemska raščlamba modernog web preglednika: Chromeov multiprocesni model, V8 JIT cjevovod, ruta renderiranja, evolucija HTTP/3 i uloga WebAssemblyja u izvornim performansama."
+publishedAt: "2026-09-02"
+author: "Luka Piplica"
+tags: ["browser-engineering", "chromium", "v8-engine", "web-performance", "network-protocols", "web-history"]
+featured: true
+locale: hr
+image: "../../../assets/blog/browser-wars/featured.webp"
+imageAlt: "Animirani dijaloški okvir napretka biranja za Windows 95 koji prikazuje točke povezivanja između telefona i računala, predstavljajući ranu eru weba."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+Godine 1995. „preglednik” je bio softver s jednim zadatkom: dohvatiti HTML datoteku putem HTTP-a i iscrtati tekst i slike na platno (*canvas*). Trideset godina kasnije, ta ista kategorija softvera pokreće Figmino kolaborativno platno u stvarnom vremenu, dekodira 4K videozapis, simulira fiziku u WebGL/WebGPU igrama i izvršava gigabajte JavaScripta po sesiji — često nadmašujući izvorne (*native*) stolne aplikacije koje je zamijenila. Ova se transformacija nije dogodila slučajno. Dogodila se jer je nekolicina inženjerskih timova, boreći se za tržišni udio, bila prisiljena riješiti probleme na razini operacijskog sustava: izolaciju procesa, *just-in-time* kompilaciju, GPU-om ubrzano komponiranje i redizajn protokola na transportnom sloju.
+
+Ovaj je članak sistemska raščlamba načina na koji je moderni preglednik — specifično loza Chromiuma koja danas pokreće Chrome, Edge, Operu, Brave i Arc — postao, u svim praktičnim smislovima, operacijski sustav koji se izvodi unutar vašeg operacijskog sustava.
+
+## 1. Od Netscapea do Chromiuma: Preglednik postaje operacijski sustav
+
+### Prvi i drugi rat preglednika
+
+**Prvi rat preglednika** (1995. – 2001.) suprotstavio je Netscape Navigator Microsoftovom Internet Exploreru. Microsoftova odluka da ugradi IE izravno u Windowse — besplatno, unaprijed instaliranog i duboko integriranog u ljusku (*shell*) operacijskog sustava — bila je distribucijska prednost s kojom se Netscapeov poslovni model temeljen na licenciranju nikada nije mogao natjecati. Do 2002. godine IE je kontrolirao više od 90 % tržišta, izvorni kod Netscapea objavljen je kao otvoreni kod u sklopu projekta Mozilla, a web inovacije su praktički stagnirale pola desetljeća pod nepromijenjenim motorom renderiranja IE6.
+
+**Drugi rat preglednika** (2004. – 2008.) bio je protunapad Mozille Firefox, izgrađen na motoru renderiranja **Gecko**. Firefox je ponovno uveo natjecateljski pritisak oko poštivanja standarda, pregledavanja karticama (*tabbed browsing*) i proširivosti, vrativši značajan tržišni udio od samouvjerenog IE-a.
+
+Zatim je u rujnu 2008. Google izbacio Chrome. On nije donio samo brži JavaScript motor (V8, obrađen u nastavku) — donio je fundamentalno drukčiji *procesni model* onoga što je uopće kartica preglednika. Chromeov motor renderiranja započeo je kao račvanje (*fork*) Appleovog **WebKit-a** (koji je i sam nastao iz KHTML-a); Google je 2013. račvao WebKit u **Blink**, a Blink je otad postao *de facto* podloga (*substrate*) weba. Microsoft Edge napustio je vlastiti motor EdgeHTML u korist Blinka 2020. godine. Rezultat je gotovo monopol često nazivan **hegemonijom Chromiuma**: većina današnjih potrošačkih preglednika dijeli istu jezgru renderiranja, razlikujući se uglavnom u korisničkom sučelju (*UI chrome*) i zadanim postavkama privatnosti.
+
+<Alert variant="info">
+**Zašto je ovo važno za inženjere:** Budući da je ponašanje Blinka/V8 sada *de facto* web standard umjesto da bude samo *jedna* od implementacija standarda, razumijevanje njegovog unutarnjeg rada — ne samo teksta specifikacije W3C-a — često čini razliku između koda koji samo radi i koda koji ima visoke performanse.
+</Alert>
+
+### Od preglednika dokumenata do aplikacijskog okruženja
+
+Tehnički zahtjevi stavljeni pred preglednik višestruko su se povećali kako se web pomicao od statičnih dokumenata prema aplikacijama: AJAX (2005.) pretvorio je stranice u klijente sa stanjem koji dohvaćaju podatke bez ponovnog učitavanja; API-ji za `<canvas>` i kasnije WebGL pretvorili su preglednik u cilj renderiranja s pristupom GPU-u; Node.js je dokazao da se JavaScript može izvoditi na strani poslužitelja u velikim razmjerima, što se povratno odrazilo na ulaganja u JS motore u preglednicima; a progresivne web aplikacije (PWA) u potpunosti su izbrisale granicu između „web-stranice” i „instalirane aplikacije”.
+
+Preglednik koji može istovremeno pokretati Google Docse, višekorisničku 3D igru i videopoziv uživo u različitim karticama nije preglednik dokumenata. On je **multi-tenant okruženje za izvršavanje** (*multi-tenant runtime*) i trebala mu je arhitektura koja to prati.
+
+### Chromeova arhitektonska pobjeda: Multiprocesni pristup za sve
+
+Preglednici prije Chromea uglavnom su bili **jednoprocesne, višedretvene** aplikacije. Svaka kartica, svako proširenje i samo korisničko sučelje preglednika dijelili su jedan adresni prostor. Jedna loše oblikovana oznaka `<script>`, neispravan priključak (*plugin*) ili pogreška u rendereru mogli su istovremeno srušiti sve otvorene kartice — a budući da je sve dijelilo memoriju, pogreška u renderiranju u jednoj kartici bila je potencijalni sigurnosni most prema podatcima druge kartice.
+
+Temeljna arhitektonska odluka Chromea bila je podjela preglednika na suradničke procese na razini operacijskog sustava:
+
+- **Proces preglednika (*Browser Process*)** — privilegirani orkestrator. Posjeduje korisničko sučelje (traku adrese, knjižne oznake, traku s karticama), upravlja predmemorijom diska i jedini je proces s neograničenim pristupom mreži i datotečnom sustavu.
+- **Procesi renderiranja (*Renderer Processes*)** — jedan (ili više) po kartici/stranici, pokreću Blink i V8. Oni su namjerno **izolirani u pješčaniku (*sandboxed*)**: proces renderiranja ne može izravno dirati datotečni sustav, ne može izvoditi proizvoljne sistemske pozive (*syscalls*) i mora tražiti proces preglednika putem međuprocesne komunikacije (IPC) za bilo što privilegirano.
+- **GPU proces (*GPU Process*)** — jedan zajednički proces koji posjeduje grafički kontekst i izvodi komponiranje, izolirajući krhak i rušenju sklon kod GPU upravljačkih programa (*drivers*) i od preglednika i od renderera.
+- **Mrežni proces, pomoćni procesi, procesi proširenja (*Network, Utility, Extension Processes*)** — daljnja raščlamba za raščlanjivanje (*parsing*), zvuk i kod trećih strana u proširenjima.
+
+![Slika 1: Arhitektonski dijagram visoke razine Chromiumovog multiprocesnog dizajna](../../../assets/blog/browser-wars/1.webp)
+
+Slika 1: Multiprocesna arhitektura Chromiuma. Glavni proces preglednika orkestrira korisničko sučelje i mrežne operacije dok komunicira s izoliranim procesima renderiranja u pješčaniku (*sandboxed*) putem kanala međuprocesne komunikacije (IPC) kako bi se primijenile sigurnosne granice.
+
+Neposredna, vidljiva pobjeda bilo je zadržavanje rušenja (*crash containment*): jedna se kartica mogla srušiti — zloglasna stranica „Auuu! Došlo je do pogreške...” — bez rušenja ostalih dvadeset kartica otvorenih u prozoru. Dublja pobjeda bila je sigurnost: budući da su procesi renderiranja izolirani u pješčaniku i tretirani kao **nepouzdani**, pogreška udaljenog izvršavanja koda u Blinkovom HTML raščlanjivaču više ne daje napadaču ključeve cijelog računala; daje mu izolirani proces s gotovo nikakvim privilegijama, koji zatim mora pronaći *drugu*, zasebnu pogrešku za bijeg iz pješčanika kako bi napravio stvarnu štetu.
+
+### Site Isolation: Ojačavanje sigurnosti nakon Spectreja
+
+Sama multiprocesna arhitektura nije bila dovoljna. Chrome je u početku grupirao kartice po procesima prilično labavo (često po kartici, ali ne strogo po podrijetlu (*origin*)), što je značilo da bi `<iframe>` s `evil.example` ugrađen unutar `trusted-bank.example` i dalje mogao dijeliti proces renderiranja — i stoga dijeliti adresni prostor — sa svojom roditeljskom stranicom.
+
+Objavljivanje ranjivosti bočnog kanala špekulativnog izvršavanja **Spectre** 2018. godine u potpunosti je promijenilo računicu. Spectre je pokazao da bi zlonamjerni skript potencijalno mogao čitati proizvoljnu memoriju *unutar vlastitog procesa* iskorištavanjem špekulativnog izvršavanja CPU-a — što je značilo da izolacija na razini procesa više nije bila dovoljna ako su nepouzdani i pouzdani kod dijelili isti proces. Chromeov odgovor bila je **Izolacija stranica (*Site Isolation*)**: svaka zasebna stranica (otprilike, shema + registrirana domena) dobiva vlastiti proces renderiranja, čak i za iFrameove različitog podrijetla (*cross-origin*) ugniježđene unutar druge stranice. Međuprocesna komunikacija između stranice i njezinih iFrameova odvija se u potpunosti putem IPC-a, tako da nema zajedničke memorije koju bi čitanje u stilu Spectreja moglo iskoristiti.
+
+<Alert variant="warning">
+**Cijena izolacije:** Izolacija stranica (*Site Isolation*) nije besplatna. Stranica s tucetom iFrameova za oglase i analitiku s drugih domena može pokrenuti tucet dodatnih procesa renderiranja, svaki s vlastitim osnovnim utroškom memorije (V8 stog/heap, Blinkove DOM strukture, IPC spremnici). To je glavni razlog zašto se Chromeova potrošnja RAM-a po kartici često kritizira — to je izravan, namjeran kompromis memorije u zamjenu za sigurnost i stabilnost.
+</Alert>
+
+## 2. Motor V8: Kako dinamički jezik učiniti brzim
+
+JavaScript je dizajniran u deset dana 1995. godine kao lagani skriptni jezik za povezivanje (*glue language*). Dinamički je tipiziran, ima sakupljač smeća (*garbage collector*) i dopušta mutaciju oblika objekata u vremenu izvođenja — što nisu svojstva koja pogoduju brzom izvršavanju. Googleov motor **V8**, koji je prvi put isporučen s Chromeom, razlog je zašto se JavaScript danas natječe sa statički kompajliranim jezicima na stvarnim radnim opterećenjima. On to postiže kroz trostruki cjevovod (*pipeline*): brzi početni interpretator, kompajler srednje razine koji smanjuje jaz u latenciji i špekulativni optimizacijski kompajler najviše razine.
+
+![Slika 2: V8 cjevovod raščlanjivanja i kompilacije bajtkoda](../../../assets/blog/browser-wars/2.webp)
+
+Slika 2: Cjevovod raščlanjivanja (*parsing*) i generiranja bajtkoda (*bytecode*) u V8-u. Izvorni kod JavaScripta raščlanjuje se u stablo apstraktne sintakse (AST), koje interpretator Ignition zatim prevodi izravno u bajtkod temeljen na registrima prije samog izvođenja.
+
+### Ignition: Interpretator bajtkoda
+
+Kada V8 prvi put primi vaš JavaScript, ne prevodi ga odmah u strojni kod. Raščlanjivač (*parser*) gradi stablo apstraktne sintakse (AST), a **Ignition**, V8-ov interpretator, prevodi taj AST u kompaktni **bajtkod** temeljen na registrima. Bajtkod je daleko manji od ekvivalentnog strojnog koda i može se generirati gotovo trenutno — što je ključno za performanse učitavanja stranice, budući da korisnici čekaju na to prvo iscrtavanje (*first paint*).
+
+Ignition izravno izvodi ovaj bajtkod i, što je iznimno važno, također **profilira** izvođenje dok se kod pokreće: koje se funkcije često pozivaju, koja mjesta poziva (*call sites*) bilježe stabilne tipove argumenata i koje su grane „vruće” (*hot*). Ti podatci profiliranja pogonsko su gorivo za razine iznad njega.
+
+### Maglev: Smanjivanje jaza u latenciji
+
+Ignitionov bajtkod pokreće kod gotovo trenutno, ali interpretator plaća trošak prosljeđivanja (*dispatch cost*) po instrukciji pri svakom pojedinačnom izvođenju — što je u redu za funkciju pozvanu dvaput, ali pogubno za funkciju pozvanu unutar vruće petlje (*hot loop*) desetak tisuća puta. Očito rješenje jest prevođenje izravno u izvorni strojni kod. No V8-ov kompajler najviše razine, TurboFan, namjerno je robustan i težak: on gradi potpunu grafičku reprezentaciju funkcije i provlači je kroz dugački cjevovod iterativnih prolaza optimizacije — ugradnju funkcija (*inlining*), analizu bijega (*escape analysis*), analizu raspona (*range analysis*), eliminaciju učitavanja/spamanja (*load/store elimination*) — koji proizvode izvrstan strojni kod po cijeni stvarnog vremena kompilacije i utroška memorije. Pokretanje TurboFana za svaku funkciju u trenutku kada se čini samo „mlakom” uzalud bi trošilo ogroman CPU budžet na prevođenje koda koji bi se možda izveo samo još nekoliko stotina puta prije nego što korisnik napusti stranicu.
+
+**Maglev** postoji kako bi premostio taj jaz. Uveden kao V8-ov JIT kompajler srednje razine, nalazi se izravno između Ignitiona i TurboFana u cjevovodu. Umjesto izgradnje i iterativnog prekrajanja teškog grafa, Maglev izvodi **kompilaciju u jednom prolazu (*single-pass*)** izravno nad Ignitionovim bajtkodom, konstruirajući reprezentaciju **statičkog pojedinačnog pridruživanja (SSA, *Static Single Assignment*)** — gdje je svakoj varijabli vrijednost pridružena točno jednom, što pojednostavljuje analizu tijeka podataka — i prevodeći je izravno u izvorni strojni kod u jednom linearnom prolazu, preskačući krugove iterativnog prekrajanja grafa na koje se oslanja TurboFan. Izlaz nije tako agresivno optimiziran kao TurboFanov, ali je pravi izvorni strojni kod, preveden u djeliću vremena, te udobno nadmašuje interpretirani bajtkod.
+
+To V8-u daje postupni pristup ubrzanju: Ignition izvodi funkciju od njezinog prvog poziva s praktički nultom latencijom kompilacije; čim se funkcija pokaže samo mlakom, V8 je podiže na Maglev kako bi dobio jeftin i brz izvorni kod; i tek kada dokaže da je stvarno i trajno vruća (*hot*), V8 ulaže znatno veća sredstva u njezino podizanje na TurboFan radi maksimalne optimizacije.
+
+<Alert variant="info">
+**Zašto uopće postoji kompilacija po razinama:** Prevođenje koda nije besplatno — ono se bori s ostatkom stranice za procesorsko vrijeme. Čisti interpretator troši cikluse na ponovno prosljeđivanje istih vrućih instrukcija milijunima puta; čisti optimizacijski kompajler troši cikluse na duboko optimiziranje koda koji se nikada ne izvodi dovoljno dugo da bi opravdao vlastiti trošak kompilacije. Cijeli razlog Maglevovog postojanja jest učiniti *sredinu* te krivulje kompromisa jeftinom, tako da se TurboFanove skupe optimizacije rezerviraju samo za kod koji je statistički dokazao da ih zaslužuje.
+</Alert>
+
+### TurboFan: Optimizacijski kompajler
+
+Kada funkcija dokaže da nije samo mlaka, nego i trajno **vruća (*hot*)** — pozvana ili izvedena u petlji dovoljno puta da će se TurboFanov veći trošak kompilacije višestruko isplatiti — V8 je predaje **TurboFanu**, optimizacijskom JIT kompajleru najviše razine. TurboFan uzima akumulirane povratne informacije o tipovima iz Ignitiona i Magleva te generira najagresivnije optimiziran izvorni strojni kod koji V8 može proizvesti, specijaliziran za tipove koje je stvarno zabilježio — na primjer, pretpostavljajući da je parametar funkcije uvijek mali cijeli broj (*integer*) te eliminirajući opće provjere tipova i trošak pakiranja/raspakiranja (*boxing/unboxing*) koje bi zahtijevala potpuno općenita implementacija.
+
+To je u svojoj biti **špekulativna optimizacija**: TurboFan se kladi da prošlo ponašanje tipova predviđa njihovo buduće ponašanje. Ako se ta oklada kasnije prekrši — funkcija koja je uvijek primala cijele brojeve odjednom primi tekstualni niz (*string*) — V8 mora izvesti **deoptimizaciju (*deoptimize*)**, odbacujući specijalizirani strojni kod i vraćajući se na nižu razinu — Maglevov kod ili u konačnici Ignitionov bajtkod — prije nego što eventualno ponovno optimizira kasnije sa širim pretpostavkama. Česta deoptimizacija jedan je od najčešćih i najnevidljivijih uzroka padova performansi u JavaScriptu.
+
+<Alert variant="warning">
+**Zamke deoptimizacije:** Polimorfna mjesta poziva (funkcija pozvana s mnogo različitih oblika argumenata), miješanje tipova unutar jednog polja (*array*) i modificiranje strukture objekta nakon njegove konstrukcije među najčešćim su načinima prisiljavanja V8-a na napuštanje optimiziranih putanja koda usred izvođenja.
+</Alert>
+
+### Skrivene klase: Lažiranje statičke strukture
+
+Evo temeljnog problema: u statički tipiziranom jeziku kompajler u vremenu kompilacije točno zna gdje se svako svojstvo objekta nalazi u memoriji, pa se `obj.x` prevodi u čitanje s fiksnim memorijskim pomakom (*offset*). U JavaScriptu su objekti dinamični rječnici — svojstva se mogu dodati ili ukloniti u bilo kojem trenutku — pa bi naivna implementacija zahtijevala pretraživanje u tablici sažetaka (*hash-map*) za *svaki pojedinačni pristup svojstvu*, što je katastrofalno sporo pri većim razmjerima.
+
+V8-ovo rješenje jesu **skrivene klase (*Hidden Classes*, unutar motora nazivane *Maps***, što ne treba miješati s JS tipom `Map`). Svaki JavaScript objekt u tajnosti je povezan sa skrivenom klasom koja opisuje njegov trenutni „oblik” (*shape*): koja svojstva ima i na kojem se pomaku (*offset*) svako od njih nalazi. Kada su dva objekta konstruirana sa svojstvima dodanim istim redoslijedom, V8 prepoznaje da dijele isti oblik i dodjeljuje im *istu* skrivenu klasu — što znači da se pristup svojstvu sada može prevesti u izravno čitanje s pomaka, baš kao u statičkom jeziku.
+
+Onog trenutka kada se oblik objekta promijeni — doda se novo svojstvo ili se postojeće izbriše — V8 ga mora prebaciti na *novu* skrivenu klasu. Ako dva konstruktora grade logički slične objekte, ali im dodjeljuju svojstva različitim redoslijedom, V8 za njih generira potpuno različite lance prijelaza skrivenih klasa, poništavajući ovu optimizaciju:
+
+export const hiddenClassCode = `// Ova dva objekta završavaju s RAZLIČITIM skrivenim klasama,
+// iako na kraju imaju "iste" osobine/svojstva,
+// jer se REDOSLIJED umetanja svojstava razlikuje.
+
+function PointGood(x, y) {
+  this.x = x; // Prijelaz: {} -> {x}
+  this.y = y; // Prijelaz: {x} -> {x, y}
+}
+
+function PointBad(x, y) {
+  this.y = y; // Prijelaz: {} -> {y}
+  this.x = x; // Prijelaz: {y} -> {y, x}   <-- drukčiji lanac!
+}
+
+const a = new PointGood(1, 2);
+const b = new PointBad(1, 2);
+
+// a i b sada interno nose dvije RAZLIČITE skrivene klase,
+// iako Object.keys(a) i Object.keys(b) izgledaju identično.
+// Bilo koji kod koji radi s poljima koja miješaju oba oblika
+// prisilit će V8-ove ugrađene predmemorije (inline caches) u sporije "polimorfno" stanje.
+`;
+
+<CodeBlock 
+  code={hiddenClassCode} 
+  filename="hidden_classes.js" 
+  showLineNumbers={true} 
+/>
+
+### Ugrađeno predmemoriranje (Inline Caching): Pamćenje posljednjeg viđenog oblika
+
+Skrivene klase rješavaju *kako* se događa pretraživanje svojstava; **ugrađeno predmemoriranje (*Inline Caching / IC*)** rješava *koliko se brzo* to događa na određenom mjestu u vašem kodu. Svako mjesto pristupa svojstvu (mjesto poziva ili *„call site”*, npr. određeni redak `obj.x`) održava malu predmemoriju koja pamti koju je skrivenu klasu vidjela posljednji put i rezultirajući memorijski pomak (*offset*). Pri sljedećem izvođenju tog istog retka V8 provjerava: „je li skrivena klasa ovog objekta ista kao prošli put?”. Ako jest, u potpunosti preskače pretraživanje i skače izravno na predmemorirani pomak.
+
+Ugrađene predmemorije prolaze kroz tri stanja:
+
+- **Monomorfno (*Monomorphic*)** — mjesto poziva vidjelo je samo jednu skrivenu klasu. To je najbrža moguća putanja.
+- **Polimorfno (*Polymorphic*)** — mjesto poziva vidjelo je mali, ograničeni broj različitih skrivenih klasa (V8 predmemorira nekoliko njih i provjerava svaku). I dalje prilično brzo.
+- **Megamorfno (*Megamorphic*)** — mjesto poziva vidjelo je previše različitih oblika da bi predmemoriranje bilo korisno. V8 odustaje od brze IC putanje i vraća se na opće, znatno sporije pretraživanje svojstava.
+
+To je upravo razlog zašto knjižnice i stilski vodiči inzistiraju na dosljednoj konstrukciji objekata (fiksni skupovi svojstava, dosljedan redoslijed umetanja, izbjegavanje operatora `delete`): to nije praznovjerje, već održavanje ugrađenih predmemorija u monomorfnom stanju.
+
+## 3. Kritična ruta renderiranja: Od bajtova do piksela
+
+Nakon što V8 izvede vaše skripte, preglednik i dalje mora pretvoriti dokument i njegove stilove u stvarnu sliku na fizičkom zaslonu, idealno 60 (ili 120) puta u sekundi. Ovaj cjevovod (*pipeline*) — **kritična ruta renderiranja (*Critical Rendering Path*)** — mjesto je gdje mrežni bajtovi postaju pikseli.
+
+![Slika 3: Cjevovod izvođenja kritične rute renderiranja](../../../assets/blog/browser-wars/3.webp)
+
+Slika 3: Cjevovod kritične rute renderiranja. Preglednik raščlanjuje HTML i CSS u DOM i CSSOM stabla, spaja ih u stablo renderiranja (*Render Tree*) te izvodi prolaze rasporeda (*Layout*), crtanja (*Paint*) i komponiranja (*Compositing*) kako bi iscrtao konačni okvir (*frame*) na zaslonu.
+
+### Izgradnja DOM-a i CSSOM-a
+
+Kako pristižu bajtovi HTML-a, Blinkov HTML raščlanjivač (*parser*) ih postupno tokenizira i gradi stablo **DOM-a (Document Object Model)** — živu, strukturiranu reprezentaciju svakog elementa i tekstualnog čvora. Raščlanjivanje je po dizajnu kontinuirano (*streaming*) i postupno: preglednik ne čeka cijeli dokument prije nego što počne graditi stablo, zbog čega **skener za prethodno učitavanje (*preload scanner*)** radi ispred glavnog raščlanjivača, rano uočavajući oznake `<img>`, `<link>` i `<script>` kako bi pokrenuo mrežne zahtjeve prije nego što raščlanjivač uopće dođe do njih.
+
+Usporedno s tim, CSS — bilo iz `<style>` blokova ili povezanih stilskih tablica — raščlanjuje se u **CSSOM (CSS Object Model)**, stablo stilskih pravila s izračunatom specifičnošću i rješavanjem kaskade. Izgradnja CSSOM-a **blokira renderiranje (*render-blocking*)**: budući da bi bilo koje kasnije pravilo stilske tablice u načelu moglo nadjačati ranije, preglednik ne može sigurno započeti crtanje dok nema potpuni CSSOM (to je ujedno i razlog za klasični savjet za performanse: održavajte stilske tablice malima i učitavajte ih rano).
+
+### Stablo renderiranja, raspored i crtanje
+
+Uz dostupne DOM i CSSOM, Blink ih spaja u **stablo renderiranja (*Render Tree*)**: u svojoj biti DOM, ali filtriran samo na čvorove koji će stvarno biti vidljivi (elementi s `display: none` u potpunosti su isključeni, dok su elementi s `visibility: hidden` uključeni jer i dalje zauzimaju prostor), označen njihovim konačnim izračunatim stilovima.
+
+Stablo renderiranja zna samo *što* treba nacrtati, ali ne i *gdje*. **Raspored (*Layout*, ponekad nazivan i *reflow*)** prolazi kroz stablo i izračunava točnu geometriju modela okvira (*box model*) — položaj, širinu, visinu, margine — za svaki pojedini čvor u odnosu na vidljivo područje (*viewport*). To je po svojoj prirodi globalna operacija: promjena širine jednog elementa može se preliti i pomaknuti položaj svakog susjednog i potomčkog elementa, zbog čega je raspored jedna od najskupljih faza u cjevovodu, a njegovo učestalo pokretanje u uskoj petlji (**prisiljavanje rasporeda ili *layout thrashing***, npr. čitanje `offsetHeight` pa pisanje stila u izmjeničnim pozivima) klasičan je antipattern performansi.
+
+Nakon što se geometrija utvrdi, **crtanje (*Paint*)** rasterizira svaki vidljivi element u stvarne piksele — popunjavajući tekst, boje, obrub, sjene i slike — zabilježeno kao uređeni popis naredbi za crtanje (pravokutnici, nizovi glifova, rasterske slike) po sloju.
+
+### Komponiranje: Predaja GPU-u
+
+Konačna faza, **komponiranje (*Compositing*)**, jest ono što omogućuje savršeno glatko pomicanje (*scrolling*) i animacije. Određeni elementi — oni s CSS svojstvom `transform`, tranzicijom `opacity`, savjetom `will-change`, `<video>` ili `<canvas>` — promoviraju se na vlastiti **sloj komponiranja (*compositor layer*)**, u biti zasebnu teksturu. Ti se slojevi predaju GPU procesu koji ih komponira zajedno na posvećenoj **dretvi komponiranja (*compositor thread*)**, potpuno odvojenoj od glavne dretve za JavaScript, raspored i crtanje.
+
+Dobitak: animiranje `transform` i `opacity` može u potpunosti preskočiti raspored (*Layout*) i crtanje (*Paint*) te se obraditi čisto u GPU-u premještanjem već rasteriziranih tekstura, zbog čega ova dva svojstva mogu dosegnuti glatkih 60/120 fps čak i dok je glavna dretva zauzeta izvođenjem JavaScripta. Animiranje `width`, `top` ili `left`, nasuprot tome, prisiljava potpuni ciklus Raspored → Crtanje → Komponiranje pri svakom pojedinom okviru (*frame*), budući da se mijenja sama geometrija.
+
+export const compositingHintCode = `/* Jeftino: promovira na vlastiti GPU sloj, animira na dretvi
+   komponiranja — u potpunosti preskače raspored (Layout) i crtanje (Paint). */
+.modal-cheap {
+  transform: translateY(20px);
+  opacity: 0.9;
+  will-change: transform, opacity;
+}
+
+/* Skupo: prisiljava potpuni prolaz Raspored -> Crtanje -> Komponiranje
+   pri svakom okviru animacije, na glavnoj dretvi. */
+.modal-expensive {
+  top: 20px;
+  left: 50%;
+  width: 320px;
+}
+`;
+
+<CodeBlock 
+  code={compositingHintCode} 
+  filename="compositing_hints.css" 
+  showLineNumbers={true} 
+/>
+
+<Alert variant="info">
+**`will-change` je skalpel, a ne čekić:** Promoviranje elementa na vlastiti sloj komponiranja troši GPU memoriju (svaki je sloj potpuna tekstura). Pretjerana upotreba svojstva `will-change` na mnogo elemenata može *naštetiti* performansama iscrpljivanjem GPU memorije i prisiljavanjem na pretjerano upravljanje slojevima — treba ga primjenjivati usko, neposredno prije početka animacije, te ga ukloniti nakon nje.
+</Alert>
+
+## 4. Mrežni protokoli koji pokreću Web: Od HTTP/1.1 do HTTP/3
+
+Brzo renderiranje ne znači ništa ako bajtovima treba predugo da stignu. Transportni sloj ispod preglednika doživio je jednako radikalan redizajn kao i sam motor renderiranja.
+
+### HTTP/1.1 i problem blokiranja na čelu reda (Head-of-Line Blocking)
+
+HTTP/1.1 je protokol u obliku običnog teksta (*plain-text*), utemeljen na modelu zahtjev-odgovor, gdje strogo govoreći samo jedan zahtjev može biti aktivan po TCP vezi u istom trenutku (cjevovodno slanje ili *pipelining* — slanje više zahtjeva bez čekanja na odgovore — bilo je tehnički dopušteno, ali tako loše i nedosljedno implementirano kod posredničkih mrežnih uređaja da ga preglednici nikada nisu omogućili prema zadanim postavkama). Kako bi postigli bilo kakvu paralelizaciju, preglednici su pribjegli otvaranju više istovremenih TCP veza po podrijetlu (*origin*) — obično ograničeno na oko šest — što je trik koji radi, ali dolazi sa stvarnim troškovima: svakoj je vezi potrebno vlastito TCP rukovanje (*handshake*) i, putem HTTPS-a, vlastito TLS rukovanje, a svaka započinje od spore početne sabirničke prozorske veličine (*initial congestion window*).
+
+### HTTP/2: Multipleksiranje preko jedne veze
+
+HTTP/2 zamijenio je HTTP/1.1 uobličavanje teksta **slojem binarnog uobličavanja (*binary framing layer*)**, rastavljajući zahtjeve i odgovore na male okvire (*frames*) označene ID-jem toka (*stream ID*), prepletene preko *jedne* TCP veze. To omogućuje pravo **multipleksiranje**: deseci zahtjeva i odgovora mogu istovremeno biti u tijeku na jednoj vezi, čime se eliminira potreba za trikom s otvaranjem šest veza i prekomjerni trošak redundantnog rukovanja koji je dolazio s njim. HTTP/2 također je uveo kompresiju zaglavlja **HPACK** (budući da su HTTP zaglavlja iznimno repetitivna kroz zahtjeve prema istom podrijetlu) te, kontroverznije, **gurajući poslužitelj (*server push*)** (uglavnom napušten u praksi do 2022. godine, jer se pokazao teškim za precizno podešavanje i često su ga nadmašivale jednostavnije tehnike poput `<link rel="preload">`).
+
+HTTP/2 je riješio blokiranje na čelu reda na *aplikacijskom sloju* — ali je naslijedio dublji problem svog transporta. **TCP jamči strogo uređenu dostavu bajtova u slijedu.** Ako se jedan paket izgubi bilo gdje u toj jednoj zajedničkoj TCP vezi, *svaki* multipleksirani HTTP/2 tok staje, jer TCP neće predati međuspremnik prijema jezgre (*kernel receive buffer*) aplikaciji sve dok se izgubljeni paket ponovno ne prenese i dok se tok bajtova ne vrati u redoslijed — iako je izgubljeni paket možda pripadao samo jednom od tuceta aktivnih tokova. To je **blokiranje na čelu reda na transportnom sloju (*transport-layer head-of-line blocking*)**, i nikakva pamet na aplikacijskom sloju to ne može popraviti dokle god je TCP transportni sloj ispod.
+
+### HTTP/3: Napuštanje TCP-a u korist QUIC-a
+
+Ključna odluka HTTP/3 radikalna je: on **u potpunosti napušta TCP** i izvodi se preko **QUIC-a**, novog transportnog protokola izgrađenog na temelju UDP-a. To zvuči kao korak unazad — UDP uopće ne nudi nikakva jamstva redoslijeda ili pouzdanosti — ali u tome i jest stvar. QUIC *sam* ponovno implementira pouzdanost i kontrolu zagušenja na transportnom sloju, ali ključno jest da to radi **po pojedinom toku (*per-stream*)**, a ne za vezu u cjelini. Ako se izgubi paket koji nosi podatke za tok 4, samo tok 4 staje čekajući ponovni prijenos; tokovi 1, 2 i 3 nastavljaju neometano isporučivati podatke aplikaciji. Blokiranje na čelu reda sada je ograničeno samo na pojedinačni tok koji je stvarno izgubio podatke, a ne na cijelu vezu.
+
+QUIC također spaja transportno i kriptografsko rukovanje u jedno. Tamo gdje su TCP + TLS 1.3 povijesno zahtijevali TCP rukovanje *nakon kojeg je slijedilo* zasebno TLS rukovanje (dodajući mrežne krugove odnosno *round trips*), QUIC integrira TLS 1.3 izravno u vlastito rukovanje, a za ponovljene veze s poslužiteljem koji je klijent nedavno posjetio podržava **0-RTT nastavak (*0-RTT resumption*)**: klijent može poslati šifrirane podatke aplikacije u svom prvom nizu paketa, koristeći kriptografske parametre predmemorirane iz prethodne sesije — bez ikakvog čekanja na odgovor poslužitelja prije nego što korisni podatci počnu teći. (0-RTT podatci nose teorijski rizik od napada ponavljanjem (*replay attack*), zbog čega poslužitelji ograničavaju koje vrste zahtjeva, obično idempotentne, smiju to koristiti.)
+
+Još jedna, često zanemarena značajka QUIC-a jest **migracija veze (*connection migration*)**: budući da se QUIC veza identificira pomoću ID-ja veze (*Connection ID*) umjesto tradicionalne TCP 4-orke (izvorišni IP, izvorišni port, odredišni IP, odredišni port), klijent može promijeniti mrežu — primjerice, s WiFi-ja na mobilne podatke prilikom izlaska iz kuće — bez prekidanja i ponovnog uspostavljanja veze.
+
+| Svojstvo | HTTP/1.1 | HTTP/2 | HTTP/3 |
+|---|---|---|---|
+| **Transport** | TCP | TCP | QUIC preko UDP-a |
+| **Multipleksiranje** | Nikakvo (zahtijeva više veza) | Da, jedna veza | Da, po toku |
+| **Blokiranje na čelu reda** | Ozbiljno (po vezi) | Samo na razini transporta (jedan izgubljeni paket zaustavlja sve tokove) | Eliminirano (izolirano po toku) |
+| **Kompresija zaglavlja** | Nikakva | HPACK | QPACK |
+| **Rukovanje (Handshake)** | TCP + zasebno TLS rukovanje | TCP + zasebno TLS rukovanje | Kombinirano transportno i kriptografsko rukovanje |
+| **0-RTT nastavak** | Ne | Ne | Da |
+| **Migracija veze** | Ne (vezano za IP/port) | Ne (vezano za IP/port) | Da (temeljeno na ID-ju veze) |
+
+<Alert variant="warning">
+**UDP nije univerzalno dobrodošao:** Budući da se QUIC izvodi preko UDP-a, neki korporativni vatrozidi (*firewalls*), stariji posrednički uređaji (*middleboxes*) i restriktivne mreže ograničavaju (*throttle*) ili u potpunosti blokiraju UDP, jer su povijesno bili podešeni da daju prioritet ili isključivo očekuju TCP. Preglednici to rješavaju tako što uvijek oportunistički pokušavaju HTTP/3 dok se transparentno vraćaju na HTTP/2 preko TCP-a kada UDP nije dostupan — što je elegantna staza postupne degradacije (*graceful degradation*) koja mora biti ugrađena u klijenta, a ne pretpostavljena sama po sebi.
+</Alert>
+
+## 5. Zaključak: WebAssembly i premošćivanje jaza prema izvornim performansama
+
+Svaki dosad obrađeni sloj — izolirana multiprocesna arhitektura u pješčaniku (*sandboxed*), V8-ov špekulativni JIT, GPU-om ubrzani cjevovod renderiranja i QUIC-ov transport niske latencije — izgrađen je u službi jednog cilja: učiniti da se preglednik ponaša kao aplikacijska platforma prvog reda. Posljednji veliki jaz bila je sirova računalna propusnost za najzahtjevnija radna opterećenja: alate za uređivanje videozapisa i fotografija, CAD alate, potpune 3D motore za igre i znanstveno računarstvo, gdje čak i V8-ov optimizirani strojni kod nosi preostali dodatni trošak (*overhead*) od JavaScriptovih dinamičkih provjera tipova i stanki radi sakupljanja smeća (*garbage collection*).
+
+**WebAssembly (Wasm)** zatvara taj jaz. To je kompaktni, binarni format instrukcija dizajniran kao *cilj* kompilacije (*compilation target*), a ne kao jezik koji bi se pisao ručno — C, C++, Rust i Go kod mogu se prevesti izravno u Wasm module koji se izvode unutar istog procesa renderiranja u pješčaniku, brzina bliskih izvornom strojnom kodu, jer je Wasm statički tipiziran i unaprijed verificiran, čime se zaobilazi dodatni trošak dinamičkog tipiziranja oko kojeg JS motori moraju špekulirati. Wasm moduli dijele međuspremnik linearne memorije (*linear memory buffer*) s JavaScriptom i pozivaju se putem tankog JS koda za povezivanje (*glue code*), omogućujući da se postojeće izvorne baze koda — motor fizike, video kodek, CAD jezgra — ubace u preglednik uglavnom bez preinaka.
+
+Na taj način Figma pokreće C++ motor renderiranja u kartici, AutoCAD i Photoshop isporučuju verzije u pregledniku sa stvarnim performansama uređivanja, a Unreal Engine i Unity mogu ciljati web kao platformu za izradu igrivih demo verzija igara. Novi napori poput **WebAssembly System Interfacea (WASI)** sada guraju Wasmov prijenosni model izvođenja u pješčaniku u potpunosti *izvan* preglednika, u rubno računarstvo (*edge computing*) i okruženja za izvođenje na strani poslužitelja — pretvarajući tehnologiju rođenu za rješavanje problema performansi preglednika u općeniti, sigurni format izvođenja za računarstvo u cjelini.
+
+Trideset godina nakon što je Netscape izbacio preglednik dokumenata, „preglednik” je vjerojatno najsofisticiraniji komad potrošačkog softvera koji većina ljudi pokreće: operacijski sustav, u najpravijem inženjerskom smislu, koji se samo spletom okolnosti renderira unutar pravokutnika na vašem zaslonu.
+
+---
+
+## Reference i dodatna literatura
+
+* **V8 Development Team.** <a href="https://v8.dev/blog/ignition-interpreter" target="_blank" rel="noopener noreferrer">*Firing up the Ignition interpreter*</a>. V8.dev. Tehnička pozadina dizajna Ignitionovog bajtkoda i njegova uloga u performansama pokretanja V8-a.
+* **V8 Development Team.** <a href="https://v8.dev/docs/turbofan" target="_blank" rel="noopener noreferrer">*TurboFan JIT Design*</a>. V8.dev. Arhitektonska dokumentacija o V8-ovom optimizacijskom kompajleru i modelu špekulativne optimizacije.
+* **Chromium Project.** <a href="https://www.chromium.org/developers/design-documents/site-isolation/" target="_blank" rel="noopener noreferrer">*Site Isolation Design Documents*</a>. Chromium.org. Inženjersko obrazloženje za izolaciju procesa renderiranja po stranici nakon otkrivanja ranjivosti Spectre.
+* **IETF.** <a href="https://datatracker.ietf.org/doc/html/rfc9000" target="_blank" rel="noopener noreferrer">*RFC 9000: QUIC — A UDP-Based Multiplexed and Secure Transport*</a>. IETF Datatracker. Službena specifikacija QUIC transporta na kojoj se temelji HTTP/3.
+* **IETF.** <a href="https://datatracker.ietf.org/doc/html/rfc9114" target="_blank" rel="noopener noreferrer">*RFC 9114: HTTP/3*</a>. IETF Datatracker. Službeno preslikavanje semantike HTTP-a na QUIC transport.
+* **web.dev (Google).** <a href="https://web.dev/articles/critical-rendering-path" target="_blank" rel="noopener noreferrer">*Critical Rendering Path*</a>. web.dev. Referentna dokumentacija o izgradnji DOM-a/CSSOM-a, rasporedu, crtanju i komponiranju.
+* **WebAssembly Community Group.** <a href="https://webassembly.org/" target="_blank" rel="noopener noreferrer">*WebAssembly.org*</a>. Službeno središte specifikacije i obrazloženje dizajna za Wasm binarni format instrukcija.
+
+---
+
+## Tehnički glosar
+
+| Pojam | Definicija |
+|---|---|
+| **Blink** | Googleov motor za renderiranje HTML/CSS-a, nastao račvanjem (*fork*) iz WebKita 2013. godine, koji danas dijele Chrome, Edge, Opera i većina drugih preglednika temeljenih na Chromiumu. |
+| **Site Isolation** | Chromiumova sigurnosna arhitektura koja svakoj zasebnoj stranici dodjeljuje vlastiti proces renderiranja, uključujući iFrameove s drugih domena (*cross-origin*), radi obrane od napada čitanja memorije iz klase Spectre. |
+| **Ignition** | V8-ov interpretator bajtkoda, odgovoran za brzo pokretanje izvođenja i prikupljanje podataka profiliranja o povratnim informacijama o tipovima (*type feedback*). |
+| **TurboFan** | V8-ov optimizacijski JIT kompajler koji generira špekulativno specijaliziran izvorni strojni kod prema tipovima za „vruće” (*hot*) funkcije. |
+| **Skrivena klasa (Hidden Class / Map)** | V8-ova interna reprezentacija „oblika” (*shape*) svojstava JavaScript objekta, koja omogućuje pristup svojstvima temeljen na pomaku (*offset*) u stilu statičkih jezika. |
+| **Ugrađena predmemorija (Inline Cache / IC)** | Predmemorija po mjestu poziva koja pamti posljednju viđenu skrivenu klasu (ili više njih), omogućujući V8-u da preskoči potpuna pretraživanja svojstava pri ponovnom izvođenju. |
+| **CSSOM** | CSS Object Model — stablasta reprezentacija raščlanjenih pravila stilske tablice, kombinirana s DOM-om za proizvodnju stabla renderiranja (*Render Tree*). |
+| **Dretva komponiranja (Compositor Thread)** | Posvećena dretva, odvojena od glavne dretve za JS/raspored, koja upravlja GPU komponiranjem slojeva za glatku animaciju neovisno o radu na glavnoj dretvi. |
+| **Blokiranje na čelu reda (Head-of-Line Blocking)** | Stanje zastoja u kojem gubitak ili kašnjenje jedne jedinice podataka blokira dostavu nepovezanih podataka multipleksiranih na istom kanalu. |
+| **QUIC** | Transportni protokol temeljen na UDP-u (RFC 9000) koji pruža pouzdanost po pojedinačnom toku, integrirana TLS 1.3 rukovanja, 0-RTT nastavak i migraciju veze. |
+| **0-RTT nastavak (0-RTT Resumption)** | Značajka QUIC/TLS 1.3 protokola koja klijentu koji se vraća omogućuje slanje šifriranih podataka aplikacije u svom prvom nizu paketa, bez čekanja na odgovor poslužitelja. |
+| **WebAssembly (Wasm)** | Statički tipiziran, u pješčaniku (*sandboxed*) izoliran binarni format instrukcija koji se koristi kao cilj kompilacije za performanse bliske izvornom strojnom kodu unutar okruženja za izvođenje u pregledniku. |
