@@ -200,6 +200,8 @@ export const compositingHintCode = `/* Económico: se eleva a su propia capa de 
   showLineNumbers={true} 
 />
 
+<br/>
+
 <Alert variant="info">
 **`will-change` es un bisturí, no un martillo:** Elevar un elemento a su propia capa de composición consume memoria de la GPU (cada capa es una textura completa). El uso excesivo de `will-change` en muchos elementos puede *perjudicar* el rendimiento al agotar la memoria de la GPU y forzar una gestión excesiva de capas; debe aplicarse de forma puntual, justo antes de que comience una animación, y retirarse después.
 </Alert>

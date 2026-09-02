@@ -198,6 +198,8 @@ export const compositingHintCode = `/* 低开销：提升至独立的 GPU 图层
   showLineNumbers={true} 
 />
 
+<br/>
+
 <Alert variant="info">
 **`will-change` 是手术刀，而非大锤：** 将元素提升至独立的合成器图层会消耗 GPU 内存（每个图层都是一个完整的纹理）。在过多元素上滥用 `will-change` 会因耗尽 GPU 内存并迫行过度的图层管理而*损害*性能 —— 它应当仅在动画开始前精准应用，并在动画结束后及时移除。
 </Alert>

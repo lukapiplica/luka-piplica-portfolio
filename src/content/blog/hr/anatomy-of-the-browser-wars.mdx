@@ -200,6 +200,8 @@ export const compositingHintCode = `/* Jeftino: promovira na vlastiti GPU sloj, 
   showLineNumbers={true} 
 />
 
+<br/>
+
 <Alert variant="info">
 **`will-change` je skalpel, a ne čekić:** Promoviranje elementa na vlastiti sloj komponiranja troši GPU memoriju (svaki je sloj potpuna tekstura). Pretjerana upotreba svojstva `will-change` na mnogo elemenata može *naštetiti* performansama iscrpljivanjem GPU memorije i prisiljavanjem na pretjerano upravljanje slojevima — treba ga primjenjivati usko, neposredno prije početka animacije, te ga ukloniti nakon nje.
 </Alert>

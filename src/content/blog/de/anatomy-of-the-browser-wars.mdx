@@ -200,6 +200,8 @@ export const compositingHintCode = `/* Günstig: Wird auf eine eigene GPU-Ebene 
   showLineNumbers={true} 
 />
 
+<br/>
+
 <Alert variant="info">
 **`will-change` ist ein Skalpell, kein Hammer:** Das Anheben eines Elements auf eine eigene Compositor-Ebene verbraucht GPU-Speicher (jede Ebene ist eine vollständige Textur). Die übermäßige Verwendung von `will-change` bei vielen Elementen kann die Performance *beeinträchtigen*, da der GPU-Speicher erschöpft wird und ein übermäßiges Layer-Management erzwungen wird – es sollte gezielt eingesetzt werden, direkt bevor eine Animation startet, und danach wieder entfernt werden.
 </Alert>

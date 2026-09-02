@@ -200,6 +200,8 @@ export const compositingHintCode = `/* Cheap: promotes to its own GPU layer, ani
   showLineNumbers={true} 
 />
 
+<br/>
+
 <Alert variant="info">
 **`will-change` is a scalpel, not a hammer:** Promoting an element to its own compositor layer consumes GPU memory (each layer is a full texture). Overusing `will-change` on many elements can *hurt* performance by exhausting GPU memory and forcing excessive layer management — it should be applied narrowly, right before an animation starts, and removed afterward.
 </Alert>
