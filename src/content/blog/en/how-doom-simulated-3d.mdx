@@ -1,0 +1,197 @@
+---
+title: "Trick the Eye, Save the Clock: How DOOM Simulated 3D Space on 33 MHz"
+description: "A low-level teardown of Binary Space Partitioning (BSP) trees, front-to-back occlusion, fixed-point math, and 1D column projection in John Carmack's 1993 rendering engine."
+publishedAt: "2026-10-07"
+author: "Luka Piplica"
+tags: ["game-engineering", "retro-computing", "graphics-programming", "carmack", "doom", "systems-programming"]
+featured: true
+locale: en
+image: "../../../assets/blog/doom-3d-engine/featured.webp"
+imageAlt: "First-person perspective of DOOM gameplay demonstrating real-time pseudo-3D column rendering and status bar HUD."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+When id Software released *DOOM* in December 1993, the minimum system requirement listed an Intel 386 processor. In practice, the engine was built around a specific hardware envelope: an Intel 486SX running at 33 MHz without a hardware floating-point unit (FPU), driving a 320x200 8-bit framebuffer at 35 logic ticks per second. Without hardware 3D pipelines or GPU acceleration, geometry transformation, visibility queries, and pixel drawing were executed entirely as general-purpose 32-bit integer instructions.
+
+To fit within this budget, John Carmack discarded the standard 3D pipeline. Restricting geometry to vertical walls and horizontal planes transformed 3D projection into a combination of 1D column scaling and precomputed 2D spatial lookups.
+
+## 1. The 1993 Hardware Bottleneck
+
+Conventional 3D graphics pipelines transform vertices using 4x4 matrices, depth-sort geometry, and interpolate perspective-correct textures across arbitrary polygons—operations that rely on fast floating-point multiply-accumulate instructions.
+
+| Constraint | Typical 1993 Target | Impact on Render Architecture |
+|---|---|---|
+| **CPU** | Intel 386 DX or 486SX at 25–33 MHz | Floating-point ops required software emulation interrupts |
+| **Target Budget** | 35 logic ticks/second (half-refresh of 70 Hz CRT) | ~28.5 ms total per frame for rendering, AI, movement, and audio |
+| **Display Mode** | VGA Mode Y (unchained 320x200, 8-bit indexed) | Provides 256 KB VRAM for hardware page flipping |
+| **Bus Bandwidth** | ISA-bus access speeds | Direct VRAM writes were slow; overdraw degraded memory throughput |
+
+<Alert variant="info">
+**FPU constraints in practice:** A 486DX2-66 handled basic geometry comfortably, but frame rates dropped below 20 FPS in open rooms with high linedef counts. The engine architecture was designed to run reliably on integer-only hardware.
+</Alert>
+
+<br/>
+
+Instead of evaluating general matrix transformations at runtime, Carmack moved spatial calculations into a pre-compilation step, reducing runtime work to integer table fetches and array scans.
+
+## 2. From Grids to Arbitrary Geometry
+
+id's previous title, *Wolfenstein 3D* (1992), simplified visibility by mapping all walls to a rigid 2D grid. The renderer cast a ray per screen column, stepping through cells until it hit a solid block, then drew a vertical texture slice scaled by distance.
+
+DOOM retained column-based rendering but replaced the uniform grid with **sectors**: arbitrary polygonal regions bounded by 2D line segments called **linedefs**. Each sector defines its own floor height, ceiling height, flat textures, and light level. Sectors can be non-convex, disconnected, or adjacent to sectors with varying heights, enabling steps, ledges, and open pits.
+
+This architecture is classified as **2.5D**: floors and ceilings are strictly horizontal planes, walls are vertical extrusions, and two sectors cannot overlap at different heights within the same 2D horizontal coordinates.
+
+![Wolfenstein 3D grid raycasting versus DOOM angled non-grid level geometry comparison diagram](../../../assets/blog/doom-3d-engine/1.webp)
+Figure 1: Wolfenstein 3D mapped geometry to fixed grid cells. DOOM's sector model supports arbitrary wall angles and variable sector heights at the cost of a complex visibility problem.
+
+Without a uniform grid, simple raycasting became inefficient. Checking every linedef against 320 screen columns per frame exceeded the 33 MHz instruction budget, requiring visibility sorting to happen offline.
+
+## 3. Binary Space Partitioning (BSP) Trees
+
+DOOM resolves visibility sorting by constructing a **Binary Space Partitioning (BSP) tree** during map compilation using a tool called a node builder.
+
+### Pre-computation: Slicing the Map into Convex Subsectors
+
+The node builder recursively splits the 2D map along partition lines, sorting wall segments into "front" and "back" child sets relative to each split. Slicing continues until the leaves form **subsectors**: strictly convex polygons containing wall segments that cannot occlude one another from any camera position inside that subsector.
+
+Determining which side of a partition line a point sits on uses the implicit 2D line equation, implemented via a cross-product between the line vector and the camera offset:
+
+$$
+\text{cross} = (x - x_1) \cdot dy - (y - y_1) \cdot dx
+$$
+
+Each internal node stores its partition line and child bounding boxes, allowing the runtime engine to evaluate spatial position using integer cross-products.
+
+![DOOM BSP tree binary space partitioning 2D level map diagram id Software](../../../assets/blog/doom-3d-engine/2.webp)
+Figure 2: A 2D map partitioned into subsectors. The resulting binary tree allows front-to-back traversal relative to camera coordinates.
+
+### Runtime Traversal: Front-to-Back Order
+
+During rendering, the engine walks the BSP tree starting at the root node. At each internal node, it evaluates the sign of `cross` to determine which child node contains the camera. The renderer recurses into the **near** child node first before checking the **far** child node.
+
+Because partition lines divide space relative to the viewer, walking the tree near-child-first outputs subsectors in strict front-to-back order without sorting geometry at runtime.
+
+## 4. Front-to-Back Occlusion & Overdraw Elimination
+
+Front-to-back traversal allows the renderer to track screen coverage and clip occluded geometry before drawing pixels.
+
+For each of the 320 screen columns, the engine maintains two boundary arrays: `ceilingclip` and `floorclip` (defined in `r_segs.c`). As wall segments draw, rasterization is restricted to the unwritten vertical span between `ceilingclip[x]` and `floorclip[x]`. Once a segment is rendered, the bounds shift inward. When `ceilingclip[x] >= floorclip[x]`, column `x` is fully covered.
+
+Horizontal clipping across column ranges is tracked using an array of solid intervals (`solidsegs`). Before drawing a wall segment or traversing deeper into a distant BSP branch, the engine checks its screen-space bounding box against `solidsegs`. If the range is covered, the subtree is skipped.
+
+![Screen column occlusion clipping visualization top bottom clip window rendering](../../../assets/blog/doom-3d-engine/3.webp)
+Figure 3: Per-column clip arrays narrow as wall segments draw front-to-back. When a column span closes, distant geometry behind it is skipped.
+
+<Alert variant="warning">
+**System RAM Buffering:** DOOM does not rasterize directly to VRAM columns over the slow ISA bus. Texels are written to a contiguous system RAM buffer (`screens[0]`), then copied to VGA memory in a single block transfer during `I_FinishUpdate`. Front-to-back clipping reduces CPU memory writes and cache line invalidations.
+</Alert>
+
+## 5. Affine Texture Mapping via Vertical Column Projection
+
+Because walls are strictly vertical, perpendicular depth $Z$ remains uniform across any single screen column. Perspective correction reduces from a per-pixel operation to a single division per column.
+
+The vertical scale factor $S$ mapping world coordinates to screen space is:
+
+$$
+S = \frac{d}{Z}
+$$
+
+where $d$ is the projection plane distance and $Z$ is the perpendicular distance along the column ray. Once $S$ is evaluated, texture mapping along the column reduces to linear interpolation:
+
+![DOOM vertical wall column texture mapping perspective projection diagram](../../../assets/blog/doom-3d-engine/4.webp)
+Figure 4: Vertical wall alignment means perspective scale $S = d/Z$ is evaluated once per screen column. Column fills execute as an affine scaling loop.
+
+Perspective division runs 320 times per frame instead of 64,000 times ($320 \times 200$). Floor and ceiling surfaces (**visplanes**) use an equivalent horizontal approach, drawing spans across screen rows where depth $Z$ remains constant.
+
+## 6. Fixed-Point Arithmetic & Trigonometric Lookup Tables
+
+Coordinates, scale factors, and ray directions use **16.16 fixed-point** representations: 32-bit signed integers where the upper 16 bits store the integer component and the lower 16 bits store the fractional part, scaled by `FRACUNIT` ($2^{16} = 65536$). Integer conversion uses bit shifts ($X \ll 16$).
+
+$$
+\text{value}_{\text{real}} \approx \frac{\text{raw}_{\text{int32}}}{2^{16}}
+$$
+
+Addition and subtraction execute as standard integer operations. Multiplication uses the x86 `imul` instruction, producing a 64-bit result across `EDX:EAX` that is shifted right by 16 bits (`shrd`) inside `FixedMul` to prevent register overflow:
+
+<Alert variant="warning">
+**Fixed-point multiplication:** Multiplying two 16.16 integers directly with a 32-bit multiply overflows immediately. The engine uses inline x86 assembly to execute a 64-bit widening multiply and shift sequence.
+</Alert>
+
+<br/>
+
+Angles use **Binary Angle Measurement (BAM)** stored as 32-bit unsigned integers (`angle_t`), where $360^\circ$ maps to $2^{32}$. Trigonometric functions index precomputed lookup tables (`finesine[]` with 8192 entries) by shifting the BAM angle right by 19 bits (`angle >> 19`).
+
+![16.16 fixed point number format bit layout integer fraction diagram](../../../assets/blog/doom-3d-engine/5.webp)
+Figure 5: Bit layout of 16.16 fixed-point numbers. BAM angles map onto 32-bit integer values and index lookup tables via `angle >> 19`.
+
+This code illustrates BSP tree traversal, side classification, and bounding box checks based on `r_bsp.c`:
+
+export const cCodeSnippet = `// Core BSP traversal logic based on r_bsp.c (id Software, 1993).
+
+#define NF_SUBSECTOR 0x8000  // Bit 15 marks a leaf (subsector) index
+
+void R_RenderBSPNode(int bspnum)
+{
+    node_t *bsp;
+    int     side;
+
+    // Leaf reached: node index references a subsector.
+    if (bspnum & NF_SUBSECTOR)
+    {
+        if (bspnum == -1)
+            R_Subsector(0);
+        else
+            R_Subsector(bspnum & (~NF_SUBSECTOR));
+        return;
+    }
+
+    bsp = &nodes[bspnum];
+
+    // Determine camera side relative to partition line
+    side = R_PointOnSide(viewx, viewy, bsp);
+
+    // Process near subtree first for front-to-back draw order
+    R_RenderBSPNode(bsp->children[side]);
+
+    // Test far subtree bounding box against accumulated solid ranges
+    if (R_CheckBBox(bsp->bbox[side ^ 1]))
+        R_RenderBSPNode(bsp->children[side ^ 1]);
+}
+`;
+
+<CodeBlock code={cCodeSnippet} filename="r_bsp.c" showLineNumbers={true} />
+
+## 7. System Architecture Impact
+
+DOOM's rendering pipeline demonstrates how algorithm constraints can adapt to CPU bottlenecks. By reducing 3D visibility to 2D spatial trees, mapping 2D textures via 1D vertical scaling, and using 16.16 fixed-point math, the engine delivered real-time pseudo-3D graphics on standard 386 and 486 hardware.
+
+These optimizations laid the groundwork for future engine architectures. Spatial partitioning structures like BSP trees and PVS (Potentially Visible Sets) became core components of 1990s 3D engines, while early span clipping established concepts that evolved into modern hardware occlusion queries and early-z rejection in modern GPUs.
+
+---
+
+## References & Further Reading
+
+* **Sanglard, F.** <a href="https://fabiensanglard.net/gebbdoom/" target="_blank" rel="noopener noreferrer">*Game Engine Black Book: DOOM*</a>. Technical breakdown of the 1993 DOOM engine architecture, fixed-point math, and VGA hardware pipeline.
+* **id Software.** <a href="https://github.com/id-Software/DOOM" target="_blank" rel="noopener noreferrer">*DOOM Source Code Release*</a>. GitHub. Original 1997 GPL source code release, including `r_bsp.c`, `r_segs.c`, and `tables.c`.
+* **Abrash, M.** <a href="https://github.com/jagregory/abrash-black-book" target="_blank" rel="noopener noreferrer">*Michael Abrash's Graphics Programming Black Book*</a>. Low-level reference on VGA programming, x86 assembly optimizations, and BSP trees.
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Binary_space_partitioning" target="_blank" rel="noopener noreferrer">*Binary Space Partitioning*</a>. General background on BSP tree construction and spatial partitioning.
+
+---
+
+## Technical Glossary
+
+| Term | Definition |
+|---|---|
+| **BSP Tree (Binary Space Partitioning)** | A precomputed binary tree that recursively divides a 2D map along partition lines, enabling front-to-back traversal without runtime sorting. |
+| **Subsector** | A strictly convex leaf region of the BSP tree, guaranteed to contain no internal wall segments that occlude each other. |
+| **Overdraw** | Writing to a screen pixel that is later overwritten by nearer geometry in the same frame. |
+| **Affine Texture Mapping** | Texture mapping that performs perspective correction once per column or row rather than per pixel. |
+| **Fixed-Point Arithmetic (16.16)** | A 32-bit integer representation with 16 bits for the integer part and 16 bits for the fractional part, avoiding the need for an FPU. |
+| **FRACUNIT** | The scale constant ($2^{16} = 65536$) used to convert between standard integers and DOOM's 16.16 fixed-point representation. |
+| **BAM (Binary Angle Measurement)** | An angle representation using `angle_t` (32-bit unsigned integer) where $360^\circ$ maps onto $2^{32}$ wraparound, indexing LUTs via `angle >> 19`. |
+| **LUT (Lookup Table)** | A precomputed array of values (sine, cosine, tangent) used to replace runtime function calls with a table fetch. |
+| **Mode Y (Planar VGA)** | An unchained variant of VGA Mode 13h (320x200, 256 colors) exposing 256 KB VRAM for hardware triple-buffering page flipping and fast block writes. |
+| **2.5D** | A rendering model where geometry is extruded vertically from a 2D floor plan, disallowing true stacked 3D volumes. |

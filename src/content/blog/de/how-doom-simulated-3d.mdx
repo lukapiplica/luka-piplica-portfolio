@@ -1,0 +1,197 @@
+---
+title: "Das Auge täuschen, Takte sparen: Wie DOOM 3D-Räume auf 33 MHz simulierte"
+description: "Eine Low-Level-Analyse von Binary Space Partitioning (BSP)-Bäumen, Front-to-Back-Verdeckung, Festkomma-Arithmetik und 1D-Spaltenprojektion in John Carmacks Rendering-Engine von 1993."
+publishedAt: "2026-10-07"
+author: "Luka Piplica"
+tags: ["game-engineering", "retro-computing", "graphics-programming", "carmack", "doom", "systems-programming"]
+featured: true
+locale: de
+image: "../../../assets/blog/doom-3d-engine/featured.webp"
+imageAlt: "Ego-Perspektive des DOOM-Gameplays, die Echtzeit-Pseudo-3D-Spalten-Rendering und die Statusleiste demonstriert."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+Als id Software *DOOM* im Dezember 1993 veröffentlichte, gab das Studio als Mindestanforderung einen Intel 386-Prozessor an. In der Praxis war die Engine jedoch für ein ganz bestimmtes Hardware-Budget entwickelt worden: einen Intel 486SX mit 33 MHz ohne Hardware-Gleitkommaeinheit (FPU), der einen 320x200 8-Bit-Framebuffer mit 35 Logik-Ticks pro Sekunde ansteuerte. Ohne Hardware-3D-Pipelines oder GPU-Beschleunigung wurden Geometrietransformationen, Sichtbarkeitsabfragen und das Zeichnen von Pixeln vollständig als universelle 32-Bit-Ganzzahl-Befehle ausgeführt.
+
+Um dieses Budget einzuhalten, verwarf John Carmack die Standard-3D-Pipeline. Die Beschränkung der Geometrie auf vertikale Wände und horizontale Ebenen verwandelte die 3D-Projektion in eine Kombination aus 1D-Spaltenskalierung und vorausberechneten 2D-Raum-Lookups.
+
+## 1. Der Hardware-Flaschenhals von 1993
+
+Konventionelle 3D-Grafik-Pipelines transformieren Vertices mithilfe von 4x4-Matrizen, sortieren Geometrie nach Tiefe und interpolieren perspektivisch korrekte Texturen über beliebige Polygone – Operationen, die auf schnellen Gleitkomma-Multiply-Accumulate-Befehlen basieren.
+
+| Einschränkung | Typisches Zielsystem (1993) | Auswirkung auf die Rendering-Architektur |
+|---|---|---|
+| **CPU** | Intel 386 DX oder 486SX mit 25–33 MHz | Gleitkommaoperationen erforderten Software-Emulations-Interrupts |
+| **Ziel-Budget** | 35 Logik-Ticks/Sekunde (halbe Bildwiederholrate eines 70-Hz-Röhrenmonitors) | ~28,5 ms insgesamt pro Frame für Rendering, KI, Bewegung und Audio |
+| **Anzeigemodus** | VGA Mode Y (Unchained 320x200, 8-Bit indiziert) | Bietet 256 KB VRAM für Hardware-Page-Flipping |
+| **Bus-Bandbreite** | ISA-Bus-Zugriffsgeschwindigkeiten | Direkte VRAM-Schreibzugriffe waren langsam; Overdraw verschlechterte den Speicherdurchsatz |
+
+<Alert variant="info">
+**FPU-Einschränkungen in der Praxis:** Ein 486DX2-66 kam mit grundlegender Geometrie mühelos zurecht, aber die Bildrate fiel in offenen Räumen mit einer hohen Anzahl von Linedefs unter 20 FPS. Die Engine-Architektur wurde entwickelt, um zuverlässig auf reiner Ganzzahl-Hardware (Integer-only) zu laufen.
+</Alert>
+
+<br/>
+
+Anstatt allgemeine Matrizen-Transformationen zur Laufzeit zu berechnen, verlagerte Carmack räumliche Berechnungen in einen Vorkompilierungsschritt und reduzierte die Laufzeitarbeit auf Integer-Tabellenabfragen und Array-Scans.
+
+## 2. Von Gittern zu beliebiger Geometrie
+
+ids vorheriger Titel, *Wolfenstein 3D* (1992), vereinfachte die Sichtbarkeit, indem er alle Wände auf ein starres 2D-Gitter abbildete. Der Renderer warf einen Strahl pro Bildschirmspalte, schritt durch die Zellen, bis er auf einen soliden Block traf, und zeichnete dann einen vertikalen Texturstreifen, der nach Entfernung skaliert war.
+
+DOOM behielt das spaltenbasierte Rendering bei, ersetzte jedoch das gleichmäßige Gitter durch **Sektoren**: beliebige polygonale Bereiche, die durch 2D-Liniensegmente namens **Linedefs** begrenzt werden. Jeder Sektor definiert seine eigene Bodenhöhe, Deckenhöhe, Flachtexturen (Flats) und Helligkeitsstufe. Sektoren können nicht-konvex, unzusammenhängend oder an Sektoren mit unterschiedlichen Höhen angrenzen, was Stufen, Vorsprünge und offene Abgründe ermöglicht.
+
+Diese Architektur wird als **2.5D** klassifiziert: Böden und Decken sind strikt horizontale Ebenen, Wände sind vertikale Extrusionen, und zwei Sektoren können sich innerhalb derselben horizontalen 2D-Koordinaten nicht auf unterschiedlichen Höhen überlappen.
+
+![Wolfenstein 3D Raster-Raycasting im Vergleich zu DOOMs gewinkelter Geometrie ohne Raster](../../../assets/blog/doom-3d-engine/1.webp)
+Abbildung 1: Wolfenstein 3D bildete Geometrie auf feste Gitterzellen ab. DOOMs Sektorenmodell unterstützt beliebige Wandwinkel und variable Sektorhöhen auf Kosten eines komplexen Sichtbarkeitsproblems.
+
+Ohne ein gleichmäßiges Gitter wurde einfaches Raycasting uneffizient. Das Überprüfen jeder Linedef gegen 320 Bildschirmspalten pro Frame überschritt das Befehlsbudget von 33 MHz, sodass die Sichtbarkeitssortierung offline erfolgen musste.
+
+## 3. Binary Space Partitioning (BSP)-Bäume
+
+DOOM löst die Sichtbarkeitssortierung durch das Erstellen eines **Binary Space Partitioning (BSP)-Baums** während der Kartenkompilierung mithilfe eines Werkzeugs namens Node Builder.
+
+### Vorkompilierung: Zerlegen der Karte in konvexe Subsektoren
+
+Der Node Builder teilt die 2D-Karte rekursiv entlang von Trennlinien (Partition Lines) und sortiert Wandsegmente relativ zu jedem Schnitt in „vordere“ und „hintere“ untergeordnete Sets. Das Zerschneiden wird fortgesetzt, bis die Blätter des Baums **Subsektoren** bilden: strikt konvexe Polygone, die Wandsegmente enthalten, welche sich von keiner Kameraposition innerhalb dieses Subsektors gegenseitig verdecken können.
+
+Um zu bestimmen, auf welcher Seite einer Trennlinie sich ein Punkt befindet, wird die implizite 2D-Geradengleichung verwendet, die über ein Kreuzprodukt zwischen dem Linienvektor und dem Kamera-Offset implementiert ist:
+
+$$
+\text{cross} = (x - x_1) \cdot dy - (y - y_1) \cdot dx
+$$
+
+Jeder innere Knoten speichert seine Trennlinie und die Bounding-Boxes seiner untergeordneten Knoten, sodass die Laufzeit-Engine die räumliche Position mithilfe von Integer-Kreuzprodukten auswerten kann.
+
+![DOOM BSP-Baum Binary Space Partitioning 2D-Levelkarte Diagramm id Software](../../../assets/blog/doom-3d-engine/2.webp)
+Abbildung 2: Eine in Subsektoren unterteilte 2D-Karte. Der resultierende Binärbaum ermöglicht eine Traversierung von vorne nach hinten (Front-to-Back) relativ zu den Kamerakoordinaten.
+
+### Laufzeit-Traversierung: Reihenfolge von vorne nach hinten (Front-to-Back)
+
+Beim Rendering durchläuft die Engine den BSP-Baum beginnend beim Wurzelknoten (Root Node). An jedem inneren Knoten wertet sie das Vorzeichen von `cross` aus, um zu bestimmen, welcher untergeordnete Knoten die Kamera enthält. Der Renderer steigt zuerst rekursiv in den **nahen** (near) untergeordneten Knoten ab, bevor er den **fernen** (far) Knoten prüft.
+
+Da Trennlinien den Raum relativ zum Betrachter teilen, gibt das Durchlaufen des Baums mit Priorität auf den nahen Knoten die Subsektoren in einer strikten Reihenfolge von vorne nach hinten aus, ohne dass die Geometrie zur Laufzeit sortiert werden muss.
+
+## 4. Front-to-Back-Verdeckung & Eliminierung von Overdraw
+
+Die Traversierung von vorne nach hinten ermöglicht es dem Renderer, die Bildschirmabdeckung zu verfolgen und verdeckte Geometrie abzuschneiden (Clipping), bevor Pixel gezeichnet werden.
+
+Für jede der 320 Bildschirmspalten verwaltet die Engine zwei Begrenzungs-Arrays: `ceilingclip` und `floorclip` (definiert in `r_segs.c`). Wenn Wandsegmente gezeichnet werden, ist die Rasterisierung auf den unbeschriebenen vertikalen Bereich zwischen `ceilingclip[x]` und `floorclip[x]` beschränkt. Sobald ein Segment gerendert ist, verschieben sich die Grenzen nach innen. Wenn `ceilingclip[x] >= floorclip[x]`, ist die Spalte `x` vollständig abgedeckt.
+
+Das horizontale Clipping über Spaltenbereiche hinweg wird mithilfe eines Arrays von zusammenhängenden Abschnitten (`solidsegs`) verfolgt. Bevor ein Wandsegment gezeichnet oder tiefer in einen entfernten BSP-Zweig traversiert wird, prüft die Engine dessen Bounding-Box im Bildschirmraum gegen `solidsegs`. Wenn der Bereich abgedeckt ist, wird der Teilbaum übersprungen.
+
+![Bildschirmspalten-Verdeckungs-Clipping Visualisierung oben unten Clip-Fenster Rendering](../../../assets/blog/doom-3d-engine/3.webp)
+Abbildung 3: Spaltenbezogene Clip-Arrays verengen sich, während Wandsegmente von vorne nach hinten gezeichnet werden. Wenn sich ein Spaltenbereich schließt, wird dahinterliegende entfernte Geometrie übersprungen.
+
+<Alert variant="warning">
+**System-RAM-Pufferung:** DOOM rasterisiert nicht direkt über den langsamen ISA-Bus in VRAM-Spalten. Texel werden in einen zusammenhängenden System-RAM-Puffer (`screens[0]`) geschrieben und dann während `I_FinishUpdate` in einem einzigen Blocktransfer in den VGA-Speicher kopiert. Front-to-Back-Clipping reduziert Schreibzugriffe auf den CPU-Speicher und Invalidierungen von Cache-Zeilen.
+</Alert>
+
+## 5. Affines Textur-Mapping über vertikale Spaltenprojektion
+
+Da Wände strikt vertikal sind, bleibt die rechtwinklige Tiefe $Z$ über jede einzelne Bildschirmspalte hinweg einheitlich. Die Perspektivkorrektur reduziert sich von einer Operation pro Pixel auf eine einzige Division pro Spalte.
+
+Der vertikale Skalierungsfaktor $S$, der Weltkoordinaten auf den Bildschirmraum abbildet, lautet:
+
+$$
+S = \frac{d}{Z}
+$$
+
+wobei $d$ der Abstand zur Projektionsebene und $Z$ die rechtwinklige Entfernung entlang des Spaltenstrahls ist. Sobald $S$ ausgewertet ist, reduziert sich das Textur-Mapping entlang der Spalte auf eine lineare Interpolation:
+
+![DOOM vertikale Wandspalten-Texturierung Perspektivprojektion Diagramm](../../../assets/blog/doom-3d-engine/4.webp)
+Abbildung 4: Die vertikale Ausrichtung der Wände bedeutet, dass die Perspektivskalierung $S = d/Z$ einmal pro Bildschirmspalte ausgewertet wird. Das Füllen der Spalten wird als affine Skalierungsschleife ausgeführt.
+
+Die Perspektivdivision läuft 320-mal pro Frame ab anstatt 64.000-mal ($320 \times 200$). Boden- und Deckenflächen (**Visplanes**) verwenden einen äquivalenten horizontalen Ansatz, bei dem horizontale Streifen (Spans) über Bildschirmzeilen gezeichnet werden, in denen die Tiefe $Z$ konstant bleibt.
+
+## 6. Festkomma-Arithmetik & Trigonometrische Lookup-Tabellen
+
+Koordinaten, Skalierungsfaktoren und Strahlrichtungen verwenden eine **16.16-Festkomma-Darstellung**: vorzeichenbehaftete 32-Bit-Ganzzahlen, bei denen die oberen 16 Bit die Ganzzahlkomponente und die unteren 16 Bit den Nachkommateil speichern, skaliert durch `FRACUNIT` ($2^{16} = 65536$). Die Integer-Konvertierung verwendet Bit-Shifts ($X \ll 16$).
+
+$$
+\text{value}_{\text{real}} \approx \frac{\text{raw}_{\text{int32}}}{2^{16}}
+$$
+
+Addition und Subtraktion werden als Standard-Integer-Operationen ausgeführt. Die Multiplikation nutzt den x86-Befehl `imul`, der ein 64-Bit-Ergebnis über `EDX:EAX` erzeugt, welches innerhalb von `FixedMul` um 16 Bit nach rechts verschoben wird (`shrd`), um einen Registerüberlauf zu verhindern:
+
+<Alert variant="warning">
+**Festkomma-Multiplikation:** Das direkte Multiplizieren zweier 16.16-Ganzzahlen mit einer 32-Bit-Multiplikation führt sofort zu einem Überlauf. Die Engine verwendet Inline-x86-Assembly, um eine erweiterte 64-Bit-Multiplikation und Shift-Sequenz auszuführen.
+</Alert>
+
+<br/>
+
+Winkel verwenden **Binary Angle Measurement (BAM)**, gespeichert als vorzeichenlose 32-Bit-Ganzzahlen (`angle_t`), wobei $360^\circ$ auf $2^{32}$ abgebildet wird. Trigonometrische Funktionen greifen auf vorausberechnete Lookup-Tabellen zu (`finesine[]` mit 8192 Einträgen), indem der BAM-Winkel um 19 Bit nach rechts verschoben wird (`angle >> 19`).
+
+![16.16 Festkommazahl-Format Bit-Layout Ganzzahl Nachkomma Diagramm](../../../assets/blog/doom-3d-engine/5.webp)
+Abbildung 5: Bit-Layout von 16.16-Festkommazahlen. BAM-Winkel werden auf 32-Bit-Integer-Werte abgebildet und greifen über `angle >> 19` auf Lookup-Tabellen zu.
+
+Dieser Code demonstriert die BSP-Baum-Traversierung, Seitenklassifizierung und Bounding-Box-Prüfungen basierend auf `r_bsp.c`:
+
+export const cCodeSnippet = `// Kernelement der BSP-Traversierungslogik basierend auf r_bsp.c (id Software, 1993).
+
+#define NF_SUBSECTOR 0x8000  // Bit 15 markiert einen Blatt-Index (Subsektor)
+
+void R_RenderBSPNode(int bspnum)
+{
+    node_t *bsp;
+    int     side;
+
+    // Blatt erreicht: Knoten-Index referenziert einen Subsektor.
+    if (bspnum & NF_SUBSECTOR)
+    {
+        if (bspnum == -1)
+            R_Subsector(0);
+        else
+            R_Subsector(bspnum & (~NF_SUBSECTOR));
+        return;
+    }
+
+    bsp = &nodes[bspnum];
+
+    // Kameraseite relativ zur Trennlinie bestimmen
+    side = R_PointOnSide(viewx, viewy, bsp);
+
+    // Nahen Teilbaum zuerst verarbeiten für Zeichenreihenfolge von vorne nach hinten
+    R_RenderBSPNode(bsp->children[side]);
+
+    // Bounding-Box des entfernten Teilbaums gegen akkumulierte solide Bereiche prüfen
+    if (R_CheckBBox(bsp->bbox[side ^ 1]))
+        R_RenderBSPNode(bsp->children[side ^ 1]);
+}
+`;
+
+<CodeBlock code={cCodeSnippet} filename="r_bsp.c" showLineNumbers={true} />
+
+## 7. Auswirkung auf die Systemarchitektur
+
+DOOMs Rendering-Pipeline zeigt, wie sich algorithmische Einschränkungen an CPU-Flaschenhälse anpassen lassen. Durch die Reduzierung der 3D-Sichtbarkeit auf 2D-Raumbäume, die Abbildung von 2D-Texturen über eine 1D-Vertikalskalierung und die Verwendung von 16.16-Festkomma-Arithmetik lieferte die Engine Echtzeit-Pseudo-3D-Grafik auf Standard-386- und 486-Hardware.
+
+Diese Optimierungen legten den Grundstein für zukünftige Engine-Architekturen. Räumliche Unterteilungsstrukturen wie BSP-Bäume und PVS (Potentially Visible Sets) wurden zu Kernkomponenten der 3D-Engines der 1990er-Jahre, während frühes Span-Clipping Konzepte etablierte, die sich zu modernen Hardware-Occlusion-Queries und Early-Z-Rejection in heutigen GPUs weiterentwickelten.
+
+---
+
+## Referenzen & Weiterführende Literatur
+
+* **Sanglard, F.** <a href="https://fabiensanglard.net/gebbdoom/" target="_blank" rel="noopener noreferrer">*Game Engine Black Book: DOOM*</a>. Technische Analyse der DOOM-Engine-Architektur von 1993, Festkomma-Arithmetik und VGA-Hardware-Pipeline.
+* **id Software.** <a href="https://github.com/id-Software/DOOM" target="_blank" rel="noopener noreferrer">*DOOM Source Code Release*</a>. GitHub. Veröffentlichung des ursprünglichen GPL-Quellcodes von 1997, einschließlich `r_bsp.c`, `r_segs.c` und `tables.c`.
+* **Abrash, M.** <a href="https://github.com/jagregory/abrash-black-book" target="_blank" rel="noopener noreferrer">*Michael Abrash's Graphics Programming Black Book*</a>. Low-Level-Referenz zu VGA-Programmierung, x86-Assembly-Optimierungen und BSP-Bäumen.
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Binary_space_partitioning" target="_blank" rel="noopener noreferrer">*Binary Space Partitioning*</a>. Allgemeine Hintergründe zur Erstellung von BSP-Bäumen und räumlicher Unterteilung.
+
+---
+
+## Technisches Glossar
+
+| Begriff | Definition |
+|---|---|
+| **BSP-Baum (Binary Space Partitioning)** | Ein vorausberechneter Binärbaum, der eine 2D-Karte entlang von Trennlinien (Partition Lines) rekursiv unterteilt und so eine Traversierung von vorne nach hinten ohne Sortierung zur Laufzeit ermöglicht. |
+| **Subsektor** | Ein strikt konvexer Blattbereich des BSP-Baums, der garantiert keine internen Wandsegmente enthält, die sich gegenseitig verdecken. |
+| **Overdraw** | Das Schreiben auf einen Bildschirm-Pixel, der im selben Frame später durch näher liegende Geometrie überschrieben wird. |
+| **Affines Textur-Mapping** | Textur-Mapping, das die Perspektivkorrektur einmal pro Spalte oder Zeile statt pro Pixel durchführt. |
+| **Festkomma-Arithmetik (16.16)** | Eine 32-Bit-Ganzzahldarstellung mit 16 Bit für den Ganzzahlteil und 16 Bit für den Nachkommateil, die die Notwendigkeit einer FPU vermeidet. |
+| **FRACUNIT** | Die Skalierungskonstante ($2^{16} = 65536$), die zur Konvertierung zwischen Standard-Ganzzahlen und DOOMs 16.16-Festkomma-Darstellung verwendet wird. |
+| **BAM (Binary Angle Measurement)** | Eine Winkeldarstellung unter Verwendung von `angle_t` (vorzeichenlose 32-Bit-Ganzzahl), bei der $360^\circ$ auf einen $2^{32}$-Überlauf abgebildet wird und der Zugriff auf LUTs über `angle >> 19` erfolgt. |
+| **LUT (Lookup-Tabelle)** | Ein vorausberechnetes Array von Werten (Sinus, Kosinus, Tangens), das verwendet wird, um Funktionsaufrufe zur Laufzeit durch ein Auslesen aus der Tabelle zu ersetzen. |
+| **Mode Y (Planar VGA)** | Eine Unchained-Variante des VGA-Modus 13h (320x200, 256 Farben), die 256 KB VRAM für Hardware-Triple-Buffering, Page-Flipping und schnelle Block-Schreibzugriffe bereitstellt. |
+| **2.5D** | Ein Rendering-Modell, bei dem Geometrie vertikal aus einem 2D-Grundriss extrudiert wird, was echte übereinander gestapelte 3D-Volumina ausschließt. |

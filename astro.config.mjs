@@ -8,6 +8,7 @@ import vercel from '@astrojs/vercel';
 import netlify from '@astrojs/netlify';
 import cloudflare from '@astrojs/cloudflare';
 import i18nConfig from './src/config/i18n.config.ts';
+import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -79,8 +80,10 @@ export default defineConfig({
   },
 
   markdown: {
-    remarkPlugins: [remarkMath, remarkGfm],
-    rehypePlugins: [rehypeKatex],
+    processor: unified({
+      remarkPlugins: [remarkMath, remarkGfm],
+      rehypePlugins: [rehypeKatex],
+    }),
     shikiConfig: {
       theme: 'github-dark',
       wrap: true,

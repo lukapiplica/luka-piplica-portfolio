@@ -1,0 +1,197 @@
+---
+title: "Zavaraj oko, uštedi cikluse: Kako je DOOM simulirao 3D prostor na 33 MHz"
+description: "Niskorazinska analiza BSP stabala, okluzije sprijeda prema natrag, matematike fiksne točke i 1D projekcije stupaca u renderu Johna Carmacka iz 1993."
+publishedAt: "2026-10-07"
+author: "Luka Piplica"
+tags: ["game-engineering", "retro-computing", "graphics-programming", "carmack", "doom", "systems-programming"]
+featured: true
+locale: hr
+image: "../../../assets/blog/doom-3d-engine/featured.webp"
+imageAlt: "Perspektiva iz prvog lica u igri DOOM koja prikazuje renderiranje stupaca u pseudo-3D-u u stvarnom vremenu i traku sa statusom."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+Kada je id Software izdao *DOOM* u prosincu 1993., minimalni sustavni zahtjevi navodili su procesor Intel 386. U praksi, pokretač (engine) je bio izgrađen oko vrlo specifičnog hardverskog okvira: Intel 486SX na 33 MHz bez hardverske jedinice za pomični zarez (FPU), koji je pogonio 8-bitni framebuffer rezolucije 320x200 pri 35 logičkih otkucaja u sekundi. Bez hardverskih 3D cjevovoda ili GPU ubrzanja, transformacije geometrije, upiti vidljivosti i crtanje piksela izvodili su se u potpunosti kao cjelobrojne instrukcije opće namjene od 32 bita.
+
+Kako bi se uklopio u taj proračun, John Carmack je odbacio standardni 3D cjevovod. Ograničavanje geometrije na okomite zidove i vodoravne ravnine pretvorilo je 3D projekciju u kombinaciju 1D skaliranja stupaca i unaprijed izračunatih 2D prostornih pretraživanja.
+
+## 1. Hardversko usko grlo iz 1993.
+
+Konvencionalni cjevovodi 3D grafike transformiraju vrhove (vertices) pomoću 4x4 matrica, sortiraju geometriju po dubini i interpoliraju teksture s korekcijom perspektive duž proizvoljnih poligona — što su operacije koje se oslanjaju na brze instrukcije množenja i zbrajanja s pomičnim zarezom (multiply-accumulate).
+
+| Ograničenje | Tipični cilj 1993. | Utjecaj na arhitekturu renderiranja |
+|---|---|---|
+| **CPU** | Intel 386 DX ili 486SX na 25–33 MHz | Operacije s pomičnim zarezom zahtijevale su prekide softverske emulacije |
+| **Ciljani proračun** | 35 logičkih otkucaja/sekundi (polovica osvježavanja CRT-a od 70 Hz) | ~28.5 ms ukupno po okviru za renderiranje, AI, kretanje i zvuk |
+| **Način prikaza** | VGA Način Y (nelančani 320x200, 8-bitni indeksirani) | Pruža 256 KB VRAM-a za hardversko prebacivanje stranica (page flipping) |
+| **Propusnost sabirnice** | Brzine pristupa ISA sabirnici | Izravna pisanja u VRAM bila su spora; prekomjerno crtanje (overdraw) degradiralo je propusnost memorije |
+
+<Alert variant="info">
+**Ograničenja FPU-a u praksi:** Intel 486DX2-66 ugodno je rukovao osnovnom geometrijom, ali je brzina izvođenja padala ispod 20 FPS-a u otvorenim prostorijama s velikim brojem linijskih segmenata (linedefs). Arhitektura pokretača dizajnirana je za pouzdani rad na hardveru koji se oslanja isključivo na cijele brojeve.
+</Alert>
+
+<br/>
+
+Umjesto izračunavanja općih matričnih transformacija u vremenu izvođenja, Carmack je prostorne izračune prebacio u korak pretprevođenja (pre-compilation), smanjujući rad u vremenu izvođenja na dohvaćanje tablica cijelih brojeva i pretraživanje polja.
+
+## 2. Od mreža do proizvoljne geometrije
+
+Prethodni naslov tvrtke id, *Wolfenstein 3D* (1992.), pojednostavio je vidljivost preslikavanjem svih zidova na krutu 2D mrežu. Render je bacao jednu zraku po stupcu zaslona, prolazeći kroz ćelije dok ne bi udario u čvrsti blok, a zatim bi nacrtao okomiti isječak teksture skaliran prema udaljenosti.
+
+DOOM je zadržao renderiranje temeljeno na stupcima, ali je uniformnu mrežu zamijenio **sektorima**: proizvoljnim poligonalnim regijama omeđenim 2D dužinama zvanim **linedefs** (linijski segmenti). Svaki sektor definira vlastitu visinu poda, visinu stropa, ravne teksture (flats) i razinu osvjetljenja. Sektori mogu biti nekonveksni, odvojeni ili susjedni sektorima s različitim visinama, što omogućuje stepenice, izbočine i otvorene jame.
+
+Ova se arhitektura klasificira kao **2.5D**: podovi i stropovi strogo su vodoravne ravnine, zidovi su okomiti ekstruzije, a dva se sektora ne mogu preklapati na različitim visinama unutar istih 2D vodoravnih koordinata.
+
+![Wolfenstein 3D usporedni dijagram mrežnog bacanja zraka u odnosu na DOOM kutnu geometriju bez mreže](../../../assets/blog/doom-3d-engine/1.webp)
+Slika 1: Wolfenstein 3D preslikavao je geometriju na fiksne ćelije mreže. DOOM-ov model sektora podržava proizvoljne kutove zidova i promjenjive visine sektora po cijeni složenog problema vidljivosti.
+
+Bez uniformne mreže, jednostavno bacanje zraka (raycasting) postalo je neučinkovito. Provjera svakog linedef-a naspram 320 stupaca zaslona po okviru premašivala je proračun instrukcija od 33 MHz, što je zahtijevalo da se sortiranje vidljivosti odvija izvan mreže (offline).
+
+## 3. Stabla binarne podjele prostora (BSP)
+
+DOOM rješava sortiranje vidljivosti izgradnjom **stabla binarne podjele prostora (BSP)** tijekom prevođenja karte pomoću alata koji se naziva graditelj čvorova (node builder).
+
+### Prethodni izračun: Dijeljenje karte na konveksne podsektore
+
+Graditelj čvorova rekurzivno dijeli 2D kartu duž linija razdvajanja, sortirajući segmente zidova u skupove djece "prednji" i "stražnji" u odnosu na svaki rez. Dijeljenje se nastavlja sve dok listovi ne formiraju **podsektore**: strogo konveksne poligone koji sadrže segmente zidova koji ne mogu zaklanjati jedni druge iz bilo kojeg položaja kamere unutar tog podsektora.
+
+Određivanje na kojoj se strani linije razdvajanja nalazi točka koristi implicitnu jednadžbu 2D pravca, implementiranu putem vektorskog umnoška između vektora linije i pomaka kamere:
+
+$$
+\text{cross} = (x - x_1) \cdot dy - (y - y_1) \cdot dx
+$$
+
+Svaki unutarnji čvor pohranjuje svoju liniju razdvajanja i granične kutije (bounding boxes) svoje djece, omogućujući pokretaču u vremenu izvođenja procjenu prostornog položaja pomoću cjelobrojnih vektorskih umnožaka.
+
+![DOOM BSP stablo binarna podjela prostora 2D karta razine dijagram id Software](../../../assets/blog/doom-3d-engine/2.webp)
+Slika 2: 2D karta podijeljena na podsektore. Dobiveno binarno stablo omogućuje prolazak sprijeda prema natrag u odnosu na koordinate kamere.
+
+### Prolazak u vremenu izvođenja: Poredak sprijeda prema natrag
+
+Tijekom renderiranja, pokretač prolazi kroz BSP stablo počevši od korijenskog čvora. Na svakom unutarnjem čvoru procjenjuje predznak varijable `cross` kako bi odredio koji dječji čvor sadrži kameru. Render se najprije rekurzivno spušta u **bliži** (near) dječji čvor prije nego što provjeri **daleki** (far) dječji čvor.
+
+Budući da linije razdvajanja dijele prostor u odnosu na promatrača, prolazak kroz stablo tako da se najprije ide u bliže dijete daje podsektore u strogom poretku sprijeda prema natrag bez potrebe za sortiranjem geometrije u vremenu izvođenja.
+
+## 4. Okluzija sprijeda prema natrag i eliminacija prekomjernog crtanja
+
+Prolazak sprijeda prema natrag omogućuje renderu praćenje pokrivenosti zaslona i izrezivanje (clipping) zaklonjene geometrije prije crtanja piksela.
+
+Za svaki od 320 stupaca zaslona, pokretač održava dva granična polja: `ceilingclip` i `floorclip` (definirana u `r_segs.c`). Kako se zidni segmenti crtaju, rasterizacija je ograničena na okomiti raspon između `ceilingclip[x]` i `floorclip[x]`. Nakon što se segment renderira, granice se pomiču prema unutra. Kada je `ceilingclip[x] >= floorclip[x]`, stupac `x` je potpuno pokriven.
+
+Vodoravno izrezivanje duž raspona stupaca prati se pomoću polja punih intervala (`solidsegs`). Prije crtanja zidnog segmenta ili dubljeg prolaska u udaljenu BSP granu, pokretač provjerava njegovu graničnu kutiju u prostoru zaslona u odnosu na `solidsegs`. Ako je raspon pokriven, podstablo se preskače.
+
+![Vizualizacija izrezivanja okluzije stupaca zaslona gornji donji prozor renderiranja](../../../assets/blog/doom-3d-engine/3.webp)
+Slika 3: Polja izrezivanja po stupcima sužavaju se kako se zidni segmenti crtaju sprijeda prema natrag. Kada se raspon stupca zatvori, udaljena geometrija iza njega se preskače.
+
+<Alert variant="warning">
+**Međuspremnik u sistemskom RAM-u:** DOOM ne rasterizira izravno u VRAM stupce preko spore ISA sabirnice. Tekseli se zapisuju u neprekinuti međuspremnik sistemskog RAM-a (`screens[0]`), a zatim se kopiraju u VGA memoriju u jednom blokovskom prijenosu tijekom `I_FinishUpdate`. Izrezivanje sprijeda prema natrag smanjuje CPU zapise u memoriju i invalidaciju linija predmemorije (cache lines).
+</Alert>
+
+## 5. Afino preslikavanje tekstura putem okomite projekcije stupaca
+
+Budući da su zidovi strogo okomiti, okomita dubina $Z$ ostaje jednolika duž bilo kojeg pojedinačnog stupca zaslona. Korekcija perspektive svodi se s operacije po pikselu na jedno dijeljenje po stupcu.
+
+Okomiti faktor skaliranja $S$ koji preslikava svjetske koordinate u prostor zaslona iznosi:
+
+$$
+S = \frac{d}{Z}
+$$
+
+gdje je $d$ udaljenost ravnine projekcije, a $Z$ okomita udaljenost duž zrake stupca. Kada se izračuna $S$, preslikavanje teksture duž stupca svodi se na linearnu interpolaciju:
+
+![DOOM dijagram okomitog poravnanja zida preslikavanja teksture stupca projekcije perspektive](../../../assets/blog/doom-3d-engine/4.webp)
+Slika 4: Okomito poravnanje zidova znači da se mjerilo perspektive $S = d/Z$ izračunava samo jednom po stupcu zaslona. Ispunjavanje stupaca izvodi se kao petlja afinog skaliranja.
+
+Dijeljenje perspektive izvodi se 320 puta po okviru umjesto 64.000 puta ($320 \times 200$). Površine poda i stropa (**visplanes**) koriste ekvivalentan vodoravni pristup, crtajući raspone duž redaka zaslona gdje dubina $Z$ ostaje konstantna.
+
+## 6. Aritmetika fiksne točke i trigonometrijske tablice pretraživanja
+
+Koordinate, faktori skaliranja i smjerovi zraka koriste reprezentaciju u **16.16 fiksnoj točki**: 32-bitne označene cijele brojeve pri čemu gornjih 16 bita pohranjuje cjelobrojnu komponentu, a donjih 16 bita pohranjuje razlomljeni dio, skaliran pomoću `FRACUNIT` ($2^{16} = 65536$). Pretvorba u cijeli broj koristi bitovne pomake ($X \ll 16$).
+
+$$
+\text{value}_{\text{real}} \approx \frac{\text{raw}_{\text{int32}}}{2^{16}}
+$$
+
+Zbrajanje i oduzimanje izvode se kao standardne cjelobrojne operacije. Množenje koristi x86 instrukciju `imul`, dajući 64-bitni rezultat u registrima `EDX:EAX` koji se u funkciji `FixedMul` pomiče udesno za 16 bita (`shrd`) kako bi se spriječilo prelijevanje registra:
+
+<Alert variant="warning">
+**Množenje u fiksnoj točki:** Izravno množenje dvaju 16.16 cijelih brojeva pomoću 32-bitnog množenja odmah uzrokuje prelijevanje. Pokretač koristi ugrađeni (inline) x86 asembler za izvođenje slijeda 64-bitnog proširenog množenja i pomicanja.
+</Alert>
+
+<br/>
+
+Kutovi koriste **binarno mjerenje kutova (BAM)** pohranjeno kao 32-bitni neoznačeni cijeli brojevi (`angle_t`), gdje se $360^\circ$ preslikava na $2^{32}$. Trigonometrijske funkcije indeksiraju unaprijed izračunate tablice pretraživanja (`finesine[]` s 8192 zapisa) pomicanjem BAM kuta udesno za 19 bita (`angle >> 19`).
+
+![16.16 dijagram rasporeda bita formata broja u fiksnoj točki cjelobrojni razlomak](../../../assets/blog/doom-3d-engine/5.webp)
+Slika 5: Raspored bita za brojeve u fiksnoj točki 16.16. BAM kutovi preslikavaju se na 32-bitne cjelobrojne vrijednosti i indeksiraju tablice pretraživanja putem `angle >> 19`.
+
+Ovaj kod prikazuje prolazak kroz BSP stablo, klasifikaciju strana i provjere graničnih kutija na temelju `r_bsp.c`:
+
+export const cCodeSnippet = `// Osnovna logika prolaska kroz BSP stablo na temelju r_bsp.c (id Software, 1993.).
+
+#define NF_SUBSECTOR 0x8000  // Bit 15 označava indeks lista (podsektora)
+
+void R_RenderBSPNode(int bspnum)
+{
+    node_t *bsp;
+    int     side;
+
+    // Dosegnut je list: indeks čvora upućuje na podsektor.
+    if (bspnum & NF_SUBSECTOR)
+    {
+        if (bspnum == -1)
+            R_Subsector(0);
+        else
+            R_Subsector(bspnum & (~NF_SUBSECTOR));
+        return;
+    }
+
+    bsp = &nodes[bspnum];
+
+    // Određivanje strane kamere u odnosu na liniju razdvajanja
+    side = R_PointOnSide(viewx, viewy, bsp);
+
+    // Prvo se obrađuje bliže podstablo radi poretka crtanja sprijeda prema natrag
+    R_RenderBSPNode(bsp->children[side]);
+
+    // Provjera granične kutije dalekog podstabla u odnosu na nakupljene pune raspone
+    if (R_CheckBBox(bsp->bbox[side ^ 1]))
+        R_RenderBSPNode(bsp->children[side ^ 1]);
+}
+`;
+
+<CodeBlock code={cCodeSnippet} filename="r_bsp.c" showLineNumbers={true} />
+
+## 7. Utjecaj na arhitekturu sustava
+
+DOOM-ov cjevovod renderiranja pokazuje kako se algoritamska ograničenja mogu prilagoditi uskim grlima CPU-a. Svođenjem 3D vidljivosti na 2D prostorna stabla, preslikavanjem 2D tekstura putem 1D okomitog skaliranja i korištenjem matematike u 16.16 fiksnoj točki, pokretač je isporučio pseudo-3D grafiku u stvarnom vremenu na standardnom 386 i 486 hardveru.
+
+Ove optimizacije položile su temelje za buduće arhitekture pokretača. Strukture prostorne podjele poput BSP stabala i PVS-a (*Potentially Visible Sets* / potencijalno vidljivi skupovi) postale su ključne komponente 3D pokretača iz 1990-ih, dok je rano izrezivanje raspona (*span clipping*) uspostavilo mehanizme koji su evoluirali u suvremene hardverske upite okluzije i rano odbacivanje po Z-spremniku (*early-z rejection*) u modernim GPU-ovima.
+
+---
+
+## Reference i dodatna literatura
+
+* **Sanglard, F.** <a href="https://fabiensanglard.net/gebbdoom/" target="_blank" rel="noopener noreferrer">*Game Engine Black Book: DOOM*</a>. Tehnička analiza arhitekture DOOM pokretača iz 1993., matematike fiksne točke i VGA hardverskog cjevovoda.
+* **id Software.** <a href="https://github.com/id-Software/DOOM" target="_blank" rel="noopener noreferrer">*DOOM Source Code Release*</a>. GitHub. Izvorna objava koda pod GPL licencijom iz 1997., uključujući `r_bsp.c`, `r_segs.c` i `tables.c`.
+* **Abrash, M.** <a href="https://github.com/jagregory/abrash-black-book" target="_blank" rel="noopener noreferrer">*Michael Abrash's Graphics Programming Black Book*</a>. Niskorazinski priručnik za VGA programiranje, optimizacije u x86 asembleru i BSP stabla.
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Binary_space_partitioning" target="_blank" rel="noopener noreferrer">*Binary Space Partitioning*</a>. Opći pregled izgradnje BSP stabala i prostorne podjele.
+
+---
+
+## Tehnički rječnik
+
+| Pojam | Definicija |
+|---|---|
+| **BSP stablo (binarna podjela prostora)** | Unaprijed izračunato binarno stablo koje rekurzivno dijeli 2D kartu duž linija razdvajanja, omogućujući prolazak sprijeda prema natrag bez potrebe za sortiranjem u vremenu izvođenja. |
+| **Podsektor** | Strogo konveksna regija lista u BSP stablu za koju je zajamčeno da ne sadrži unutarnje segmente zidova koji zaklanjaju jedni druge. |
+| **Prekomjerno crtanje (*overdraw*)** | Zapisivanje u piksel zaslona koji kasnije u istom okviru bude prepisan bližom geometrijom. |
+| **Afino preslikavanje tekstura** | Preslikavanje tekstura koje izvodi korekciju perspektive jednom po stupcu ili retku umjesto po pikselu. |
+| **Aritmetika fiksne točke (16.16)** | 32-bitna cjelobrojna reprezentacija s 16 bita za cjelobrojni dio i 16 bita za razlomljeni dio, čime se izbjegava potreba za FPU-om. |
+| **FRACUNIT** | Konstanta skaliranja ($2^{16} = 65536$) koja se koristi za pretvorbu između standardnih cijelih brojeva i DOOM-ove reprezentacije u fiksnoj točki 16.16. |
+| **BAM (binarno mjerenje kutova)** | Reprezentacija kutova koja koristi `angle_t` (32-bitni neoznačeni cijeli broj) gdje se $360^\circ$ preslikava na kružno prelijevanje od $2^{32}$, indeksirajući LUT-ove putem `angle >> 19`. |
+| **LUT (tablica pretraživanja)** | Unaprijed izračunato polje vrijednosti (sinus, kosinus, tangens) koje se koristi za zamjenu poziva funkcija u vremenu izvođenja dohvaćanjem iz tablice. |
+| **Način Y (planarni VGA)** | Nelančana (*unchained*) varijanta VGA Načina 13h (320x200, 256 boja) koja izlaže 256 KB VRAM-a za hardversko prebacivanje stranica (*page flipping*) s trostrukim međuspremnikom i brza blokovska pisanja. |
+| **2.5D** | Model renderiranja u kojem se geometrija okomito istiskuje iz 2D tlocrta, onemogućujući prave slagane 3D volumene. |

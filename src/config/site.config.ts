@@ -24,6 +24,10 @@ export interface SiteConfig {
     google?: string;
     bing?: string;
   };
+  twitter?: {
+    site?: string;
+    creator?: string;
+  };
   /** Path to author photo (relative to site root, e.g. '/avatar.jpg'). Used in Person schema. */
   authorImage?: string;
   /**

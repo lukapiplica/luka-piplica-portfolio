@@ -1,0 +1,197 @@
+---
+title: "欺骗视觉，节省时钟：DOOM 如何在 33 MHz 频率下模拟 3D 空间"
+description: "深入拆解 John Carmack 在 1993 年编写的 DOOM 渲染引擎：二叉空间分割（BSP）树、从前到后遮挡剔除、定点数运算以及一维列投影技术。"
+publishedAt: "2026-10-07"
+author: "Luka Piplica"
+tags: ["game-engineering", "retro-computing", "graphics-programming", "carmack", "doom", "systems-programming"]
+featured: true
+locale: zh
+image: "../../../assets/blog/doom-3d-engine/featured.webp"
+imageAlt: "DOOM 游戏的第一人称视角，展示了实时伪 3D 列渲染与状态栏 HUD。"
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+当 id Software 于 1993 年 12 月发布《毁灭战士》（*DOOM*）时，其最低系统配置要求为 Intel 386 处理器。但实际上，该引擎是围绕特定的硬件限制构建的：一台主频 33 MHz 且无硬件浮点运算单元（FPU）的 Intel 486SX，以每秒 35 个逻辑 Tick 的速度驱动 320x200 的 8 位帧缓冲区。在没有硬件 3D 管线或 GPU 加速的情况下，几何变换、可见性查询和像素绘制完全作为通用 32 位整数指令执行。
+
+为了适应这一性能预算，John Carmack 放弃了标准的 3D 管线。通过将几何形状限制为垂直墙壁和平行平面，他将 3D 投影巧妙地转变为一维列缩放与预计算二维空间查找的结合。
+
+## 1. 1993 年的硬件瓶颈
+
+传统的 3D 图形管线使用 4x4 矩阵变换顶点、对几何体进行深度排序，并在任意多边形上插值透视正确的纹理——这些操作极度依赖快速的浮点乘加指令。
+
+| 硬件限制 | 1993 年典型目标硬件 | 对渲染架构的影响 |
+|---|---|---|
+| **CPU** | 主频 25–33 MHz 的 Intel 386 DX 或 486SX | 浮点运算需要通过软件模拟中断来完成 |
+| **目标性能预算** | 每秒 35 个逻辑 Tick（70 Hz CRT 显示器刷新率的一半） | 每帧总计约 28.5 毫秒，需分配给渲染、AI、移动和音频 |
+| **显示模式** | VGA Mode Y（未链化 320x200，8 位索引色） | 提供 256 KB 显存用于硬件页翻转 |
+| **总线带宽** | ISA 总线访问速度 | 直接写入显存极为缓慢；过度绘制（Overdraw）会严重降低内存吞吐量 |
+
+<Alert variant="info">
+**实际运行中的 FPU 限制：** 486DX2-66 能够轻松处理基础几何体，但在 linedef（线段）数量较多的开放房间中，帧率仍会跌至 20 FPS 以下。该引擎架构专为在纯整数硬件上可靠运行而设计。
+</Alert>
+
+<br/>
+
+Carmack 没有在运行时计算通用矩阵变换，而是将空间计算移到了预编译步骤中，从而将运行时工作简化为整数表查找和数组扫描。
+
+## 2. 从网格到任意几何体
+
+id Software 之前的作品《德军总部 3D》（*Wolfenstein 3D*，1992）通过将所有墙壁映射到严格的 2D 网格中来简化可见性计算。渲染器针对每个屏幕列发射一条光线，在网格单元中逐格推进，直到击中实体墙块，然后绘制一张按距离缩放的垂直纹理切片。
+
+《DOOM》保留了基于列的渲染方式，但用**扇区（Sectors）**替换了均匀网格：即由被称为 **linedefs（线段）** 的 2D 线段所包围的任意多边形区域。每个扇区独立定义了自己的地板高度、天花板高度、平面纹理和光照强度。扇区可以是非凸多边形、不连续的，或者与高度不同的扇区相邻，从而实现了台阶、凸缘和开放坑洞。
+
+这种架构被归类为 **2.5D**：地板和天花板严格为水平平面，墙壁是垂直挤出面，且两个扇区无法在相同的 2D 水平坐标下重叠于不同高度。
+
+![Wolfenstein 3D 网格光线投射与 DOOM 带有角度的非网格关卡几何体对比图](../../../assets/blog/doom-3d-engine/1.webp)
+图 1：《Wolfenstein 3D》将几何体映射到固定网格单元中。DOOM 的扇区模型虽然引入了复杂的可见性难题，但支持任意墙体角度和可变扇区高度。
+
+没有了均匀网格，简单的光线投射变得极其低效。如果在每帧中将每条 linedef 与 320 个屏幕列进行检测，这远远超出了 33 MHz 的指令预算，因此必须在离线阶段进行可见性排序。
+
+## 3. 二叉空间分割（BSP）树
+
+DOOM 在地图编译期间，通过名为节点构建器（Node builder）的工具构建**二叉空间分割（BSP）树**来解决可见性排序问题。
+
+### 预计算：将地图切割为凸多边形子扇区
+
+节点构建器沿着分割线递归分割 2D 地图，将墙体线段相对于每次分割归类为“前景（front）”和“背景（back）”子集。分割持续进行，直到叶节点形成**子扇区（Subsectors）**：即严格的凸多边形，其中包含的墙体线段在该子扇区内的任何摄像机位置下都不会互相遮挡。
+
+判断一个点位于分割线的哪一侧使用的是隐式 2D 直线方程，通过直线向量与摄像机偏移量之间的叉乘来实现：
+
+$$
+\text{cross} = (x - x_1) \cdot dy - (y - y_1) \cdot dx
+$$
+
+每个内部节点都存储了其分割线和子节点包围盒（bounding boxes），允许运行时引擎使用整数叉乘运算来评估空间位置。
+
+![DOOM BSP 树二叉空间分割 2D 地图示意图 id Software](../../../assets/blog/doom-3d-engine/2.webp)
+图 2：分割为子扇区的 2D 地图。生成的二叉树允许相对于摄像机坐标进行从前向后的遍历。
+
+### 运行时遍历：从前到后的顺序
+
+在渲染过程中，引擎从根节点开始遍历 BSP 树。在每个内部节点上，它通过评估 `cross` 的正负号来确定哪个子节点包含摄像机。渲染器会首先递归进入**近侧（near）**子节点，然后再检查**远侧（far）**子节点。
+
+由于分割线是相对于观察者划分空间的，因此以“近子节点优先”的方式遍历树可以按严格的从前到后顺序输出子扇区，而无需在运行时对几何体进行排序。
+
+## 4. 从前到后遮挡剔除与过度绘制（Overdraw）的消除
+
+从前到后的遍历方式允许渲染器跟踪屏幕覆盖范围，并在绘制像素之前裁剪掉被遮挡的几何体。
+
+对于 320 个屏幕列中的每一列，引擎都维护着两个边界数组：`ceilingclip` 和 `floorclip`（定义于 `r_segs.c` 中）。在绘制墙体线段时，光栅化被严格限制在 `ceilingclip[x]` 与 `floorclip[x]` 之间尚未被写入的垂直跨度内。一旦渲染完一段线段，边界就会向内收缩。当 `ceilingclip[x] >= floorclip[x]` 时，表明第 `x` 列已被完全覆盖。
+
+跨列范围的水平裁剪则是通过实体区间数组（`solidsegs`）来跟踪的。在绘制墙体线段或进一步深入遍历远端 BSP 分支之前，引擎会将该线段在屏幕空间中的包围盒与 `solidsegs` 进行对比。如果该范围已被完全覆盖，则直接跳过该子树。
+
+![屏幕列遮挡裁剪可视化 顶部 底部 裁剪窗口 渲染](../../../assets/blog/doom-3d-engine/3.webp)
+图 3：当墙体线段从前到后绘制时，逐列裁剪数组会逐渐收窄。当某列的跨度关闭时，其后方的远端几何体将被跳过。
+
+<Alert variant="warning">
+**系统 RAM 缓冲：** DOOM 不会通过缓慢的 ISA 总线直接将像素光栅化到 VRAM 列中。纹理像素（Texels）会先写入连续的系统 RAM 缓冲区（`screens[0]`），然后在 `I_FinishUpdate` 期间通过单次块传输复制到 VGA 显存中。从前向后的裁剪极大地减少了 CPU 内存写入和高速缓存行（Cache line）失效。
+</Alert>
+
+## 5. 通过垂直列投影实现仿射纹理映射
+
+由于墙体严格垂直，因此对于任意单个屏幕列，垂直深度 $Z$ 都保持一致。透视纠正从逐像素运算简化为每列仅需执行一次除法。
+
+将世界坐标映射到屏幕空间的垂直缩放因子 $S$ 计算公式为：
+
+$$
+S = \frac{d}{Z}
+$$
+
+其中 $d$ 为投影平面距离，$Z$ 为沿列光线的垂直距离。一旦计算出 $S$，沿该列的纹理映射就简化为了线性插值：
+
+![DOOM 垂直墙体列纹理映射透视投影示意图](../../../assets/blog/doom-3d-engine/4.webp)
+图 4：垂直墙体对齐意味着透视缩放比例 $S = d/Z$ 在每个屏幕列上仅需评估一次。列填充过程表现为仿射缩放循环。
+
+透视除法每帧仅需运行 320 次，而非 64,000 次（$320 \times 200$）。地板和天花板表面（**visplanes**）使用等效的水平处理方法，在深度 $Z$ 保持不变的屏幕行上绘制水平跨度（Spans）。
+
+## 6. 定点数算术与三角函数查找表
+
+坐标、缩放因子和光线方向均使用 **16.16 定点数**表示：即 32 位有符号整数，其中高 16 位存储整数部分，低 16 位存储小数部分，并按 `FRACUNIT`（$2^{16} = 65536$）进行缩放。整数转换通过位移（$X \ll 16$）完成。
+
+$$
+\text{value}_{\text{real}} \approx \frac{\text{raw}_{\text{int32}}}{2^{16}}
+$$
+
+加法和减法按标准整数指令执行。乘法使用 x86 的 `imul` 指令，在 `EDX:EAX` 中生成 64 位结果，然后在 `FixedMul` 内部通过右移 16 位（`shrd`）来防止寄存器溢出：
+
+<Alert variant="warning">
+**定点数乘法：** 直接使用 32 位乘法将两个 16.16 定点数相乘会立即导致溢出。引擎使用内联 x86 汇编来执行 64 位扩宽乘法及移位序列。
+</Alert>
+
+<br/>
+
+角度使用**二进制角度测量（BAM）**，存储为 32 位无符号整数（`angle_t`），其中 $360^\circ$ 映射到 $2^{32}$。三角函数通过将 BAM 角度右移 19 位（`angle >> 19`）来索引预计算的查找表（包含 8192 个条目的 `finesine[]`）。
+
+![16.16 定点数字格式 位布局 整数 小数 示意图](../../../assets/blog/doom-3d-engine/5.webp)
+图 5：16.16 定点数的位布局。BAM 角度映射到 32 位整数值，并通过 `angle >> 19` 索引查找表。
+
+以下代码基于 `r_bsp.c` 展示了 BSP 树遍历、侧向判定和包围盒检查：
+
+export const cCodeSnippet = `// 基于 r_bsp.c 的核心 BSP 遍历逻辑（id Software，1993 年）。
+
+#define NF_SUBSECTOR 0x8000  // 第 15 位标记叶节点（子扇区）索引
+
+void R_RenderBSPNode(int bspnum)
+{
+    node_t *bsp;
+    int     side;
+
+    // 到达叶节点：节点索引指向一个子扇区。
+    if (bspnum & NF_SUBSECTOR)
+    {
+        if (bspnum == -1)
+            R_Subsector(0);
+        else
+            R_Subsector(bspnum & (~NF_SUBSECTOR));
+        return;
+    }
+
+    bsp = &nodes[bspnum];
+
+    // 确定摄像机相对于分割线的位置侧
+    side = R_PointOnSide(viewx, viewy, bsp);
+
+    // 优先处理近侧子树，以实现从前到后的绘制顺序
+    R_RenderBSPNode(bsp->children[side]);
+
+    // 根据已累积的实体区间测试远侧子树包围盒
+    if (R_CheckBBox(bsp->bbox[side ^ 1]))
+        R_RenderBSPNode(bsp->children[side ^ 1]);
+}
+`;
+
+<CodeBlock code={cCodeSnippet} filename="r_bsp.c" showLineNumbers={true} />
+
+## 7. 系统架构影响
+
+《DOOM》的渲染管线展示了算法限制如何适应 CPU 瓶颈。通过将 3D 可见性简化为 2D 空间树，通过 1D 垂直缩放映射 2D 纹理，并使用 16.16 定点数算术，该引擎在标准的 386 和 486 硬件上实现了实时伪 3D 图形。
+
+这些优化为未来的引擎架构奠定了基础。像 BSP 树和 PVS（潜在可见集，Potentially Visible Sets）这样的空间分割结构成为了 20 世纪 90 年代 3D 引擎的核心组件，而早期的跨度裁剪（Span clipping）所确立的概念，最终演变为了现代 GPU 中的硬件遮挡查询和 Early-Z 剔除技术。
+
+---
+
+## 参考资料与延伸阅读
+
+* **Sanglard, F.** <a href="https://fabiensanglard.net/gebbdoom/" target="_blank" rel="noopener noreferrer">*Game Engine Black Book: DOOM*</a>。1993 年 DOOM 引擎架构、定点数算术及 VGA 硬件管线的技术拆解。
+* **id Software.** <a href="https://github.com/id-Software/DOOM" target="_blank" rel="noopener noreferrer">*DOOM Source Code Release*</a>。GitHub。1997 年原始 GPL 源代码发布，包含 `r_bsp.c`、`r_segs.c` 和 `tables.c`。
+* **Abrash, M.** <a href="https://github.com/jagregory/abrash-black-book" target="_blank" rel="noopener noreferrer">*Michael Abrash's Graphics Programming Black Book*</a>。关于 VGA 编程、x86 汇编优化和 BSP 树的底层参考资料。
+* **Wikipedia.** <a href="https://en.wikipedia.org/wiki/Binary_space_partitioning" target="_blank" rel="noopener noreferrer">*Binary Space Partitioning*</a>。关于 BSP 树构建和空间分割的基础背景知识。
+
+---
+
+## 技术术语表
+
+| 术语 | 定义 |
+|---|---|
+| **BSP 树（二叉空间分割）** | 一种预先计算的二叉树，沿着分割线递归分割 2D 地图，从而实现无需运行时排序的从前到后遍历。 |
+| **子扇区（Subsector）** | BSP 树中严格为凸多边形的叶节点区域，保证其内部不包含相互遮挡的墙体线段。 |
+| **过度绘制（Overdraw）** | 写入某个屏幕像素后，在同一帧内又被更近的几何体覆盖的过程。 |
+| **仿射纹理映射（Affine Texture Mapping）** | 一种按列或按行（而非逐像素）执行透视纠正的纹理映射技术。 |
+| **定点数算术（16.16）** | 一种 32 位整数表示法，高 16 位存储整数部分，低 16 位存储小数部分，从而避免对 FPU 的依赖。 |
+| **FRACUNIT** | 用于在标准整数与 DOOM 的 16.16 定点数表示法之间进行转换的缩放常量（$2^{16} = 65536$）。 |
+| **BAM（二进制角度测量）** | 一种使用 `angle_t`（32 位无符号整数）的角度表示法，其中 $360^\circ$ 映射到 $2^{32}$ 并循环回绕，通过 `angle >> 19` 索引查找表（LUT）。 |
+| **LUT（查找表）** | 预先计算的数值数组（正弦、余弦、正切），用于通过查表操作替换运行时的函数调用。 |
+| **Mode Y（平面 VGA）** | VGA Mode 13h（320x200，256 色）的一种未链化变体，可访问 256 KB 显存用于硬件三重缓冲页翻转及快速块写入。 |
+| **2.5D** | 一种从 2D 平面图垂直挤出几何体的渲染模型，不允许真正的上下重叠 3D 体积。 |
