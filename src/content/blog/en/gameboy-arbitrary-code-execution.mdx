@@ -1,0 +1,175 @@
+---
+title: "Hacking Through Inventory: How Game Boy Executed Arbitrary Code (ACE)"
+description: "A low-level security teardown of memory corruption, out-of-bounds array reads, Program Counter hijacking, and SM83 opcode execution via Pokémon Red/Blue item quantities."
+publishedAt: "2026-11-06"
+author: "Luka Piplica"
+tags: ["reverse-engineering", "game-boy", "memory-corruption", "assembly", "security-research", "retro-computing"]
+featured: true
+locale: en
+image: "../../../assets/blog/gameboy-ace/featured.webp"
+imageAlt: "Isometric 3D vector illustration of a classic grey Game Boy console featuring a glowing yellow-green pixel matrix screen."
+---
+
+import { Alert } from '@/components/ui/feedback/Alert';
+import CodeBlock from '../../../components/ui/content/CodeBlock/CodeBlock.astro';
+
+In most software, a crash is where the story ends. In *Pokémon Red* and *Pokémon Blue* (1996), a specific class of crash is where the story begins. Players discovered that the game's unchecked inventory array could be walked past its boundary, that the bytes sitting beyond it could be read and written like ordinary items, and that — with the right sequence of glitch items — the Sharp SM83 CPU could be made to treat player-controlled data as instructions.
+
+This is not a metaphorical "glitch." It is memory corruption in the strict sense: an out-of-bounds array access that eventually redirects the Program Counter (PC) into attacker-controlled RAM. The same bug class shows up in buffer overflows on x86 and ARM targets decades later. The Game Boy version is just small enough, and documented thoroughly enough by the speedrunning and reverse-engineering community, to trace from the first corrupted byte to full code execution.
+
+## 1. The Game Boy Hardware Constraints & Memory Map
+
+The Game Boy's logic board is built around the **Sharp SM83**, a custom core blending the Intel 8080 instruction set with a subset of Zilog Z80 extensions, clocked at approximately 4.194304 MHz. It exposes an 8-bit data bus and a 16-bit address bus, giving the CPU a flat 64 KB address space ($0000-$FFFF) with no memory protection, no privilege rings, and no execute-permission bits. Any byte the CPU can read, it can also be made to execute, provided the Program Counter can be steered there.
+
+| Address Range | Region | Notes |
+|---|---|---|
+| `$0000-$3FFF` | ROM Bank 0 | Fixed cartridge bank |
+| `$4000-$7FFF` | ROM Bank N | Switchable via MBC |
+| `$8000-$9FFF` | VRAM | Tile and map data |
+| `$A000-$BFFF` | External RAM (SRAM) | Battery-backed save data |
+| `$C000-$DFFF` | Work RAM (WRAM) | 8 KiB general-purpose RAM; player, party, and item state live here |
+| `$E000-$FDFF` | Echo RAM | Mirrors `$C000-$DDFF`; only the low 13 address bits are wired |
+| `$FE00-$FE9F` | OAM | Sprite attribute table |
+| `$FF00-$FF7F` | I/O Registers | Memory-mapped hardware (joypad, audio, PPU, timers) |
+| `$FF80-$FFFE` | High RAM (HRAM) | 127 bytes of fast RAM, the only safe scratch space during DMA |
+| `$FFFF` | IE Register | Interrupt enable flags |
+
+<Alert variant="info">
+**No memory protection by design:** the SM83 has no MMU, no DEP-equivalent, and no bounds checking in hardware. Every safety property the game exhibits is a property of the game's own code, not the chip underneath it. If the inventory routine forgets to check an index, nothing beneath it will catch the mistake.
+</Alert>
+
+![Game Boy SM83 CPU and WRAM memory map diagram showing ROM, VRAM, WRAM, OAM, and HRAM regions](../../../assets/blog/gameboy-ace/1.webp)
+*Figure 1: The Game Boy's 16-bit address space. WRAM (`$C000-$DFFF`) holds all mutable player state — including the item bag — in a single undifferentiated block with no per-structure isolation.*
+
+Player-facing state — party Pokémon, Pokédex flags, map coordinates, and the item bag — is packed sequentially into WRAM starting near `$D163`. Nothing separates one structure from the next except the discipline of the code that reads and writes them.
+
+## 2. Inventory Mechanics & Array Boundary Violations
+
+The item bag occupies a fixed-size block of WRAM beginning at `$D31D`. The layout is a flat, length-prefixed array:
+
+- `$D31D` — total item count (1 byte)
+- `$D31E`, `$D31F` — item slot 1: `[Item ID, Quantity]`
+- `$D320`, `$D321` — item slot 2
+- … twenty slots in total, ending at `$D344`/`$D345`
+- `$D346` — list terminator, expected to hold `$FF`
+
+Twenty slots is the limit the *menu* enforces — not a limit the underlying array logic enforces. The count byte at `$D31D` is what the cursor and scroll routines actually trust when deciding how far to iterate. If that byte can be made larger than 20 without a matching, correctly bounded array, every routine that walks the bag will read and write past `$D346` and keep going.
+
+This is achievable through the **255-stack item duplication glitch**: by exploiting a flaw in how the game processes a specific sequence of Bag/Toss/swap inputs around an item stacked at 255 units, the player can cause the topmost "item" in the bag to become the menu's own Cancel entry, and the total-item-count byte at `$D31D` to underflow toward `255`. The game now believes the bag holds 255 entries. Scrolling past slot 20 does not stop; it walks directly into whatever bytes happen to sit after `$D346` in WRAM, displaying them as item names and treating them as swappable, tossable, arbitrary bag entries.
+
+<Alert variant="warning">
+**This is an index validation failure, not a buffer overflow in the classical sense:** no write occurs outside the array purely by having too many items. The corruption is that the *bound itself* — the count byte — is attacker-controlled and unchecked against the fixed 20-slot allocation, so every subsequent array access computed from it lands outside the structure's intended extent.
+</Alert>
+
+![Diagram of the item bag array underflowing its 20-slot boundary into adjacent WRAM structures](../../../assets/blog/gameboy-ace/2.webp)
+*Figure 2: Once the item-count byte exceeds the 20-slot allocation, the bag's scroll and swap routines index directly into player money, map data, and beyond — all addressable as fake "items."*
+
+
+## 3. Out-of-Bounds Memory Corruption
+
+Because WRAM has no structure boundaries at the hardware level, the bytes immediately following the item bag are simply the next fields the developers happened to place there. In the English releases, the layout continues:
+
+| Address | Structure | Exposed As (Fake) Item Slot |
+|---|---|---|
+| `$D346` | Expected bag terminator (`$FF`) | Slot 21 ID |
+| `$D347-$D349` | Player's money (3 bytes, BCD-encoded) | Slots 21-22 |
+| `$D34B` onward | Casino coin case, badges, letter/name buffers | Slots 23+ |
+| further in WRAM | Current map ID, player X/Y coordinates, warp tables, background tile index | Deeper slots |
+| further still | Sprite/audio state, wild encounter buffers | Deeper slots |
+
+Because the expanded bag exposes these fields as ordinary `[ID, Quantity]` pairs, the player can "toss" or "swap" them the same way they would a Potion — which, applied to the money bytes, directly edits currency, and applied to the map-coordinate bytes, can teleport the player or warp them straight to the Hall of Fame sequence. This is already a severe capability: near-arbitrary **read and write access to WRAM**, achieved entirely through menu input. The Pokémon community refers to this specific capability as **item underflow** — distinct from, and a prerequisite to, true code execution.
+
+<Alert variant="warning">
+**Read/write access is not yet code execution.** Corrupting the money or coordinate bytes changes *data* the game later interprets as data. It does not cause the SM83 to fetch and execute any of those bytes as instructions. That requires a second, separate failure: a pointer the game itself dereferences as a jump target.
+</Alert>
+
+![Flowchart contrasting item underflow memory read/write capability with true code execution requiring a hijacked jump pointer](../../../assets/blog/gameboy-ace/3.webp)
+*Figure 3: Item underflow grants arbitrary memory read/write. A separate vulnerability — a corruptible effect pointer — is required to escalate that capability into instruction execution.*
+
+
+## 4. Hijacking the Program Counter (PC)
+
+Generation I's item-use routine does not call a single generic handler for every item. Each item index carries an **effect pointer** — a 16-bit address the engine jumps to when that item is used, so that a Potion, a Poké Ball, and a TM can each run different code. Ordinary items point into ROM, where only legitimate item-effect routines live. But the item table is itself just data, indexed by a single byte, and the **expanded item pack** described above lets the player create items whose index numbers were never meant to be reachable — "glitch items."
+
+A handful of these glitch items have effect pointers that resolve into *writable WRAM* rather than ROM. The best known in the English releases is item index `0x5D`, nicknamed **"8F"** after its corrupted on-screen name. Its effect pointer targets `$D163` — the start of the player's **party Pokémon data**. Using "8F" from the bag does not run a Potion-style animation; it causes the SM83 to fetch its next instruction from `$D163` and execute whatever bytes are sitting there, because the game's own code just performed `JP $D163` (or equivalent) without validating that the target was ROM.
+
+From that moment, party Pokémon data — species IDs, stat bytes, EVs, move slots, even nicknames stored nearby — is being read as a stream of SM83 opcodes. A TAS runner or researcher who can control those bytes (by catching or trading for specific Pokémon, assigning specific stat experience values, or renaming a Pokémon to a chosen byte string) controls the instruction stream the CPU executes next.
+
+<Alert variant="info">
+**Why nicknames matter:** Pokémon nicknames are stored as raw bytes with no further validation once saved, and the name-entry screen lets the player choose almost any byte value through specific input tricks. A nickname is, functionally, a small writable code cave the player can place next to the party structure's corrupted entry point.
+</Alert>
+
+![Flowchart showing a glitch item's effect pointer redirecting SM83 execution from ROM into party Pokémon data in WRAM](../../../assets/blog/gameboy-ace/4.webp)
+*Figure 4: Using the "8F" glitch item dereferences an effect pointer that was never audited against the assumption that effect pointers always target ROM, redirecting the Program Counter into writable party data.*
+
+
+## 5. Assembly Code Snippet & Breakdown
+
+Once execution lands in party data, the bytes there must double as valid SM83 opcodes to do anything useful. A minimal bootstrap typically aims to re-point execution somewhere larger and easier to control — such as the item bag itself, which the player can freely rewrite slot by slot — before running a real payload. The snippet below sketches that bootstrap shape: a short sequence placed in the first controllable bytes of the party structure, which loads a value into the accumulator and then performs an unconditional jump into the item-pack region where a longer payload has been staged as item ID/quantity pairs.
+
+export const z80CodeSnippet = `; ace_bootstrap.asm
+; Minimal bootstrap executed after PC lands at $D163
+; via the "8F" glitch item's corrupted effect pointer.
+; Encoded as party-data bytes (species/stat fields double as opcodes).
+
+        ; Entry point: $D163 (wPartyCount - execution glides straight into species/stat bytes)
+        LD   A, $00        ; 3E 00  -- opcode 0x3E = LD A, n (8080/Z80/SM83)
+        NOP                ; 00     -- padding to keep later fields aligned
+        NOP                ; 00
+        NOP                ; 00
+
+        ; Redirect execution into the item bag ($D31E), which the
+        ; player can rewrite freely through ordinary menu input --
+        ; turning the bag into a staging area for the real payload.
+        JP   $D31E         ; C3 1E D3  -- opcode 0xC3 = JP nn
+
+; --- Payload staged as inventory [Item ID, Quantity] pairs ---
+; Each pair below is read as two raw bytes once execution
+; reaches $D31E, so item selections double as an opcode stream.
+;
+;   Slot   Bytes     Decoded
+;   1      3E 05     LD A, $05
+;   2      47 00     LD B, A ; NOP (padding)
+;   3      C9 00     RET     ; NOP (padding)
+`;
+
+<CodeBlock code={z80CodeSnippet} filename="ace_bootstrap.asm" showLineNumbers={true} />
+
+<br/>
+
+The relevant encoding detail is that `0x3E` is the SM83's `LD A, n` opcode — load an immediate byte into the accumulator — inherited unchanged from the Intel 8080. An item's index byte and its quantity byte, which the player sets by walking up to and selecting a specific stack size in the menu, are indistinguishable at the hardware level from a two-byte `LD A, n` instruction once the Program Counter is pointed at them. The exploit's elegance is that *no cheat device or external tool writes to WRAM* — every byte of the payload is placed there through completely ordinary, if exhaustively precise, game input.
+
+## 6. System Architecture Impact
+
+The Generation I item-underflow-to-ACE chain is a textbook illustration of three separate failures compounding into full code execution: an unchecked length field driving an array walk past its allocation, a data/control-flow boundary that treats attacker-writable RAM as a legitimate jump target, and an instruction set permissive enough that ordinary game data is syntactically valid machine code. None of these failures are exotic — they are the same root causes behind decades of native buffer-overflow CVEs on far larger systems. The Game Boy simply has no DEP, no ASLR, no stack canaries, and no privilege separation to get in the way, so the entire chain is visible end-to-end with nothing but a disassembly and a save state.
+
+The broader lesson generalizes past 1996 hardware: any system where a length or count value is trusted without validation against the memory actually allocated for it is one input sequence away from exposing adjacent structures as attacker-controlled data — and, if any of those adjacent structures are ever dereferenced as code or pointers, away from full execution control.
+
+---
+
+## References & Further Reading
+
+* **gbdev.io.** <a href="https://gbdev.io/pandocs/Memory_Map.html" target="_blank" rel="noopener noreferrer">*Pan Docs — Memory Map*</a>. Canonical technical reference for the Game Boy's address space layout.
+* **Bulbapedia.** <a href="https://bulbapedia.bulbagarden.net/wiki/Item_underflow" target="_blank" rel="noopener noreferrer">*Item Underflow*</a>. Mechanics of the 255-stack duplication glitch and expanded bag access.
+* **Glitch City Wiki.** <a href="https://glitchcity.wiki/wiki/Arbitrary_code_execution" target="_blank" rel="noopener noreferrer">*Arbitrary Code Execution*</a>. Catalog of known Generation I ACE-capable glitch items and their effect pointers.
+* **Glitch City Wiki.** <a href="https://glitchcity.wiki/wiki/Expanded_item_pack" target="_blank" rel="noopener noreferrer">*Expanded Item Pack*</a>. Technical detail on out-of-bounds bag slot addressing and the underflow equation.
+* **Data Crystal / TCRF.** <a href="https://datacrystal.tcrf.net/wiki/Pok%C3%A9mon_Red_and_Blue/RAM_map" target="_blank" rel="noopener noreferrer">*Pokémon Red and Blue — RAM Map*</a>. Full WRAM address listing including item bag offsets.
+* **pret.** <a href="https://github.com/pret/pokered" target="_blank" rel="noopener noreferrer">*pokered Disassembly*</a>. Complete labeled disassembly of the original Pokémon Red/Blue source.
+* **Aguilar, V.** <a href="https://vaguilar.com/2015/05/26/arbitrary-code-execution-in-pokemon-red/" target="_blank" rel="noopener noreferrer">*Arbitrary Code Execution in Pokémon Red*</a>. Independent writeup of a related party-data buffer overflow via nickname injection.
+
+---
+
+## Technical Glossary
+
+| Term | Definition |
+|---|---|
+| **Arbitrary Code Execution (ACE)** | The ability to redirect a program's Program Counter to attacker-controlled data and have it execute as instructions. |
+| **Program Counter (PC)** | The CPU register holding the address of the next instruction to fetch and execute. |
+| **Sharp SM83** | The Game Boy's custom CPU core, combining Intel 8080 and Zilog Z80 instruction subsets, clocked at ~4.19 MHz. |
+| **WRAM (Work RAM)** | The Game Boy's 8 KiB general-purpose RAM region (`$C000-$DFFF`), holding all mutable game and player state. |
+| **Effect Pointer** | A per-item 16-bit address the item-use routine jumps to; normally targets ROM-resident item-effect code. |
+| **Item Underflow** | A Generation I glitch granting near-arbitrary read/write access to WRAM by corrupting the bag's item-count byte beyond its 20-slot allocation. |
+| **Glitch Item** | An item with an index number outside the game's intended valid range, reachable only through memory corruption, often with an effect pointer into RAM. |
+| **Opcode** | The byte value identifying a specific CPU instruction; on the SM83, `0x3E` encodes `LD A, n`. |
+| **Stack Overwrite** | Corruption of return-address or local-variable data on the call stack, used elsewhere in Generation I ACE chains involving crafted party data. |
+| **Bounds Checking** | Validating an index or length against the actual size of allocated memory before using it to compute an address — the control missing throughout this exploit chain. |
